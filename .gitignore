@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Secrets — never commit real credentials
+.env
+.env.local
+.env.*.local
+
+# Legacy SQLite database; the app now uses Postgres
+data/
+
+# Personal documents that live in this folder but are not part of the project
+reference-letter/
+
+# Build & platform output
+.vercel/
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

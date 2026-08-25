@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — TableBook Admin</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2318181b'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='%23f4f4f5' font-family='sans-serif' font-weight='bold'>T</text></svg>">
+</head>
+<body>
+  <div class="admin-layout">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar" id="admin-sidebar">
+      <a href="/admin/dashboard.html" class="sidebar-brand">
+        TableBook
+      </a>
+
+      <ul class="sidebar-nav">
+        <li><a href="/admin/dashboard.html" class="active">Dashboard</a></li>
+        <li><a href="/admin/events.html">Exhibitions</a></li>
+        <li><a href="/admin/bookings.html">Reservations</a></li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="user-avatar" id="user-avatar">A</div>
+          <div class="user-info">
+            <div class="user-name" id="user-name">Admin</div>
+            <div class="user-role">Administrator</div>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="logout()" id="logout-btn">Log Out</button>
+        <a href="/" class="btn btn-secondary btn-sm" style="width: 100%; margin-top: var(--space-xs); text-align: center;">View Website</a>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+      <div class="admin-page-header">
+        <h1>Overview</h1>
+        <div class="header-actions">
+          <a href="/admin/events.html" class="btn btn-primary">+ New Event</a>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-active-events">—</div>
+          <div class="stat-label">Active Events</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-total-bookings">—</div>
+          <div class="stat-label">Total Reservations</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-pending">—</div>
+          <div class="stat-label">Pending Approval</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-revenue">—</div>
+          <div class="stat-label">Estimated Revenue</div>
+        </div>
+      </div>
+
+      <!-- Recent Bookings -->
+      <div class="data-table-wrapper">
+        <div class="data-table-header">
+          <h3>Recent Reservations</h3>
+          <a href="/admin/bookings.html" class="btn btn-secondary btn-sm">View All &rarr;</a>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Reference</th>
+              <th>Exhibitor</th>
+              <th>Table</th>
+              <th>Event</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="recent-bookings-table">
+            <tr><td colspan="6" class="text-center text-muted" style="padding: var(--space-xl);">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/admin/auth.js"></script>
+  <script src="/js/admin/dashboard.js"></script>
+</body>
+</html>

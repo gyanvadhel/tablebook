@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TableBook — Visual Exhibition Table Booking</title>
+  <meta name="description" content="Select and book exhibition stall tables visually with an interactive hall layout map.">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2318181b'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='%23f4f4f5' font-family='sans-serif' font-weight='bold'>T</text></svg>">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <div class="container">
+      <a href="/" class="navbar-brand">
+        TableBook
+        <span class="brand-tag">Exhibition Portal</span>
+      </a>
+      <ul class="navbar-links">
+        <li><a href="#events">Exhibitions</a></li>
+        <li><a href="tel:+919099977119" style="color: var(--text-primary); font-weight: 600;">Queries: +91 9099977119</a></li>
+        <li><a href="/admin/login.html" class="btn btn-secondary btn-sm">Admin Access</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero" id="hero" style="padding-bottom: 40px; border-bottom: none;">
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span class="status-dot"></span>
+          Live Floor Plan Reservations
+        </div>
+        <h1>Book Your Stall on the Floor Plan</h1>
+        <p>
+          Select an exhibition below to inspect exact hall dimensions, pick your preferred table position, and confirm your stall reservation instantly.
+        </p>
+        <p style="font-size: 0.875rem; color: var(--text-muted); margin-top: -8px;">
+          Have questions or custom requirements? Call us directly: <a href="tel:+919099977119" style="color: var(--text-primary); font-weight: 600; text-decoration: underline;">+91 9099977119</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Exhibitions Section (On Top) -->
+  <section class="events-section section" id="events" style="padding-top: var(--space-md);">
+    <div class="container">
+      <div class="section-header" style="margin-bottom: var(--space-lg);">
+        <h2>Active Exhibitions</h2>
+        <p>Click an exhibition to open the interactive floor map and select your stall</p>
+      </div>
+      <div class="events-grid" id="events-grid">
+        <div class="loader" id="events-loader">
+          <div class="spinner"></div>
+        </div>
+      </div>
+      <div class="empty-state hidden" id="events-empty">
+        <h3>No Active Exhibitions</h3>
+        <p>There are currently no active events accepting stall bookings.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-md);">
+      <p>&copy; 2026 TableBook. All rights reserved.</p>
+      <p>For Queries: <a href="tel:+919099977119" style="color: var(--text-primary); font-weight: 500;">+91 9099977119</a></p>
+    </div>
+  </footer>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

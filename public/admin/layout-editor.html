@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Floor Plan Editor — TableBook Admin</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <link rel="stylesheet" href="/css/hall-map.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2318181b'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='%23f4f4f5' font-family='sans-serif' font-weight='bold'>T</text></svg>">
+</head>
+<body>
+  <div class="admin-layout">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar" id="admin-sidebar">
+      <a href="/admin/dashboard.html" class="sidebar-brand">
+        TableBook
+      </a>
+      <ul class="sidebar-nav">
+        <li><a href="/admin/dashboard.html">Dashboard</a></li>
+        <li><a href="/admin/events.html" class="active">Exhibitions</a></li>
+        <li><a href="/admin/bookings.html">Reservations</a></li>
+      </ul>
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="user-avatar" id="user-avatar">A</div>
+          <div class="user-info">
+            <div class="user-name" id="user-name">Admin</div>
+            <div class="user-role">Administrator</div>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="logout()">Log Out</button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+      <div class="admin-page-header">
+        <div>
+          <h1 id="editor-title">Floor Plan Editor</h1>
+          <p style="color: var(--text-muted); font-size: 0.85rem;" id="editor-subtitle">Loading layout...</p>
+        </div>
+        <div class="header-actions">
+          <a href="/admin/events.html" class="btn btn-secondary">&larr; Back to Events</a>
+          <button class="btn btn-primary" onclick="layoutEditor.saveLayout()" id="save-layout-btn">Save Floor Plan</button>
+        </div>
+      </div>
+
+      <div class="editor-layout">
+        <!-- Canvas -->
+        <div class="editor-canvas-wrapper">
+          <div class="editor-toolbar">
+            <div class="tool-group">
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; align-self: center; padding-right: 4px;">Add Stall:</span>
+              <button class="tool-btn" onclick="layoutEditor.addTable('rect_short')" title="Standard Short — 3 ft x 4 ft" id="add-short-btn">
+                Short Rect
+              </button>
+              <button class="tool-btn" onclick="layoutEditor.addTable('rect_tall')" title="Standard Tall — 3 ft x 7 ft" id="add-tall-btn">
+                Tall Rect
+              </button>
+              <button class="tool-btn" onclick="layoutEditor.addTable('L-Stall')" title="L-Stall — 6 ft x 5 ft" id="add-l-btn">
+                L-Stall
+              </button>
+            </div>
+            <div class="tool-group">
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; align-self: center; padding-right: 4px;">Snap:</span>
+              <select class="form-select" id="snap-grid-select" onchange="layoutEditor.setSnapGrid(this.value)" style="padding: 2px 6px; font-size: 0.8rem; width: 75px;">
+                <option value="1" selected>1 ft</option>
+                <option value="0.5">6 in</option>
+                <option value="0.25">3 in</option>
+                <option value="0">Off</option>
+              </select>
+              <button class="tool-btn active" id="toggle-guides-btn" onclick="layoutEditor.toggleSmartGuides()" title="Toggle Smart Alignment Guides" style="font-size: 0.78rem;">
+                Guides: ON
+              </button>
+            </div>
+            <div class="tool-group">
+              <button class="tool-btn" onclick="layoutEditor.zoomIn()">+</button>
+              <button class="tool-btn" onclick="layoutEditor.zoomOut()">&minus;</button>
+              <button class="tool-btn" onclick="layoutEditor.resetView()">Fit</button>
+            </div>
+          </div>
+
+          <div class="editor-canvas" id="editor-canvas">
+            <svg id="editor-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+
+            <!-- Floating Action Bar above Selected Table -->
+            <div id="table-floating-actions" class="table-floating-actions hidden">
+              <button type="button" class="floating-btn" onclick="layoutEditor.rotateSelected()" title="Rotate 90° (R)">
+                Rotate 90°
+              </button>
+              <button type="button" class="floating-btn" onclick="layoutEditor.duplicateSelected()" title="Duplicate (Ctrl+D)">
+                Duplicate
+              </button>
+              <button type="button" class="floating-btn btn-danger" onclick="layoutEditor.deleteSelected()" title="Delete (Del)">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="editor-sidebar">
+          <!-- Properties -->
+          <div class="editor-panel" id="properties-panel">
+            <div class="editor-panel-header">
+              <span>Stall Properties</span>
+            </div>
+            <div class="editor-panel-body" id="properties-body">
+              <p class="text-muted" style="font-size: 0.85rem; text-align: center; padding: var(--space-md) 0;">
+                Select a stall on the floor plan to edit its properties.
+              </p>
+            </div>
+          </div>
+
+          <!-- Table List -->
+          <div class="editor-panel" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+            <div class="editor-panel-header">
+              <span>Stalls (<span id="table-count">0</span>)</span>
+            </div>
+            <div class="editor-panel-body" style="flex: 1; overflow-y: auto; max-height: 280px;" id="table-list">
+              <p class="text-muted" style="font-size: 0.85rem; text-align: center;">No stalls placed yet</p>
+            </div>
+          </div>
+
+          <!-- Hotkeys Box -->
+          <div class="editor-panel" style="padding: 10px 14px; background: var(--bg-card);">
+            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Keyboard Shortcuts</div>
+            <div style="font-size: 0.78rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 3px;">
+              <span><strong style="color: var(--text-primary);">G</strong> Move &middot; <strong style="color: var(--text-primary);">R</strong> Rotate 90°</span>
+              <span><strong style="color: var(--text-primary);">Shift+D</strong> Duplicate &middot; <strong style="color: var(--text-primary);">Del</strong> Delete</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="/js/units.js"></script>
+  <script src="/js/admin/auth.js"></script>
+  <script src="/js/admin/layout-editor.js"></script>
+</body>
+</html>

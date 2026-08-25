@@ -1,0 +1,304 @@
+/* ============================================
+   TableBook — Hall Map Styles (Mellow Light Palette)
+   ============================================ */
+
+.hall-map-wrapper {
+  position: relative;
+  width: 100%;
+  background: #f1f3f5;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.hall-map-container {
+  position: relative;
+  width: 100%;
+  height: 600px;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+}
+
+.hall-map-container:active {
+  cursor: grabbing;
+}
+
+.hall-map-container svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Controls */
+.map-controls {
+  position: absolute;
+  bottom: var(--space-md);
+  right: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  z-index: 10;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-card);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.map-controls button {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.map-controls button:last-child {
+  border-bottom: none;
+}
+
+.map-controls button:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* Legend */
+.map-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: 12px var(--space-md);
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.legend-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.legend-color.available { background: var(--status-available); }
+.legend-color.booked { background: var(--status-booked); }
+.legend-color.selected { background: var(--text-primary); }
+.legend-color.blocked { background: var(--border-medium); }
+
+/* SVG Table Styles */
+.table-group {
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.table-shape {
+  stroke-width: 1.5;
+  transition: all var(--transition-fast);
+}
+
+/* Available */
+.table-available .table-shape {
+  fill: #d1fae5;
+  stroke: #059669;
+}
+
+.table-available:hover .table-shape {
+  fill: #a7f3d0;
+  stroke-width: 2;
+}
+
+/* Booked */
+.table-booked .table-shape {
+  fill: #ffe4e6;
+  stroke: #e11d48;
+}
+
+.table-booked {
+  cursor: not-allowed;
+}
+
+/* Selected */
+.table-selected .table-shape {
+  fill: #e2e8f0;
+  stroke: #0f172a;
+  stroke-width: 2.5;
+}
+
+/* Blocked */
+.table-blocked .table-shape {
+  fill: #f1f5f9;
+  stroke: var(--border-medium);
+  stroke-dasharray: 4 3;
+}
+
+.table-blocked {
+  cursor: not-allowed;
+}
+
+/* Table Labels */
+.table-number {
+  fill: #0f172a;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+/* Hall Map Grid Elements */
+.hall-boundary {
+  fill: none;
+  stroke: #94a3b8;
+  stroke-width: 1.5;
+}
+
+.hall-label {
+  fill: #64748b;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  text-anchor: middle;
+  letter-spacing: 1px;
+}
+
+.hall-grid-line {
+  stroke: rgba(0, 0, 0, 0.04);
+  stroke-width: 1;
+}
+
+/* Overall hall width / depth, printed in feet outside the boundary */
+.hall-dimension-label {
+  fill: #94a3b8;
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 500;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+/* 10 ft rule beneath the plan */
+.hall-scale-bar path {
+  stroke: #94a3b8;
+  stroke-width: 1;
+}
+
+.hall-scale-bar text {
+  fill: #94a3b8;
+  font-family: var(--font-body);
+  font-size: 9px;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+/* Tooltip */
+.map-tooltip {
+  position: absolute;
+  padding: 6px 12px;
+  background: #ffffff;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  pointer-events: none;
+  z-index: 100;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.map-tooltip.visible {
+  opacity: 1;
+}
+
+.map-tooltip .tooltip-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.map-tooltip .tooltip-detail {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+/* Stall detail card (used inside modal) */
+.table-detail-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.table-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.table-detail-row .detail-label {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.table-detail-row .detail-value {
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+/* Event Header Page */
+.event-header {
+  padding: 110px 0 var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+}
+
+.event-header .event-title {
+  font-size: 1.8rem;
+  margin-bottom: var(--space-xs);
+}
+
+.event-header .event-meta {
+  display: flex;
+  gap: var(--space-lg);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.map-section {
+  padding: var(--space-xl) 0;
+}
+
+.map-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+
+.map-section-header h2 {
+  font-size: 1.15rem;
+}
+
+@media (max-width: 768px) {
+  .hall-map-container {
+    height: 400px;
+  }
+}

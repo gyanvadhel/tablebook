@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Floor Plan — TableBook</title>
+  <meta name="description" content="Interactive floor plan table reservation.">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/hall-map.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2318181b'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='%23f4f4f5' font-family='sans-serif' font-weight='bold'>T</text></svg>">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <div class="container">
+      <a href="/" class="navbar-brand">
+        TableBook
+        <span class="brand-tag">Floor Plan View</span>
+      </a>
+      <ul class="navbar-links">
+        <li><a href="tel:+919099977119" style="color: var(--text-primary); font-weight: 500;">Queries: +91 9099977119</a></li>
+        <li><a href="/">&larr; Return to Events</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Event Header -->
+  <header class="event-header" id="event-header">
+    <div class="container">
+      <h1 class="event-title" id="event-title">Loading event...</h1>
+      <div class="event-meta" id="event-meta">
+        <span class="event-meta-item" id="event-date">&mdash;</span>
+        <span class="event-meta-item" id="event-venue">&mdash;</span>
+        <span class="event-meta-item" id="event-tables-count">&mdash;</span>
+        <span class="event-meta-item" id="event-hall-size">&mdash;</span>
+      </div>
+      <p class="event-description-text" id="event-description" style="color: var(--text-secondary); margin-top: var(--space-sm); max-width: 700px; font-size: 0.9rem;"></p>
+    </div>
+  </header>
+
+  <!-- Map Section -->
+  <section class="map-section">
+    <div class="container">
+      <div class="map-section-header">
+        <h2>Hall Floor Plan</h2>
+        <div style="display: flex; gap: var(--space-sm);">
+          <span class="badge badge-available" id="available-count">&mdash; Available</span>
+          <span class="badge badge-booked" id="booked-count">&mdash; Booked</span>
+        </div>
+      </div>
+
+      <!-- Hall Map -->
+      <div class="hall-map-wrapper" id="hall-map-wrapper">
+        <div class="hall-map-container" id="hall-map-container">
+          <svg id="hall-svg" xmlns="http://www.w3.org/2000/svg">
+            <!-- Rendered via JS -->
+          </svg>
+
+          <!-- Tooltip -->
+          <div class="map-tooltip" id="map-tooltip">
+            <div class="tooltip-title" id="tooltip-title"></div>
+            <div class="tooltip-detail" id="tooltip-detail"></div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="map-controls">
+          <button onclick="hallMap.zoomIn()" title="Zoom In" id="zoom-in-btn">+</button>
+          <button onclick="hallMap.zoomOut()" title="Zoom Out" id="zoom-out-btn">&minus;</button>
+          <button onclick="hallMap.resetView()" title="Reset View" id="reset-view-btn">Fit</button>
+        </div>
+
+        <!-- Legend -->
+        <div class="map-legend">
+          <div class="legend-item">
+            <div class="legend-color available"></div>
+            <span>Available</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color booked"></div>
+            <span>Booked</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color selected"></div>
+            <span>Selected</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Centered Booking Modal -->
+  <div class="modal-overlay" id="booking-modal-overlay">
+    <div class="modal" id="booking-modal">
+      <div class="modal-header">
+        <div>
+          <h2>Stall <span id="modal-table-number"></span></h2>
+          <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 2px;" id="modal-table-label"></p>
+        </div>
+        <button class="modal-close" id="modal-close-btn" title="Close">&times;</button>
+      </div>
+
+      <!-- Stall Details -->
+      <div class="table-detail-card" id="table-details">
+        <div class="table-detail-row">
+          <span class="detail-label">Stall Number</span>
+          <span class="detail-value" id="detail-number">&mdash;</span>
+        </div>
+        <div class="table-detail-row">
+          <span class="detail-label">Category</span>
+          <span class="detail-value" id="detail-label">&mdash;</span>
+        </div>
+        <div class="table-detail-row">
+          <span class="detail-label">Size</span>
+          <span class="detail-value" id="detail-size">&mdash;</span>
+        </div>
+        <div class="table-detail-row">
+          <span class="detail-label">Footprint</span>
+          <span class="detail-value" id="detail-footprint">&mdash;</span>
+        </div>
+        <div class="table-detail-row">
+          <span class="detail-label">Floor Area</span>
+          <span class="detail-value" id="detail-area">&mdash;</span>
+        </div>
+      </div>
+
+      <!-- Booking Form -->
+      <form id="booking-form">
+        <input type="hidden" id="booking-table-id">
+        <input type="hidden" id="booking-event-id">
+
+        <div class="form-group">
+          <label class="form-label" for="customer-name">Full Name *</label>
+          <input type="text" class="form-input" id="customer-name" placeholder="Your full name" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="customer-phone">Phone Number *</label>
+          <input type="tel" class="form-input" id="customer-phone" placeholder="Mobile number" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="customer-email">Email Address</label>
+          <input type="email" class="form-input" id="customer-email" placeholder="name@company.com">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="business-name">Business / Brand Name</label>
+          <input type="text" class="form-input" id="business-name" placeholder="Your brand name">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="booking-notes">Additional Notes</label>
+          <textarea class="form-textarea" id="booking-notes" placeholder="Power outlet needs, special requirements, etc."></textarea>
+        </div>
+
+        <div id="form-error" class="form-error hidden"></div>
+      </form>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="modal-cancel-btn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="submit-booking-btn">Confirm Reservation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-md);">
+      <p>&copy; 2026 TableBook. All rights reserved.</p>
+      <p>Need help? Call: <a href="tel:+919099977119" style="color: var(--text-primary); font-weight: 500;">+91 9099977119</a></p>
+    </div>
+  </footer>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="/js/units.js"></script>
+  <script src="/js/hall-map.js"></script>
+  <script src="/js/booking.js"></script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reservation Confirmed — TableBook</title>
+  <meta name="description" content="Stall reservation confirmation slip.">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2318181b'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='%23f4f4f5' font-family='sans-serif' font-weight='bold'>T</text></svg>">
+  <style>
+    .success-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-xl);
+    }
+    .success-container {
+      max-width: 480px;
+      width: 100%;
+    }
+    .status-badge-confirmed {
+      display: inline-block;
+      padding: 4px 12px;
+      background: var(--status-available-bg);
+      color: var(--status-available);
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: var(--space-md);
+    }
+    .receipt-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: var(--space-xl);
+      margin-bottom: var(--space-lg);
+    }
+    .receipt-header {
+      text-align: center;
+      padding-bottom: var(--space-md);
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: var(--space-md);
+    }
+    .reference-code {
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--text-primary);
+    }
+    .reference-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 2px;
+    }
+    .receipt-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 0.875rem;
+    }
+    .receipt-row .label {
+      color: var(--text-muted);
+    }
+    .receipt-row .value {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    .receipt-divider {
+      border: none;
+      border-top: 1px solid var(--border-subtle);
+      margin: var(--space-md) 0;
+    }
+    .receipt-total {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .receipt-total .value {
+      color: var(--text-primary);
+    }
+  </style>
+</head>
+<body>
+  <div class="success-page">
+    <div class="success-container">
+      <div style="text-align: center;">
+        <span class="status-badge-confirmed">Reservation Confirmed</span>
+        <h1 style="font-size: 1.75rem; margin-bottom: var(--space-xs);">Stall Booking Receipt</h1>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: var(--space-xl);">
+          Your table reservation has been recorded in the exhibition system.
+        </p>
+      </div>
+
+      <div class="receipt-card" id="booking-receipt">
+        <div class="receipt-header">
+          <div class="reference-code" id="receipt-reference">&mdash;</div>
+          <div class="reference-label">Booking Reference Code</div>
+        </div>
+
+        <div class="receipt-row">
+          <span class="label">Exhibition</span>
+          <span class="value" id="receipt-event">&mdash;</span>
+        </div>
+        <div class="receipt-row">
+          <span class="label">Venue</span>
+          <span class="value" id="receipt-venue">&mdash;</span>
+        </div>
+        <div class="receipt-row">
+          <span class="label">Event Date</span>
+          <span class="value" id="receipt-date">&mdash;</span>
+        </div>
+
+        <hr class="receipt-divider">
+
+        <div class="receipt-row">
+          <span class="label">Table Number</span>
+          <span class="value" id="receipt-table">&mdash;</span>
+        </div>
+        <div class="receipt-row">
+          <span class="label">Category / Label</span>
+          <span class="value" id="receipt-table-label">&mdash;</span>
+        </div>
+        <div class="receipt-row">
+          <span class="label">Exhibitor</span>
+          <span class="value" id="receipt-name">&mdash;</span>
+        </div>
+        <div class="receipt-row">
+          <span class="label">Phone</span>
+          <span class="value" id="receipt-phone">&mdash;</span>
+        </div>
+        <div class="receipt-row" id="receipt-business-row">
+          <span class="label">Business</span>
+          <span class="value" id="receipt-business">&mdash;</span>
+        </div>
+
+        <hr class="receipt-divider">
+
+        <div class="receipt-total">
+          <span>Fee Payable at Venue</span>
+          <span class="value" id="receipt-price">&mdash;</span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: var(--space-sm); justify-content: center;">
+        <a href="/" class="btn btn-secondary btn-lg">&larr; Return to Home</a>
+        <button class="btn btn-primary btn-lg" id="share-btn" onclick="shareBooking()">Copy Confirmation Slip</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const bookingData = sessionStorage.getItem('lastBooking');
+      if (bookingData) {
+        const booking = JSON.parse(bookingData);
+        document.getElementById('receipt-reference').textContent = booking.reference_code || '—';
+        document.getElementById('receipt-event').textContent = booking.event_name || '—';
+        document.getElementById('receipt-venue').textContent = booking.event_venue || '—';
+        document.getElementById('receipt-date').textContent = formatDate(booking.event_date);
+        document.getElementById('receipt-table').textContent = booking.table_number || '—';
+        document.getElementById('receipt-table-label').textContent = booking.table_label || '—';
+        document.getElementById('receipt-name').textContent = booking.customer_name || '—';
+        document.getElementById('receipt-phone').textContent = booking.customer_phone || '—';
+        if (booking.business_name) {
+          document.getElementById('receipt-business').textContent = booking.business_name;
+        } else {
+          document.getElementById('receipt-business-row').style.display = 'none';
+        }
+        document.getElementById('receipt-price').textContent = `₹${(booking.price || 0).toLocaleString('en-IN')}`;
+      }
+    });
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '—';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    function shareBooking() {
+      const bookingData = sessionStorage.getItem('lastBooking');
+      if (!bookingData) return;
+      const booking = JSON.parse(bookingData);
+      const text = `TableBook Confirmation Slip\n` +
+        `Reference: ${booking.reference_code}\n` +
+        `Event: ${booking.event_name}\n` +
+        `Venue: ${booking.event_venue}\n` +
+        `Date: ${formatDate(booking.event_date)}\n` +
+        `Table: ${booking.table_number} (${booking.table_label})\n` +
+        `Fee: ₹${(booking.price || 0).toLocaleString('en-IN')}`;
+
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Confirmation details copied to clipboard');
+      });
+    }
+  </script>
+</body>
+</html>
