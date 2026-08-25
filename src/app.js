@@ -45,18 +45,19 @@ app.use(cookieSession({
   secure: isProduction
 }));
 
+// Static assets first, so pages and styles still load when the database is
+// unreachable. Vercel serves these directly in production; this keeps local
+// development and any non-Vercel host behaving the same way.
+app.use(express.static(PUBLIC_DIR));
+
 /**
- * Make sure the schema exists and the first admin is seeded before any route
- * touches the database. Memoised inside initializeDatabase(), so this costs
- * one cheap lookup per cold start.
+ * Make sure the schema exists and the first admin is seeded before any API
+ * route touches the database. Memoised inside initializeDatabase(), so this
+ * costs one cheap lookup per cold start.
  */
-app.use((req, res, next) => {
+app.use('/api', (req, res, next) => {
   initializeDatabase().then(() => next()).catch(next);
 });
-
-// Static assets. Vercel serves these directly in production; this keeps local
-// development and any non-Vercel host working the same way.
-app.use(express.static(PUBLIC_DIR));
 
 // API
 app.use('/api/auth', authRoutes);
