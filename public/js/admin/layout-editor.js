@@ -523,6 +523,49 @@ const layoutEditor = {
     const shapeInfo = this.renderStallShape(table, ns, isSelected);
     group.appendChild(shapeInfo.el);
 
+    // Table number label (placed clearly near top of stall)
+    const numY = shapeInfo.textY - 5;
+    const label = document.createElementNS(ns, 'text');
+    label.setAttribute('x', shapeInfo.textX);
+    label.setAttribute('y', numY);
+    label.setAttribute('class', 'table-number');
+    label.setAttribute('fill', table.status === 'booked' ? '#ffffff' : '#1e293b');
+    label.setAttribute('font-size', '11.5');
+    label.setAttribute('font-weight', '700');
+    label.setAttribute('font-family', 'Inter, sans-serif');
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('dominant-baseline', 'central');
+    label.setAttribute('pointer-events', 'none');
+    label.textContent = table.table_number;
+
+    if (table.rotation) {
+      label.setAttribute('transform', `rotate(${-table.rotation}, ${shapeInfo.textX}, ${numY})`);
+    }
+    group.appendChild(label);
+
+    // Stall dimensions & optional price label
+    const dimY = shapeInfo.textY + 8;
+    const dimLabel = document.createElementNS(ns, 'text');
+    dimLabel.setAttribute('x', shapeInfo.textX);
+    dimLabel.setAttribute('y', dimY);
+    dimLabel.setAttribute('class', 'table-dimensions');
+    dimLabel.setAttribute('font-size', '8.5');
+    dimLabel.setAttribute('font-weight', '600');
+    dimLabel.setAttribute('text-anchor', 'middle');
+    dimLabel.setAttribute('dominant-baseline', 'central');
+    dimLabel.setAttribute('fill', table.status === 'booked' ? '#ffe4e6' : '#475569');
+    dimLabel.setAttribute('font-family', 'Inter, sans-serif');
+    dimLabel.setAttribute('pointer-events', 'none');
+
+    const priceVal = parseFloat(table.price) || 0;
+    const priceStr = priceVal > 0 ? ` · ₹${priceVal.toLocaleString('en-IN')}` : '';
+    dimLabel.textContent = `${Units.formatFeetShort(table.width)} × ${Units.formatFeetShort(table.height)}${priceStr}`;
+
+    if (table.rotation) {
+      dimLabel.setAttribute('transform', `rotate(${-table.rotation}, ${shapeInfo.textX}, ${dimY})`);
+    }
+    group.appendChild(dimLabel);
+
     layer.appendChild(group);
   },
 
@@ -1284,7 +1327,15 @@ const layoutEditor = {
           <input type="text" class="form-input" value="${table.table_number}" onchange="layoutEditor.updateItemProp('table_number', this.value)" id="prop-number">
         </div>
         <div class="form-group">
-          <label class="form-label">Label / Name</label>
+          <label class="form-label">Price / Stall Fee (₹)</label>
+          <div class="input-with-unit">
+            <input type="number" class="form-input" min="0" step="500" value="${table.price || 0}" onchange="layoutEditor.updateItemProp('price', parseFloat(this.value)||0)" id="prop-price" placeholder="e.g. 5000">
+            <span class="input-unit">₹</span>
+          </div>
+          <p class="form-hint" style="margin-top: 2px;">Fee displayed for visitors to acknowledge during booking</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Label / Category</label>
           <input type="text" class="form-input" value="${table.label || ''}" onchange="layoutEditor.updateItemProp('label', this.value)" id="prop-label">
         </div>
         <div class="form-group">

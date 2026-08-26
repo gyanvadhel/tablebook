@@ -878,6 +878,12 @@ const hallMap = {
     document.getElementById('detail-footprint').textContent = Units.formatDims(table.width, table.height);
     document.getElementById('detail-area').textContent = Units.formatArea(table.width, table.height);
 
+    const priceVal = parseFloat(table.price) || 0;
+    const priceEl = document.getElementById('detail-price');
+    if (priceEl) {
+      priceEl.textContent = priceVal > 0 ? `₹${priceVal.toLocaleString('en-IN')}` : '₹0 (Complimentary / Free)';
+    }
+
     document.getElementById('booking-table-id').value = table.id;
     document.getElementById('booking-event-id').value = this.eventData.id;
 
