@@ -15,14 +15,42 @@ types.setTypeParser(20, val => (val === null ? null : parseInt(val, 10)));
 let pool = null;
 let schemaReady = null;
 
+function sanitizeDatabaseUrl(url) {
+  let str = (url || '').trim();
+  if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+    str = str.slice(1, -1).trim();
+  }
+  // If password contains an unencoded '@', encode it as %40 so URL parser doesn't throw Invalid URL
+  const protoEnd = str.indexOf('://');
+  if (protoEnd !== -1) {
+    const firstColon = str.indexOf(':', protoEnd + 3);
+    const lastAt = str.lastIndexOf('@');
+    if (firstColon !== -1 && lastAt !== -1 && lastAt > firstColon) {
+      const prefix = str.substring(0, firstColon + 1);
+      const rawPass = str.substring(firstColon + 1, lastAt);
+      const suffix = str.substring(lastAt);
+      if (rawPass.includes('@')) {
+        str = `${prefix}${rawPass.replace(/@/g, '%40')}${suffix}`;
+      }
+    }
+  }
+  return str;
+}
+
 function getPool() {
   if (pool) return pool;
 
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = sanitizeDatabaseUrl(process.env.DATABASE_URL);
+
   if (!connectionString) {
     throw new Error(
-      'DATABASE_URL is not set. Copy .env.example to .env and fill in your ' +
-      'Supabase connection string (Project Settings -> Database -> Connection string).'
+      'DATABASE_URL is not set. Please add DATABASE_URL to your Vercel Project Settings -> Environment Variables.'
+    );
+  }
+
+  if (connectionString.includes('[') || connectionString.includes(']')) {
+    throw new Error(
+      'DATABASE_URL contains square brackets [ or ]. Please replace [YOUR-PASSWORD] with your actual database password (without brackets).'
     );
   }
 
