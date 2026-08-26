@@ -79,7 +79,7 @@ const eventController = {
   // Admin: Create event
   async createEvent(req, res) {
     try {
-      const { name, description, venue, start_date, end_date, status, hall_width, hall_height } = req.body;
+      const { name, description, venue, start_date, end_date, status, hall_width, hall_height, hall_elements, hall_rotation } = req.body;
 
       if (!name || !String(name).trim()) {
         return res.status(400).json({ error: 'Event name is required' });
@@ -88,15 +88,17 @@ const eventController = {
       // hall_width / hall_height arrive in feet
       const hallWidthFt = Units.clampHallFt(hall_width, Units.DEFAULT_HALL_WIDTH_FT);
       const hallHeightFt = Units.clampHallFt(hall_height, Units.DEFAULT_HALL_HEIGHT_FT);
+      const elementsJson = Array.isArray(hall_elements) ? JSON.stringify(hall_elements) : '[]';
+      const rotation = Number.isInteger(hall_rotation) ? (hall_rotation % 360) : 0;
 
       const { row } = await dbRun(`
-        INSERT INTO events (name, description, venue, start_date, end_date, status, hall_width, hall_height)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO events (name, description, venue, start_date, end_date, status, hall_width, hall_height, hall_elements, hall_rotation)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)
         RETURNING *
       `, [
         String(name).trim(), description || '', venue || '',
         start_date || null, end_date || null, status || 'draft',
-        hallWidthFt, hallHeightFt
+        hallWidthFt, hallHeightFt, elementsJson, rotation
       ]);
 
       res.status(201).json(row);
@@ -109,7 +111,7 @@ const eventController = {
   // Admin: Update event
   async updateEvent(req, res) {
     try {
-      const { name, description, venue, start_date, end_date, status, hall_width, hall_height } = req.body;
+      const { name, description, venue, start_date, end_date, status, hall_width, hall_height, hall_elements, hall_rotation } = req.body;
       const id = parseInt(req.params.id);
 
       const existing = await dbGet('SELECT * FROM events WHERE id = $1', [id]);
@@ -117,11 +119,15 @@ const eventController = {
         return res.status(404).json({ error: 'Event not found' });
       }
 
+      const elementsJson = hall_elements !== undefined ? (Array.isArray(hall_elements) ? JSON.stringify(hall_elements) : '[]') : (existing.hall_elements ? JSON.stringify(existing.hall_elements) : '[]');
+      const rotation = hall_rotation !== undefined ? (Number(hall_rotation) % 360) : (existing.hall_rotation || 0);
+
       const { row } = await dbRun(`
         UPDATE events SET
           name = $1, description = $2, venue = $3, start_date = $4, end_date = $5,
-          status = $6, hall_width = $7, hall_height = $8
-        WHERE id = $9
+          status = $6, hall_width = $7, hall_height = $8,
+          hall_elements = $9::jsonb, hall_rotation = $10
+        WHERE id = $11
         RETURNING *
       `, [
         name || existing.name,
@@ -132,6 +138,8 @@ const eventController = {
         status || existing.status,
         Units.clampHallFt(hall_width, existing.hall_width),
         Units.clampHallFt(hall_height, existing.hall_height),
+        elementsJson,
+        rotation,
         id
       ]);
 

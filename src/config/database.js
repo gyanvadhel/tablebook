@@ -6,8 +6,11 @@
  *
  * All spatial columns hold FEET — see public/js/units.js.
  */
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
 const bcrypt = require('bcryptjs');
+
+// Parse PostgreSQL BIGINT (OID 20) into Javascript Numbers
+types.setTypeParser(20, val => (val === null ? null : parseInt(val, 10)));
 
 let pool = null;
 let schemaReady = null;
@@ -102,6 +105,8 @@ CREATE TABLE IF NOT EXISTS events (
   hall_width            REAL NOT NULL DEFAULT 80  CHECK (hall_width  BETWEEN 10 AND 600),
   hall_height           REAL NOT NULL DEFAULT 55  CHECK (hall_height BETWEEN 10 AND 600),
   hall_background_image TEXT,
+  hall_elements         JSONB DEFAULT '[]'::jsonb,
+  hall_rotation         INTEGER DEFAULT 0,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -176,6 +181,14 @@ async function initializeDatabase() {
     if (!existing || !existing.table_name) {
       await query(SCHEMA_SQL);
       console.log('Database schema created');
+    } else {
+      // Auto-migrate new columns and constraints
+      await query(`
+        ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_elements JSONB DEFAULT '[]'::jsonb;
+        ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_rotation INTEGER DEFAULT 0;
+        ALTER TABLE tables DROP CONSTRAINT IF EXISTS tables_size_check;
+        ALTER TABLE tables ADD CONSTRAINT tables_size_check CHECK (size IN ('small', 'medium', 'large', 'xlarge'));
+      `);
     }
 
     await seedDefaultAdmin();

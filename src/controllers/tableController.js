@@ -36,7 +36,7 @@ const tableController = {
    */
   async saveLayout(req, res) {
     try {
-      const { tables } = req.body;
+      const { tables, hall_elements, hall_width, hall_height, hall_rotation } = req.body;
       const eventId = parseInt(req.params.eventId);
 
       if (!Array.isArray(tables)) {
@@ -48,7 +48,22 @@ const tableController = {
         return res.status(404).json({ error: 'Event not found' });
       }
 
+      const currentHallW = hall_width ? Units.clampHallFt(hall_width, event.hall_width) : event.hall_width;
+      const currentHallH = hall_height ? Units.clampHallFt(hall_height, event.hall_height) : event.hall_height;
+      const currentRotation = Number.isInteger(hall_rotation) ? (hall_rotation % 360) : (event.hall_rotation || 0);
+      const elementsJson = Array.isArray(hall_elements) ? JSON.stringify(hall_elements) : (event.hall_elements ? JSON.stringify(event.hall_elements) : '[]');
+
       const updated = await withTransaction(async client => {
+        // Update event hall dimensions, rotation and architectural elements
+        await client.query(`
+          UPDATE events SET
+            hall_width = $1,
+            hall_height = $2,
+            hall_rotation = $3,
+            hall_elements = $4::jsonb
+          WHERE id = $5
+        `, [currentHallW, currentHallH, currentRotation, elementsJson, eventId]);
+
         const keptNumbers = [];
 
         for (const t of tables) {
@@ -58,8 +73,8 @@ const tableController = {
           // Clamp to the hall so a stall can never be saved outside its walls
           const widthFt = Units.clampStallFt(t.width, Units.DEFAULT_STALL_WIDTH_FT);
           const heightFt = Units.clampStallFt(t.height, Units.DEFAULT_STALL_HEIGHT_FT);
-          const xFt = Units.roundFt(Units.clamp(Units.toFeet(t.x, 0), 0, event.hall_width));
-          const yFt = Units.roundFt(Units.clamp(Units.toFeet(t.y, 0), 0, event.hall_height));
+          const xFt = Units.roundFt(Units.clamp(Units.toFeet(t.x, 0), 0, currentHallW));
+          const yFt = Units.roundFt(Units.clamp(Units.toFeet(t.y, 0), 0, currentHallH));
 
           await client.query(`
             INSERT INTO tables (event_id, table_number, label, size, price, x, y, width, height, rotation, shape, status)
@@ -99,7 +114,9 @@ const tableController = {
         return rows;
       });
 
-      res.json({ message: 'Layout saved successfully', tables: updated });
+      const updatedEvent = await dbGet('SELECT * FROM events WHERE id = $1', [eventId]);
+
+      res.json({ message: 'Layout saved successfully', tables: updated, event: updatedEvent });
     } catch (err) {
       console.error('Error saving layout:', err);
       res.status(500).json({ error: 'Failed to save layout' });

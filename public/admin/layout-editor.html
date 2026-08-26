@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Floor Plan Editor — TableBook Admin</title>
+  <title>Floor Plan Studio — TableBook Admin</title>
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/css/admin.css">
   <link rel="stylesheet" href="/css/hall-map.css">
@@ -37,98 +37,212 @@
     <main class="admin-main">
       <div class="admin-page-header">
         <div>
-          <h1 id="editor-title">Floor Plan Editor</h1>
-          <p style="color: var(--text-muted); font-size: 0.85rem;" id="editor-subtitle">Loading layout...</p>
+          <div style="display: flex; align-items: center; gap: var(--space-sm);">
+            <h1 id="editor-title" style="margin-bottom: 0;">Floor Plan Studio</h1>
+            <span class="badge" id="hall-dimension-badge" style="background: var(--bg-secondary); border: 1px solid var(--border-medium); font-size: 0.78rem;">Loading...</span>
+          </div>
+          <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;" id="editor-subtitle">Loading layout and floor elements...</p>
         </div>
         <div class="header-actions">
-          <a href="/admin/events.html" class="btn btn-secondary">&larr; Back to Events</a>
+          <div class="dropdown-wrapper" style="position: relative; display: inline-block;">
+            <button class="btn btn-secondary" onclick="layoutEditor.toggleFloorRotateMenu()" id="rotate-floor-btn" title="Rotate Entire Hall Orientation">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              Rotate Floor ↻
+            </button>
+            <div id="floor-rotate-menu" class="apple-menu hidden" style="position: absolute; right: 0; top: 110%; z-index: 1050; min-width: 210px;">
+              <button type="button" class="menu-item" onclick="layoutEditor.rotateEntireFloor('cw')">
+                <span>Rotate 90° Clockwise</span>
+                <span class="menu-shortcut">CW</span>
+              </button>
+              <button type="button" class="menu-item" onclick="layoutEditor.rotateEntireFloor('ccw')">
+                <span>Rotate 90° Counter-CW</span>
+                <span class="menu-shortcut">CCW</span>
+              </button>
+              <button type="button" class="menu-item" onclick="layoutEditor.rotateEntireFloor('180')">
+                <span>Rotate 180° Inverted</span>
+                <span class="menu-shortcut">180°</span>
+              </button>
+            </div>
+          </div>
+          <a href="/admin/events.html" class="btn btn-secondary">&larr; Exhibitions</a>
           <button class="btn btn-primary" onclick="layoutEditor.saveLayout()" id="save-layout-btn">Save Floor Plan</button>
         </div>
       </div>
 
       <div class="editor-layout">
-        <!-- Canvas -->
+        <!-- Canvas wrapper -->
         <div class="editor-canvas-wrapper">
-          <div class="editor-toolbar">
-            <div class="tool-group">
-              <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; align-self: center; padding-right: 4px;">Add Stall:</span>
-              <button class="tool-btn" onclick="layoutEditor.addTable('rect_short')" title="Standard Short — 3 ft x 4 ft" id="add-short-btn">
-                Short Rect
+          <!-- Apple Segmented Studio Toolbar -->
+          <div class="editor-toolbar apple-toolbar">
+            <!-- Palette Mode Selector -->
+            <div class="toolbar-section">
+              <span class="toolbar-label">Palette:</span>
+              <div class="segmented-control">
+                <button type="button" class="segment-btn active" id="tab-btn-stalls" onclick="layoutEditor.switchToolbarTab('stalls')">Stalls</button>
+                <button type="button" class="segment-btn" id="tab-btn-doors" onclick="layoutEditor.switchToolbarTab('doors')">Doors &amp; Openings</button>
+                <button type="button" class="segment-btn" id="tab-btn-text" onclick="layoutEditor.switchToolbarTab('text')">Text &amp; Signs</button>
+                <button type="button" class="segment-btn" id="tab-btn-structures" onclick="layoutEditor.switchToolbarTab('structures')">Structures</button>
+              </div>
+            </div>
+
+            <!-- Dynamic Sub-tools: Stalls -->
+            <div class="toolbar-subgroup" id="subtools-stalls">
+              <button class="tool-btn pill" onclick="layoutEditor.addTable('single')" title="Single Table — 4 ft × 2 ft (1 Table)">
+                <strong>Single (-)</strong> &middot; 4'×2'
               </button>
-              <button class="tool-btn" onclick="layoutEditor.addTable('rect_tall')" title="Standard Tall — 3 ft x 7 ft" id="add-tall-btn">
-                Tall Rect
+              <button class="tool-btn pill" onclick="layoutEditor.addTable('double')" title="Double Table — 8 ft × 2 ft (2 Tables)">
+                <strong>Double (--)</strong> &middot; 8'×2'
               </button>
-              <button class="tool-btn" onclick="layoutEditor.addTable('L-Stall')" title="L-Stall — 6 ft x 5 ft" id="add-l-btn">
-                L-Stall
+              <button class="tool-btn pill" onclick="layoutEditor.addTable('L-Stall')" title="L-Stall — 6 ft × 4 ft (2 Tables in L-shape)">
+                <strong>L-Stall (L)</strong> &middot; 2 Tables
+              </button>
+              <button class="tool-btn pill" onclick="layoutEditor.addTable('T-Stall')" title="T-Stall — 6 ft × 4 ft (2 Tables in T-shape)">
+                <strong>T-Stall (T)</strong> &middot; 2 Tables
+              </button>
+              <button class="tool-btn pill" onclick="layoutEditor.addTable('Pod')" title="Pod Cluster — 8 ft × 4 ft (4 Tables back-to-back)">
+                <strong>Pod (4-Pack)</strong> &middot; 8'×4'
               </button>
             </div>
-            <div class="tool-group">
-              <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; align-self: center; padding-right: 4px;">Snap:</span>
-              <select class="form-select" id="snap-grid-select" onchange="layoutEditor.setSnapGrid(this.value)" style="padding: 2px 6px; font-size: 0.8rem; width: 75px;">
-                <option value="1" selected>1 ft</option>
-                <option value="0.5">6 in</option>
-                <option value="0.25">3 in</option>
-                <option value="0">Off</option>
-              </select>
-              <button class="tool-btn active" id="toggle-guides-btn" onclick="layoutEditor.toggleSmartGuides()" title="Toggle Smart Alignment Guides" style="font-size: 0.78rem;">
-                Guides: ON
+
+            <!-- Dynamic Sub-tools: Doors & Openings -->
+            <div class="toolbar-subgroup hidden" id="subtools-doors">
+              <button class="tool-btn pill btn-entrance" onclick="layoutEditor.addDoor('entrance')" title="Main Entrance with Swing Arc">
+                <strong>Main Entrance</strong>
+              </button>
+              <button class="tool-btn pill btn-exit" onclick="layoutEditor.addDoor('exit')" title="Emergency Exit Door">
+                <strong>Emergency Exit</strong>
+              </button>
+              <button class="tool-btn pill" onclick="layoutEditor.addDoor('double')" title="Double Swing Entrance Door (6 ft)">
+                <strong>Double Door</strong>
+              </button>
+              <button class="tool-btn pill" onclick="layoutEditor.addDoor('window')" title="Glass Window Opening (6 ft)">
+                <strong>Wall Window</strong>
               </button>
             </div>
-            <div class="tool-group">
-              <button class="tool-btn" onclick="layoutEditor.zoomIn()">+</button>
-              <button class="tool-btn" onclick="layoutEditor.zoomOut()">&minus;</button>
-              <button class="tool-btn" onclick="layoutEditor.resetView()">Fit</button>
+
+            <!-- Dynamic Sub-tools: Text -->
+            <div class="toolbar-subgroup hidden" id="subtools-text">
+              <button class="tool-btn pill" onclick="layoutEditor.addTextElement('MAIN ENTRANCE', { badge: true, color: '#059669' })">
+                + Entrance Sign
+              </button>
+              <button class="tool-btn pill" onclick="layoutEditor.addTextElement('EMERGENCY EXIT', { badge: true, color: '#dc2626' })">
+                + Exit Sign
+              </button>
+              <button class="tool-btn pill" onclick="layoutEditor.addTextElement('REGISTRATION DESK', { badge: true, color: '#2563eb' })">
+                + Registration
+              </button>
+              <button class="tool-btn pill" onclick="layoutEditor.addTextElement('FOOD COURT', { badge: true, color: '#d97706' })">
+                + Food Court
+              </button>
+              <button class="tool-btn pill" onclick="layoutEditor.addTextElement('RESTROOMS', { badge: true, color: '#7c3aed' })">
+                + Restrooms
+              </button>
+              <button class="tool-btn pill" onclick="layoutEditor.addCustomTextPrompt()" title="Add Custom Text">
+                + Custom Label...
+              </button>
+            </div>
+
+            <!-- Dynamic Sub-tools: Structures -->
+            <div class="toolbar-subgroup hidden" id="subtools-structures">
+              <button class="tool-btn pill" onclick="layoutEditor.addStructure('pillar_square')" title="Square Concrete Pillar (2'×2')">
+                Pillar (2'×2')
+              </button>
+              <button class="tool-btn pill" onclick="layoutEditor.addStructure('pillar_round')" title="Round Column (2' dia)">
+                Column (2' dia)
+              </button>
+              <button class="tool-btn pill" onclick="layoutEditor.addStructure('stage')" title="Main Stage (16'×8')">
+                Stage (16'×8')
+              </button>
+              <button class="tool-btn pill" onclick="layoutEditor.addStructure('arrow')" title="Directional Flow Arrow">
+                Flow Arrow
+              </button>
+            </div>
+
+            <!-- Precision Controls -->
+            <div class="toolbar-section toolbar-right">
+              <div class="tool-group">
+                <span class="toolbar-label">Snap:</span>
+                <select class="form-select" id="snap-grid-select" onchange="layoutEditor.setSnapGrid(this.value)" style="padding: 2px 6px; font-size: 0.8rem; width: 72px;">
+                  <option value="1" selected>1 ft</option>
+                  <option value="0.5">6 in</option>
+                  <option value="0.25">3 in</option>
+                  <option value="0">Off</option>
+                </select>
+                <button class="tool-btn active" id="toggle-guides-btn" onclick="layoutEditor.toggleSmartGuides()" title="Toggle Smart Alignment Guides" style="font-size: 0.78rem;">
+                  Guides: ON
+                </button>
+              </div>
+              <div class="tool-group">
+                <button class="tool-btn" onclick="layoutEditor.zoomIn()" title="Zoom In (+)">+</button>
+                <button class="tool-btn" onclick="layoutEditor.zoomOut()" title="Zoom Out (-)">−</button>
+                <button class="tool-btn" onclick="layoutEditor.resetView()" title="Fit View to Screen">Fit</button>
+              </div>
             </div>
           </div>
 
+          <!-- SVG Canvas Area -->
           <div class="editor-canvas" id="editor-canvas">
             <svg id="editor-svg" xmlns="http://www.w3.org/2000/svg"></svg>
 
-            <!-- Floating Action Bar above Selected Table -->
-            <div id="table-floating-actions" class="table-floating-actions hidden">
-              <button type="button" class="floating-btn" onclick="layoutEditor.rotateSelected()" title="Rotate 90° (R)">
-                Rotate 90°
-              </button>
-              <button type="button" class="floating-btn" onclick="layoutEditor.duplicateSelected()" title="Duplicate (Ctrl+D)">
-                Duplicate
-              </button>
-              <button type="button" class="floating-btn btn-danger" onclick="layoutEditor.deleteSelected()" title="Delete (Del)">
-                Delete
-              </button>
+            <!-- CAD Floating Action Bar above Selected Item -->
+            <div id="table-floating-actions" class="cad-floating-bar hidden">
+              <div class="cad-bar-tag">Edit</div>
+              <div class="cad-bar-items">
+                <button type="button" class="cad-btn" title="Drag to Move" data-action="move">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-9 3h-4v3H7l5 5 5-5h-3v-3z"/></svg>
+                </button>
+                <button type="button" class="cad-btn" onclick="layoutEditor.rotateSelected()" title="Rotate 90° (R)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                </button>
+                <button type="button" class="cad-btn" onclick="layoutEditor.duplicateSelected()" title="Duplicate (Shift+D)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path><line x1="12" y1="15" x2="18" y2="15"></line><line x1="15" y1="12" x2="15" y2="18"></line></svg>
+                </button>
+                <button type="button" class="cad-btn btn-trash" onclick="layoutEditor.deleteSelected()" title="Delete (Del)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Sidebar -->
+        <!-- Sidebar Inspector & Explorer -->
         <div class="editor-sidebar">
-          <!-- Properties -->
+          <!-- Dynamic Inspector Panel -->
           <div class="editor-panel" id="properties-panel">
-            <div class="editor-panel-header">
-              <span>Stall Properties</span>
+            <div class="editor-panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <span id="inspector-header-title">Inspector</span>
+              <span class="badge" id="inspector-badge" style="font-size: 0.68rem; display: none;">Stall</span>
             </div>
             <div class="editor-panel-body" id="properties-body">
               <p class="text-muted" style="font-size: 0.85rem; text-align: center; padding: var(--space-md) 0;">
-                Select a stall on the floor plan to edit its properties.
+                Select a stall, door, or label on the floor plan to edit its properties.
               </p>
             </div>
           </div>
 
-          <!-- Table List -->
+          <!-- Floor Directory (Stalls & Elements List) -->
           <div class="editor-panel" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
-            <div class="editor-panel-header">
-              <span>Stalls (<span id="table-count">0</span>)</span>
+            <div class="editor-panel-header" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px;">
+              <span>Directory (<span id="total-items-count">0</span>)</span>
+              <div class="directory-filter-tabs">
+                <button type="button" class="dir-tab active" onclick="layoutEditor.filterDirectory('all')">All</button>
+                <button type="button" class="dir-tab" onclick="layoutEditor.filterDirectory('stalls')">Stalls</button>
+                <button type="button" class="dir-tab" onclick="layoutEditor.filterDirectory('elements')">Signs &amp; Doors</button>
+              </div>
             </div>
-            <div class="editor-panel-body" style="flex: 1; overflow-y: auto; max-height: 280px;" id="table-list">
-              <p class="text-muted" style="font-size: 0.85rem; text-align: center;">No stalls placed yet</p>
+            <div class="editor-panel-body" style="flex: 1; overflow-y: auto; max-height: 250px; padding: 6px;" id="table-list">
+              <p class="text-muted" style="font-size: 0.85rem; text-align: center;">No items placed yet</p>
             </div>
           </div>
 
           <!-- Hotkeys Box -->
-          <div class="editor-panel" style="padding: 10px 14px; background: var(--bg-card);">
-            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Keyboard Shortcuts</div>
-            <div style="font-size: 0.78rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 3px;">
-              <span><strong style="color: var(--text-primary);">G</strong> Move &middot; <strong style="color: var(--text-primary);">R</strong> Rotate 90°</span>
-              <span><strong style="color: var(--text-primary);">Shift+D</strong> Duplicate &middot; <strong style="color: var(--text-primary);">Del</strong> Delete</span>
+          <div class="editor-panel" style="padding: 8px 12px; background: var(--bg-card);">
+            <div style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Shortcuts</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+              <span><strong style="color: var(--text-primary);">G</strong> Move item</span>
+              <span><strong style="color: var(--text-primary);">R</strong> Rotate 90°</span>
+              <span><strong style="color: var(--text-primary);">Shift+D</strong> Duplicate</span>
+              <span><strong style="color: var(--text-primary);">Del / X</strong> Delete</span>
             </div>
           </div>
         </div>

@@ -96,9 +96,9 @@
   border-radius: 2px;
 }
 
-.legend-color.available { background: var(--status-available); }
-.legend-color.booked { background: var(--status-booked); }
-.legend-color.selected { background: var(--text-primary); }
+.legend-color.available { background: #c98a46; border: 1px solid #8c5822; }
+.legend-color.booked { background: #e11d48; border: 1px solid #9f1239; }
+.legend-color.selected { background: #2563eb; border: 1px solid #1d4ed8; }
 .legend-color.blocked { background: var(--border-medium); }
 
 /* SVG Table Styles */
@@ -302,3 +302,22 @@
     height: 400px;
   }
 }
+
+/* Architectural Element Styles in Public Map */
+.hall-map-container .arch-element {
+  pointer-events: none;
+  user-select: none;
+}
+
+.hall-map-container .arch-door-entrance text {
+  font-family: var(--font-body);
+}
+
+.hall-map-container .arch-door-exit text {
+  font-family: var(--font-body);
+}
+
+.hall-map-container .arch-text-element text {
+  font-family: var(--font-body);
+}
+

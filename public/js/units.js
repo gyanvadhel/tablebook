@@ -23,11 +23,16 @@
   const DEFAULT_HALL_WIDTH_FT = 80;
   const DEFAULT_HALL_HEIGHT_FT = 55;
 
+  // Standard Base Table Unit (4'0" Length x 2'0" Width x 2'6" Height)
+  const TABLE_LENGTH_FT = 4;
+  const TABLE_WIDTH_FT = 2;
+  const TABLE_HEIGHT_FT = 2.5; // 2'6"
+
   // Sane real-world bounds for a single stall.
   const STALL_MIN_FT = 1;
   const STALL_MAX_FT = 200;
-  const DEFAULT_STALL_WIDTH_FT = 6;
-  const DEFAULT_STALL_HEIGHT_FT = 4;
+  const DEFAULT_STALL_WIDTH_FT = 4; // 1 Table = 4 ft
+  const DEFAULT_STALL_HEIGHT_FT = 2; // 1 Table = 2 ft
 
   function ftToPx(ft) {
     return (Number(ft) || 0) * PX_PER_FOOT;
@@ -81,6 +86,14 @@
     return `${feet} ft ${inches} in`;
   }
 
+  /** "7'0\"", "0'11\"", "2'6\"" — exact architectural distance format */
+  function formatFeetInches(ft) {
+    const total = Math.round((Number(ft) || 0) * 12);
+    const feet = Math.floor(total / 12);
+    const inches = Math.abs(total % 12);
+    return `${feet}'${inches}"`;
+  }
+
   /** "12'" / "12'6\"" — architectural shorthand for tight spaces like map labels. */
   function formatFeetShort(ft) {
     const { feet, inches } = splitFeetInches(ft);
@@ -106,6 +119,9 @@
     HALL_MAX_FT,
     STALL_MIN_FT,
     STALL_MAX_FT,
+    TABLE_LENGTH_FT,
+    TABLE_WIDTH_FT,
+    TABLE_HEIGHT_FT,
     DEFAULT_HALL_WIDTH_FT,
     DEFAULT_HALL_HEIGHT_FT,
     DEFAULT_STALL_WIDTH_FT,
@@ -120,6 +136,7 @@
     splitFeetInches,
     formatFeet,
     formatFeetShort,
+    formatFeetInches,
     formatDims,
     formatArea
   };

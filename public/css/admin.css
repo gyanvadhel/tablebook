@@ -385,64 +385,115 @@
   border: 1px solid var(--border-medium);
 }
 
-/* Floating Table Actions Toolbar */
-.table-floating-actions {
+/* CAD Floating Dark Action Bar (Matches Reference Image) */
+.cad-floating-bar {
   position: absolute;
   z-index: 1000;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
   transform: translate(-50%, -100%);
   pointer-events: auto;
   transition: opacity 0.15s ease, transform 0.15s ease;
+  margin-top: -12px;
 }
 
-.table-floating-actions.hidden {
+.cad-floating-bar.hidden {
   display: none;
 }
 
-.floating-btn {
+.cad-bar-tag {
+  background: #3f3f46;
+  color: #f4f4f5;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px 4px 0 0;
+  letter-spacing: 0.03em;
+  margin-bottom: -1px;
+  box-shadow: 0 -1px 3px rgba(0,0,0,0.1);
+}
+
+.cad-bar-items {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  border-radius: var(--radius-md);
+  padding: 4px 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.cad-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: var(--text-primary);
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #e4e4e7;
   cursor: pointer;
-  white-space: nowrap;
+  transition: all var(--transition-fast);
 }
 
-.floating-btn:hover {
-  background: var(--bg-secondary);
-  border-color: var(--border-medium);
+.cad-btn:hover {
+  background: #3f3f46;
+  color: #ffffff;
 }
 
-.floating-btn.btn-danger {
-  color: var(--status-booked);
-  background: var(--status-booked-bg);
-  border-color: rgba(190, 18, 60, 0.2);
+.cad-btn.btn-trash {
+  color: #f87171;
 }
 
-.floating-btn.btn-danger:hover {
-  background: #fecdd3;
+.cad-btn.btn-trash:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
 }
 
-.rotate-handle-knob {
-  transition: r 0.15s ease, fill 0.15s ease;
+/* CAD Rotation Arc Handle */
+.cad-rotation-arc {
+  cursor: pointer;
+  transition: stroke 0.15s ease, opacity 0.15s ease;
+  opacity: 0.75;
+}
+
+.cad-rotation-arc:hover {
+  opacity: 1;
+  stroke: #2563eb;
+}
+
+/* CAD Distance Measurement Leader Lines */
+.cad-dimension-line {
+  stroke: #0f172a;
+  stroke-width: 1.2;
+  pointer-events: none;
+}
+
+.cad-dimension-badge-bg {
+  fill: #ffffff;
+  stroke: #cbd5e1;
+  stroke-width: 1;
+  rx: 3px;
+  ry: 3px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.08));
+}
+
+.cad-dimension-badge-text {
+  fill: #0f172a;
+  font-family: Inter, -apple-system, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
 }
 
 /* Smart Guide Lines */
 .smart-guide-line {
-  stroke: #ec4899;
+  stroke: #2563eb;
   stroke-width: 1.2;
   stroke-dasharray: 4 3;
   pointer-events: none;
@@ -481,5 +532,204 @@
   color: var(--text-inverse);
   border-color: var(--accent-primary);
 }
+
+/* ============================================
+   Apple-Grade Floor Plan Studio Enhancements
+   ============================================ */
+
+.apple-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-medium);
+}
+
+.toolbar-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* Apple Segmented Control */
+.segmented-control {
+  display: inline-flex;
+  background: var(--bg-secondary);
+  padding: 2px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.segment-btn {
+  padding: 4px 10px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.segment-btn:hover {
+  color: var(--text-primary);
+}
+
+.segment-btn.active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Subgroup Tool Pills */
+.toolbar-subgroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tool-btn.pill {
+  border-radius: var(--radius-full);
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tool-btn.pill.btn-entrance {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.tool-btn.pill.btn-entrance:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+}
+
+.tool-btn.pill.btn-exit {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.tool-btn.pill.btn-exit:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+/* Apple Dropdown Menu */
+.apple-menu {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.apple-menu.hidden {
+  display: none;
+}
+
+.apple-menu .menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+}
+
+.apple-menu .menu-item:hover {
+  background: var(--bg-secondary);
+}
+
+.menu-shortcut {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  background: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Directory Filter Tabs */
+.directory-filter-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-secondary);
+  padding: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.dir-tab {
+  border: none;
+  background: transparent;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.dir-tab:hover {
+  color: var(--text-primary);
+}
+
+.dir-tab.active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+/* Architectural Element Hover & Selection */
+.editor-canvas .arch-element,
+.editor-canvas .table-group {
+  cursor: grab !important;
+  pointer-events: all !important;
+  user-select: none;
+}
+
+.editor-canvas .arch-element:active,
+.editor-canvas .table-group:active {
+  cursor: grabbing !important;
+}
+
+.editor-canvas .arch-element * {
+  pointer-events: all !important;
+}
+
+.editor-canvas .arch-element:hover,
+.editor-canvas .table-group:hover {
+  opacity: 0.92;
+}
+
 
 

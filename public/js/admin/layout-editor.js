@@ -1,22 +1,27 @@
 /**
- * TableBook — Blender-Style Architectural Layout Engine
- * Precision dual-level grid, smart alignment guides, viewport HUD, and CAD shortcuts
+ * TableBook — Architectural Floor Plan Studio
+ * CAD wood floor textures, teak/oak tables, dynamic distance dimension lines,
+ * curved rotation arc handles, wall-cutout doors/windows, and dark floating toolbar.
  *
- * Every dimension held on a table object (x, y, width, height) is in FEET.
+ * Supports placing text signs, entrance markers, project name badge, and structures inside or OUTSIDE the hall frame.
+ *
+ * Every dimension held on an object (x, y, width, height) is stored in FEET.
  * Feet become SVG drawing units only at the render boundary, via px().
  */
 
 // Stall footprints in feet
 const STALL_DEFAULTS = {
-  rect_short: { width: 3, height: 4, label: 'Standard Short', size: 'medium', shape: 'rect' },
-  rect_tall:  { width: 3, height: 7, label: 'Standard Tall', size: 'large', shape: 'rect' },
-  'L-Stall':  { width: 6, height: 5, label: 'L-Stall', size: 'large', shape: 'L-Stall' }
+  single:     { width: 4, height: 2, label: 'Single Table (-)', size: 'small', shape: 'rect' },
+  double:     { width: 8, height: 2, label: 'Double Table (--)', size: 'medium', shape: 'rect' },
+  'L-Stall':  { width: 6, height: 4, label: 'L-Stall (L)', size: 'large', shape: 'L-Stall' },
+  'T-Stall':  { width: 6, height: 4, label: 'T-Stall (T)', size: 'large', shape: 'T-Stall' },
+  'Pod':      { width: 8, height: 4, label: 'Pod Cluster (4-Pack)', size: 'xlarge', shape: 'Pod' }
 };
 
-// Grid spacing options, in feet
 const SNAP_GRID_FT = { '1': '1 ft', '0.5': '6 in', '0.25': '3 in', '0': 'Off' };
-
-const HALL_PADDING_FT = 4;
+const HALL_PADDING_FT = 18; // Generous view padding around hall to comfortably see outside signs
+const ELEMENT_OUTSIDE_MARGIN_FT = 30; // Max allowed distance to place signage outside the hall perimeter
+const WALL_THICKNESS_FT = 0.8; // ~10 inches architectural wall thickness
 
 const layoutEditor = {
   svg: null,
@@ -24,18 +29,20 @@ const layoutEditor = {
   eventId: null,
   eventData: null,
   tables: [],
-  selectedTable: null,
+  elements: [],
+  selectedItem: null, // { type: 'table' | 'element', obj: ... }
+  directoryFilter: 'all',
 
   // Snap & Guide Settings (feet)
   snapGridFt: 1,
   smartGuidesEnabled: true,
   snapThresholdFt: 0.4,
 
-  // Drag & Grab state
+  // Drag & Interaction state
   isDragging: false,
-  dragTable: null,
+  dragTarget: null,
   dragOffset: { x: 0, y: 0 },
-  grabMode: false,
+  isRotatingArc: false,
 
   // View state — SVG drawing units
   viewBox: { x: 0, y: 0, w: 1200, h: 800 },
@@ -60,16 +67,29 @@ const layoutEditor = {
     const existingNums = new Set();
     this.tables.forEach(t => {
       const num = parseInt(t.table_number);
-      if (!isNaN(num) && num > 0) {
-        existingNums.add(num);
-      }
+      if (!isNaN(num) && num > 0) existingNums.add(num);
     });
 
     let nextNum = 1;
-    while (existingNums.has(nextNum)) {
-      nextNum++;
-    }
+    while (existingNums.has(nextNum)) nextNum++;
     return String(nextNum);
+  },
+
+  ensureRoomBadgeElement() {
+    let badge = this.elements.find(el => el.type === 'room_badge');
+    if (!badge) {
+      badge = {
+        id: 'room_badge_main',
+        type: 'room_badge',
+        label: this.eventData.name || 'Main Hall',
+        x: 1.5,
+        y: 1.5,
+        width: 8,
+        height: 3,
+        rotation: 0
+      };
+      this.elements.unshift(badge);
+    }
   },
 
   async init() {
@@ -86,27 +106,58 @@ const layoutEditor = {
 
     try {
       const eventRes = await fetch('/api/admin/events');
+      if (!eventRes.ok) {
+        if (eventRes.status === 401) {
+          window.location.href = '/admin/login.html';
+          return;
+        }
+        throw new Error('Failed to fetch events');
+      }
       const events = await eventRes.json();
-      this.eventData = events.find(e => e.id === parseInt(this.eventId));
+      this.eventData = Array.isArray(events) ? events.find(e => String(e.id) === String(this.eventId)) : null;
 
       if (!this.eventData) {
         showToast('Event not found', 'error');
+        document.getElementById('editor-subtitle').textContent = 'Event not found. Return to Exhibitions list.';
         return;
       }
 
-      document.getElementById('editor-title').textContent = `Floor Plan: ${this.eventData.name}`;
-      const hallW = this.hallWidthFt();
-      const hallH = this.hallHeightFt();
-      document.getElementById('editor-subtitle').textContent =
-        `${this.eventData.venue || 'No venue set'} · Hall: ${Units.formatDims(hallW, hallH)} (${Units.formatArea(hallW, hallH)})`;
+      if (this.eventData.hall_elements) {
+        try {
+          this.elements = Array.isArray(this.eventData.hall_elements)
+            ? this.eventData.hall_elements
+            : JSON.parse(this.eventData.hall_elements);
+        } catch (e) {
+          this.elements = [];
+        }
+      } else {
+        this.elements = [];
+      }
+
+      this.elements.forEach((el, idx) => {
+        if (!el.id && !el._tempId) {
+          el.id = 'elem_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 5);
+        }
+      });
+
+      this.ensureRoomBadgeElement();
+      this.updateHeaderInfo();
 
       const tablesRes = await fetch(`/api/admin/events/${this.eventId}/tables`);
-      this.tables = await tablesRes.json();
+      if (!tablesRes.ok) throw new Error('Failed to load stalls');
+      const tablesData = await tablesRes.json();
+      this.tables = Array.isArray(tablesData) ? tablesData : [];
+
+      this.tables.forEach((t, idx) => {
+        if (!t.id && !t._tempId) {
+          t._tempId = 'table_' + Date.now() + '_' + idx;
+        }
+      });
 
       this.setupViewBox();
       this.renderHall();
-      this.renderAllTables();
-      this.updateTableList();
+      this.renderAllObjects();
+      this.updateDirectoryList();
       this.bindEvents();
 
     } catch (err) {
@@ -115,12 +166,47 @@ const layoutEditor = {
     }
   },
 
-  setupViewBox() {
-    const w = this.px(this.hallWidthFt());
-    const h = this.px(this.hallHeightFt());
-    const padding = this.px(HALL_PADDING_FT);
+  updateHeaderInfo() {
+    if (!this.eventData) return;
+    document.getElementById('editor-title').textContent = `Floor Plan: ${this.eventData.name}`;
+    const hallW = this.hallWidthFt();
+    const hallH = this.hallHeightFt();
+    const badge = document.getElementById('hall-dimension-badge');
+    if (badge) {
+      badge.textContent = `${Units.formatDims(hallW, hallH)} · ${Units.formatArea(hallW, hallH)}`;
+    }
+    document.getElementById('editor-subtitle').textContent =
+      `${this.eventData.venue || 'Venue TBD'} · Real-World Architectural Scale`;
+  },
 
-    this.viewBox = { x: -padding, y: -padding, w: w + padding * 2, h: h + padding * 2 };
+  setupViewBox() {
+    const hallW = this.hallWidthFt();
+    const hallH = this.hallHeightFt();
+
+    // Include bounds of elements placed outside the hall
+    let minXFt = 0;
+    let minYFt = 0;
+    let maxXFt = hallW;
+    let maxYFt = hallH;
+
+    this.elements.forEach(el => {
+      const ex = el.x || 0;
+      const ey = el.y || 0;
+      const ew = el.width || 4;
+      const eh = el.height || 2;
+      if (ex < minXFt) minXFt = ex;
+      if (ey < minYFt) minYFt = ey;
+      if (ex + ew > maxXFt) maxXFt = ex + ew;
+      if (ey + eh > maxYFt) maxYFt = ey + eh;
+    });
+
+    const padding = this.px(HALL_PADDING_FT);
+    const minX = this.px(minXFt) - padding;
+    const minY = this.px(minYFt) - padding;
+    const totalW = this.px(maxXFt - minXFt) + padding * 2;
+    const totalH = this.px(maxYFt - minYFt) + padding * 2;
+
+    this.viewBox = { x: minX, y: minY, w: totalW, h: totalH };
     this.originalViewBox = { ...this.viewBox };
     this.applyViewBox();
   },
@@ -130,253 +216,1396 @@ const layoutEditor = {
     this.updateFloatingActionsPosition();
   },
 
+  /* ----------------------------------------------------
+     WHOLE-FLOOR ROTATION ENGINE (90° CW, 90° CCW, 180°)
+     ---------------------------------------------------- */
+  toggleFloorRotateMenu() {
+    const menu = document.getElementById('floor-rotate-menu');
+    if (menu) menu.classList.toggle('hidden');
+  },
+
+  closeFloorRotateMenu() {
+    const menu = document.getElementById('floor-rotate-menu');
+    if (menu) menu.classList.add('hidden');
+  },
+
+  rotateEntireFloor(mode = 'cw') {
+    this.closeFloorRotateMenu();
+    if (!this.eventData) return;
+
+    const oldW = this.hallWidthFt();
+    const oldH = this.hallHeightFt();
+
+    if (mode === '180') {
+      this.tables.forEach(t => {
+        t.x = Units.roundFt(oldW - (t.x + t.width));
+        t.y = Units.roundFt(oldH - (t.y + t.height));
+        t.rotation = ((t.rotation || 0) + 180) % 360;
+      });
+
+      this.elements.forEach(el => {
+        const w = el.width || 4;
+        const h = el.height || 2;
+        el.x = Units.roundFt(oldW - (el.x + w));
+        el.y = Units.roundFt(oldH - (el.y + h));
+        el.rotation = ((el.rotation || 0) + 180) % 360;
+      });
+
+      showToast('Whole floor rotated 180°', 'success');
+    } else if (mode === 'cw') {
+      const newW = oldH;
+      const newH = oldW;
+
+      this.tables.forEach(t => {
+        const oldX = t.x;
+        const oldY = t.y;
+        const oldTableW = t.width;
+        const oldTableH = t.height;
+
+        t.x = Units.roundFt(oldH - (oldY + oldTableH));
+        t.y = Units.roundFt(oldX);
+        t.width = oldTableH;
+        t.height = oldTableW;
+        t.rotation = ((t.rotation || 0) + 90) % 360;
+      });
+
+      this.elements.forEach(el => {
+        const oldX = el.x;
+        const oldY = el.y;
+        const elemW = el.width || 4;
+        const elemH = el.height || 2;
+
+        el.x = Units.roundFt(oldH - (oldY + elemH));
+        el.y = Units.roundFt(oldX);
+        el.width = elemH;
+        el.height = elemW;
+        el.rotation = ((el.rotation || 0) + 90) % 360;
+      });
+
+      this.eventData.hall_width = newW;
+      this.eventData.hall_height = newH;
+
+      showToast(`Whole floor rotated 90° Clockwise (${Units.formatDims(newW, newH)})`, 'success');
+    } else if (mode === 'ccw') {
+      const newW = oldH;
+      const newH = oldW;
+
+      this.tables.forEach(t => {
+        const oldX = t.x;
+        const oldY = t.y;
+        const oldTableW = t.width;
+        const oldTableH = t.height;
+
+        t.x = Units.roundFt(oldY);
+        t.y = Units.roundFt(oldW - (oldX + oldTableW));
+        t.width = oldTableH;
+        t.height = oldTableW;
+        t.rotation = ((t.rotation || 0) + 270) % 360;
+      });
+
+      this.elements.forEach(el => {
+        const oldX = el.x;
+        const oldY = el.y;
+        const elemW = el.width || 4;
+        const elemH = el.height || 2;
+
+        el.x = Units.roundFt(oldY);
+        el.y = Units.roundFt(oldW - (oldX + elemW));
+        el.width = elemH;
+        el.height = elemW;
+        el.rotation = ((el.rotation || 0) + 270) % 360;
+      });
+
+      this.eventData.hall_width = newW;
+      this.eventData.hall_height = newH;
+
+      showToast(`Whole floor rotated 90° Counter-Clockwise (${Units.formatDims(newW, newH)})`, 'success');
+    }
+
+    this.updateHeaderInfo();
+    this.setupViewBox();
+    this.renderHall();
+    this.renderAllObjects();
+    this.updateDirectoryList();
+    if (this.selectedItem) {
+      this.showProperties(this.selectedItem);
+    }
+  },
+
+  /* ----------------------------------------------------
+     HALL RENDERING & ARCHITECTURAL CAD TEXTURES & WALLS
+     ---------------------------------------------------- */
   renderHall() {
     const widthFt = this.hallWidthFt();
     const heightFt = this.hallHeightFt();
     const w = this.px(widthFt);
     const h = this.px(heightFt);
-    const minor = this.px(1);   // 1 ft
-    const major = this.px(5);   // 5 ft
+    const wallThick = this.px(WALL_THICKNESS_FT);
     const ns = 'http://www.w3.org/2000/svg';
 
     this.svg.innerHTML = '';
 
-    // Defs: Major & Minor Grid Pattern
+    // Defs: Wood Floor Pattern, Honey Oak Wood Material, Arrow Markers
     const defs = document.createElementNS(ns, 'defs');
 
-    // Minor Grid Pattern — one square per foot
-    const minorPattern = document.createElementNS(ns, 'pattern');
-    minorPattern.setAttribute('id', 'grid-minor');
-    minorPattern.setAttribute('width', minor);
-    minorPattern.setAttribute('height', minor);
-    minorPattern.setAttribute('patternUnits', 'userSpaceOnUse');
-    minorPattern.innerHTML = `
-      <path d="M ${minor} 0 L 0 0 0 ${minor}" fill="none" class="grid-minor-line" />
+    // Canvas Background Grid Pattern (1 ft & 5 ft)
+    const minor = this.px(1);
+    const major = this.px(5);
+    const gridPattern = document.createElementNS(ns, 'pattern');
+    gridPattern.setAttribute('id', 'canvas-bg-grid');
+    gridPattern.setAttribute('width', major);
+    gridPattern.setAttribute('height', major);
+    gridPattern.setAttribute('patternUnits', 'userSpaceOnUse');
+    gridPattern.innerHTML = `
+      <rect width="${major}" height="${major}" fill="#f4f5f7"/>
+      <path d="M ${minor} 0 L 0 0 0 ${minor} M ${minor*2} 0 L 0 0 0 ${minor*2} M ${minor*3} 0 L 0 0 0 ${minor*3} M ${minor*4} 0 L 0 0 0 ${minor*4}" fill="none" stroke="#e6e9ee" stroke-width="0.8"/>
+      <path d="M ${major} 0 L 0 0 0 ${major}" fill="none" stroke="#d5dbe3" stroke-width="1.2"/>
     `;
+    defs.appendChild(gridPattern);
 
-    // Major Grid Pattern — one square per 5 ft
-    const majorPattern = document.createElementNS(ns, 'pattern');
-    majorPattern.setAttribute('id', 'grid-major');
-    majorPattern.setAttribute('width', major);
-    majorPattern.setAttribute('height', major);
-    majorPattern.setAttribute('patternUnits', 'userSpaceOnUse');
-    majorPattern.innerHTML = `
-      <rect width="${major}" height="${major}" fill="url(#grid-minor)"/>
-      <path d="M ${major} 0 L 0 0 0 ${major}" fill="none" class="grid-major-line" />
+    // Warm Architectural Hardwood Floor Parquet Pattern
+    const plankW = this.px(16);
+    const plankH = this.px(2);
+    const woodFloorPattern = document.createElementNS(ns, 'pattern');
+    woodFloorPattern.setAttribute('id', 'wood-floor-texture');
+    woodFloorPattern.setAttribute('width', plankW);
+    woodFloorPattern.setAttribute('height', plankH * 2);
+    woodFloorPattern.setAttribute('patternUnits', 'userSpaceOnUse');
+    woodFloorPattern.innerHTML = `
+      <rect width="${plankW}" height="${plankH * 2}" fill="#ded4c5"/>
+      <line x1="0" y1="${plankH}" x2="${plankW}" y2="${plankH}" stroke="#cfc3b1" stroke-width="1"/>
+      <line x1="0" y1="${plankH * 2}" x2="${plankW}" y2="${plankH * 2}" stroke="#cfc3b1" stroke-width="1"/>
+      <line x1="${plankW / 2}" y1="0" x2="${plankW / 2}" y2="${plankH}" stroke="#cfc3b1" stroke-width="0.8"/>
+      <line x1="${plankW}" y1="${plankH}" x2="${plankW}" y2="${plankH * 2}" stroke="#cfc3b1" stroke-width="0.8"/>
+      <line x1="0" y1="${plankH}" x2="0" y2="${plankH * 2}" stroke="#cfc3b1" stroke-width="0.8"/>
     `;
+    defs.appendChild(woodFloorPattern);
 
-    defs.appendChild(minorPattern);
-    defs.appendChild(majorPattern);
+    // Honey Oak Table Wood Pattern (Available)
+    const tableWood = document.createElementNS(ns, 'pattern');
+    tableWood.setAttribute('id', 'honey-oak-table');
+    tableWood.setAttribute('width', this.px(4));
+    tableWood.setAttribute('height', this.px(2));
+    tableWood.setAttribute('patternUnits', 'userSpaceOnUse');
+    tableWood.innerHTML = `
+      <rect width="${this.px(4)}" height="${this.px(2)}" fill="#c98a46"/>
+      <line x1="0" y1="${this.px(1)}" x2="${this.px(4)}" y2="${this.px(1)}" stroke="#b87733" stroke-width="0.8" stroke-dasharray="8 2"/>
+    `;
+    defs.appendChild(tableWood);
+
+    // Booked Table Crimson Red Pattern
+    const tableBooked = document.createElementNS(ns, 'pattern');
+    tableBooked.setAttribute('id', 'honey-oak-table-booked');
+    tableBooked.setAttribute('width', this.px(4));
+    tableBooked.setAttribute('height', this.px(2));
+    tableBooked.setAttribute('patternUnits', 'userSpaceOnUse');
+    tableBooked.innerHTML = `
+      <rect width="${this.px(4)}" height="${this.px(2)}" fill="#e11d48"/>
+      <line x1="0" y1="${this.px(1)}" x2="${this.px(4)}" y2="${this.px(1)}" stroke="#be123c" stroke-width="0.8" stroke-dasharray="8 2"/>
+    `;
+    defs.appendChild(tableBooked);
+
+    // Double-headed rotation arrow marker
+    const markerStart = document.createElementNS(ns, 'marker');
+    markerStart.setAttribute('id', 'rot-arrow-start');
+    markerStart.setAttribute('viewBox', '0 0 10 10');
+    markerStart.setAttribute('refX', '5');
+    markerStart.setAttribute('refY', '5');
+    markerStart.setAttribute('markerWidth', '6');
+    markerStart.setAttribute('markerHeight', '6');
+    markerStart.setAttribute('orient', 'auto-start-reverse');
+    markerStart.innerHTML = `<path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6"/>`;
+    defs.appendChild(markerStart);
+
+    const markerEnd = document.createElementNS(ns, 'marker');
+    markerEnd.setAttribute('id', 'rot-arrow-end');
+    markerEnd.setAttribute('viewBox', '0 0 10 10');
+    markerEnd.setAttribute('refX', '5');
+    markerEnd.setAttribute('refY', '5');
+    markerEnd.setAttribute('markerWidth', '6');
+    markerEnd.setAttribute('markerHeight', '6');
+    markerEnd.setAttribute('orient', 'auto');
+    markerEnd.innerHTML = `<path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6"/>`;
+    defs.appendChild(markerEnd);
+
     this.svg.appendChild(defs);
 
-    // Floor Background
+    // Expansive Background Canvas Grid (Accommodates outside signs)
+    const bgCanvas = document.createElementNS(ns, 'rect');
+    bgCanvas.setAttribute('x', -this.px(60)); bgCanvas.setAttribute('y', -this.px(60));
+    bgCanvas.setAttribute('width', w + this.px(120)); bgCanvas.setAttribute('height', h + this.px(120));
+    bgCanvas.setAttribute('fill', 'url(#canvas-bg-grid)');
+    this.svg.appendChild(bgCanvas);
+
+    // Architectural Perimeter Thick Wall (Solid slate fill + dark outer outline)
+    const wallOuter = document.createElementNS(ns, 'rect');
+    wallOuter.setAttribute('x', -wallThick);
+    wallOuter.setAttribute('y', -wallThick);
+    wallOuter.setAttribute('width', w + wallThick * 2);
+    wallOuter.setAttribute('height', h + wallThick * 2);
+    wallOuter.setAttribute('fill', '#475569');
+    wallOuter.setAttribute('stroke', '#1e293b');
+    wallOuter.setAttribute('stroke-width', '1.5');
+    wallOuter.setAttribute('rx', '2');
+    this.svg.appendChild(wallOuter);
+
+    // Hardwood Floor Plan Interior
     const floor = document.createElementNS(ns, 'rect');
     floor.setAttribute('x', '0'); floor.setAttribute('y', '0');
     floor.setAttribute('width', w); floor.setAttribute('height', h);
-    floor.setAttribute('fill', 'url(#grid-major)');
-    floor.setAttribute('rx', '4');
+    floor.setAttribute('fill', 'url(#wood-floor-texture)');
+    floor.setAttribute('stroke', '#1e293b');
+    floor.setAttribute('stroke-width', '1.5');
     this.svg.appendChild(floor);
 
-    // Primary Blender Origin Axis Lines (Red = X, Green = Y)
-    const axisX = document.createElementNS(ns, 'line');
-    axisX.setAttribute('x1', '0'); axisX.setAttribute('y1', '0');
-    axisX.setAttribute('x2', w); axisX.setAttribute('y2', '0');
-    axisX.setAttribute('class', 'grid-axis-x');
-    this.svg.appendChild(axisX);
+    // Architectural Layer Groups
+    const structuresLayer = document.createElementNS(ns, 'g');
+    structuresLayer.setAttribute('id', 'editor-structures-layer');
+    this.svg.appendChild(structuresLayer);
 
-    const axisY = document.createElementNS(ns, 'line');
-    axisY.setAttribute('x1', '0'); axisY.setAttribute('y1', '0');
-    axisY.setAttribute('x2', '0'); axisY.setAttribute('y2', h);
-    axisY.setAttribute('class', 'grid-axis-y');
-    this.svg.appendChild(axisY);
-
-    // Outer Hall Boundary
-    const boundary = document.createElementNS(ns, 'rect');
-    boundary.setAttribute('x', '0'); boundary.setAttribute('y', '0');
-    boundary.setAttribute('width', w); boundary.setAttribute('height', h);
-    boundary.setAttribute('class', 'hall-boundary'); boundary.setAttribute('rx', '4');
-    this.svg.appendChild(boundary);
-
-    // Dimension labels, in feet
-    const labelW = document.createElementNS(ns, 'text');
-    labelW.setAttribute('x', w / 2); labelW.setAttribute('y', h + 25);
-    labelW.setAttribute('text-anchor', 'middle'); labelW.setAttribute('fill', '#94a3b8');
-    labelW.setAttribute('font-size', '10'); labelW.setAttribute('font-family', 'Inter, sans-serif');
-    labelW.textContent = Units.formatFeet(widthFt);
-    this.svg.appendChild(labelW);
-
-    const labelH = document.createElementNS(ns, 'text');
-    labelH.setAttribute('x', -25); labelH.setAttribute('y', h / 2);
-    labelH.setAttribute('text-anchor', 'middle'); labelH.setAttribute('fill', '#94a3b8');
-    labelH.setAttribute('font-size', '10'); labelH.setAttribute('font-family', 'Inter, sans-serif');
-    labelH.setAttribute('transform', `rotate(-90, -25, ${h / 2})`);
-    labelH.textContent = Units.formatFeet(heightFt);
-    this.svg.appendChild(labelH);
-
-    // Layer Groups
     const tablesLayer = document.createElementNS(ns, 'g');
     tablesLayer.setAttribute('id', 'editor-tables-layer');
     this.svg.appendChild(tablesLayer);
+
+    const doorsLayer = document.createElementNS(ns, 'g');
+    doorsLayer.setAttribute('id', 'editor-doors-layer');
+    this.svg.appendChild(doorsLayer);
+
+    const textLayer = document.createElementNS(ns, 'g');
+    textLayer.setAttribute('id', 'editor-text-layer');
+    this.svg.appendChild(textLayer);
+
+    const dimensionsLayer = document.createElementNS(ns, 'g');
+    dimensionsLayer.setAttribute('id', 'editor-dimensions-layer');
+    this.svg.appendChild(dimensionsLayer);
 
     const guidesLayer = document.createElementNS(ns, 'g');
     guidesLayer.setAttribute('id', 'editor-guides-layer');
     this.svg.appendChild(guidesLayer);
   },
 
+  renderAllObjects() {
+    this.renderAllTables();
+    this.renderAllElements();
+    this.renderDynamicDimensionLines();
+    this.updateFloatingActionsPosition();
+  },
+
+  /* ----------------------------------------------------
+     TABLES RENDERING (WARM TEAK / HONEY OAK MATERIAL)
+     ---------------------------------------------------- */
   renderAllTables() {
     const layer = document.getElementById('editor-tables-layer');
     if (!layer) return;
     layer.innerHTML = '';
-    this.tables.forEach(t => this.renderTableElement(t));
-    this.updateFloatingActionsPosition();
+    this.tables.forEach(t => this.renderTableElement(t, layer));
   },
 
-  renderTableElement(table) {
+  renderTableElement(table, layer) {
     const ns = 'http://www.w3.org/2000/svg';
-    const layer = document.getElementById('editor-tables-layer');
-
     const group = document.createElementNS(ns, 'g');
+    const tableId = String(table.id || table._tempId);
     group.setAttribute('class', `table-group table-${table.status || 'available'}`);
-    group.setAttribute('data-table-id', table.id || table._tempId);
-    group.style.cursor = 'move';
+    group.setAttribute('data-table-id', tableId);
+    group.setAttribute('pointer-events', 'all');
+    group.style.cursor = 'grab';
 
     const cx = this.px(table.x + (table.width / 2));
     const cy = this.px(table.y + (table.height / 2));
 
-    // Group Rotation around center
     if (table.rotation) {
       group.setAttribute('transform', `rotate(${table.rotation}, ${cx}, ${cy})`);
     }
 
-    const shapeInfo = this.renderStallShape(table, ns);
+    const isSelected = this.selectedItem && this.selectedItem.type === 'table' &&
+      String(this.selectedItem.obj.id || this.selectedItem.obj._tempId) === tableId;
+
+    const shapeInfo = this.renderStallShape(table, ns, isSelected);
     group.appendChild(shapeInfo.el);
 
-    // Table number label — counter rotate so text stays perfectly upright and readable
-    const label = document.createElementNS(ns, 'text');
-    label.setAttribute('x', shapeInfo.textX);
-    label.setAttribute('y', shapeInfo.textY);
-    label.setAttribute('class', 'table-number');
-    label.textContent = table.table_number;
+    // Selection Halo & Curved Rotation Arc Handle (↷ ↶)
+    if (isSelected) {
+      const rotGroup = document.createElementNS(ns, 'g');
+      rotGroup.setAttribute('class', 'cad-rotation-arc-group');
+      rotGroup.setAttribute('data-rotate-knob', 'true');
+      rotGroup.setAttribute('pointer-events', 'all');
 
-    if (table.rotation) {
-      label.setAttribute('transform', `rotate(${-table.rotation}, ${shapeInfo.textX}, ${shapeInfo.textY})`);
-    }
-    group.appendChild(label);
+      const arcRadius = Math.max(this.px(table.width) / 2 + 10, 32);
+      const arcY = this.px(table.y + table.height) + 16;
+      const arcWidth = Math.min(arcRadius * 1.5, 70);
 
-    // Selection indicators if selected
-    const selectedId = this.selectedTable ? (this.selectedTable.id || this.selectedTable._tempId) : null;
-    const thisId = table.id || table._tempId;
+      const arcPath = document.createElementNS(ns, 'path');
+      arcPath.setAttribute('d', `M ${cx - arcWidth / 2} ${arcY} A ${arcRadius} ${arcRadius} 0 0 0 ${cx + arcWidth / 2} ${arcY}`);
+      arcPath.setAttribute('fill', 'none');
+      arcPath.setAttribute('stroke', '#3b82f6');
+      arcPath.setAttribute('stroke-width', '5');
+      arcPath.setAttribute('stroke-linecap', 'round');
+      arcPath.setAttribute('marker-start', 'url(#rot-arrow-start)');
+      arcPath.setAttribute('marker-end', 'url(#rot-arrow-end)');
+      arcPath.setAttribute('class', 'cad-rotation-arc');
+      arcPath.setAttribute('data-rotate-knob', 'true');
 
-    if (selectedId && selectedId === thisId) {
-      group.classList.remove('table-available');
-      group.classList.add('table-selected');
-
-      // SVG Rotation Knob handle at top center of table
-      const handleLine = document.createElementNS(ns, 'line');
-      const knobY = this.px(table.y) - 18;
-      handleLine.setAttribute('x1', cx);
-      handleLine.setAttribute('y1', this.px(table.y));
-      handleLine.setAttribute('x2', cx);
-      handleLine.setAttribute('y2', knobY);
-      handleLine.setAttribute('stroke', '#0f172a');
-      handleLine.setAttribute('stroke-width', '1.5');
-      handleLine.setAttribute('stroke-dasharray', '2 2');
-      group.appendChild(handleLine);
-
-      const handleKnob = document.createElementNS(ns, 'circle');
-      handleKnob.setAttribute('cx', cx);
-      handleKnob.setAttribute('cy', knobY);
-      handleKnob.setAttribute('r', '7');
-      handleKnob.setAttribute('fill', '#0f172a');
-      handleKnob.setAttribute('stroke', '#ffffff');
-      handleKnob.setAttribute('stroke-width', '1.5');
-      handleKnob.setAttribute('class', 'rotate-handle-knob');
-      handleKnob.setAttribute('data-rotate-knob', 'true');
-      if (table.rotation) {
-        handleKnob.setAttribute('transform', `rotate(${-table.rotation}, ${cx}, ${knobY})`);
-      }
-      group.appendChild(handleKnob);
+      rotGroup.appendChild(arcPath);
+      group.appendChild(rotGroup);
     }
 
     layer.appendChild(group);
   },
 
-  renderStallShape(table, ns) {
-    // Geometry is stored in feet; the SVG path below is in drawing units
+  renderStallShape(table, ns, isSelected = false) {
     const shape = table.shape || 'rect';
+    const isBooked = table.status === 'booked';
     const x = this.px(table.x);
     const y = this.px(table.y);
     const w = this.px(table.width || Units.DEFAULT_STALL_WIDTH_FT);
     const h = this.px(table.height || Units.DEFAULT_STALL_HEIGHT_FT);
-    const armH = Math.min(this.px(2), h * 0.45);
-    const armW = Math.min(this.px(3), w * 0.5);
 
-    let pathD = null;
-    let textX = x + w / 2;
-    let textY = y + h / 2;
+    const container = document.createElementNS(ns, 'g');
+    container.setAttribute('class', 'table-shape-container');
 
-    if (shape === 'L_TOP_LEFT') {
-      pathD = `M ${x} ${y} H ${x + w} V ${y + h} H ${x + w - armW} V ${y + armH} H ${x} Z`;
-      textX = x + w - (armW / 2);
-      textY = y + armH + (h - armH) / 2;
-    } else if (shape === 'L_TOP_RIGHT') {
-      pathD = `M ${x} ${y} H ${x + w} V ${y + armH} H ${x + armW} V ${y + h} H ${x} Z`;
-      textX = x + (armW / 2);
-      textY = y + armH + (h - armH) / 2;
-    } else if (shape === 'L_BOT_RIGHT') {
-      pathD = `M ${x} ${y} H ${x + armW} V ${y + h - armH} H ${x + w} V ${y + h} H ${x} Z`;
-      textX = x + (armW / 2);
-      textY = y + (h - armH) / 2;
-    } else if (shape === 'L-Stall' || shape === 'L_BOT_LEFT' || shape.startsWith('L')) {
-      pathD = `M ${x + w - armW} ${y} H ${x + w} V ${y + h} H ${x} V ${y + h - armH} H ${x + w - armW} Z`;
-      textX = x + w - (armW / 2);
-      textY = y + (h - armH) / 2;
+    if (shape === 'Pod' || (table.width >= 7.5 && table.height >= 3.5)) {
+      const halfW = w / 2;
+      const halfH = h / 2;
+      const t1 = this.createTableUnitRect(x, y, halfW, halfH, ns, isSelected, isBooked);
+      const t2 = this.createTableUnitRect(x + halfW, y, halfW, halfH, ns, isSelected, isBooked);
+      const t3 = this.createTableUnitRect(x, y + halfH, halfW, halfH, ns, isSelected, isBooked);
+      const t4 = this.createTableUnitRect(x + halfW, y + halfH, halfW, halfH, ns, isSelected, isBooked);
+
+      container.appendChild(t1); container.appendChild(t2);
+      container.appendChild(t3); container.appendChild(t4);
+      return { el: container, textX: x + w / 2, textY: y + h / 2 };
     }
 
-    if (pathD) {
-      const el = document.createElementNS(ns, 'path');
-      el.setAttribute('d', pathD);
-      el.setAttribute('class', 'table-shape');
-      el.setAttribute('stroke-linejoin', 'round');
-      el.setAttribute('stroke-linecap', 'round');
-      return { el, textX, textY };
+    if (shape === 'T-Stall') {
+      const halfW = w / 3;
+      const topT = this.createTableUnitRect(x, y, w, h / 2, ns, isSelected, isBooked);
+      const stemT = this.createTableUnitRect(x + halfW, y + h / 2, halfW, h / 2, ns, isSelected, isBooked);
+      container.appendChild(topT);
+      container.appendChild(stemT);
+      return { el: container, textX: x + w / 2, textY: y + h / 2 };
     }
 
-    // Default rectangle
-    const el = document.createElementNS(ns, 'rect');
-    el.setAttribute('x', x); el.setAttribute('y', y);
-    el.setAttribute('width', w); el.setAttribute('height', h);
-    el.setAttribute('class', 'table-shape');
-    el.setAttribute('rx', '4'); el.setAttribute('ry', '4');
-    return { el, textX, textY };
+    if (shape === 'L-Stall' || shape.startsWith('L')) {
+      const armW = this.px(2);
+      const armH = this.px(2);
+      const topT = this.createTableUnitRect(x, y, w, armH, ns, isSelected, isBooked);
+      const sideT = this.createTableUnitRect(x, y + armH, armW, h - armH, ns, isSelected, isBooked);
+      container.appendChild(topT);
+      container.appendChild(sideT);
+      return { el: container, textX: x + w / 2, textY: y + h / 2 };
+    }
+
+    if (table.width >= 7.5 && table.height <= 3) {
+      const halfW = w / 2;
+      const t1 = this.createTableUnitRect(x, y, halfW, h, ns, isSelected, isBooked);
+      const t2 = this.createTableUnitRect(x + halfW, y, halfW, h, ns, isSelected, isBooked);
+      container.appendChild(t1);
+      container.appendChild(t2);
+      return { el: container, textX: x + w / 2, textY: y + h / 2 };
+    }
+
+    const tRect = this.createTableUnitRect(x, y, w, h, ns, isSelected, isBooked);
+    container.appendChild(tRect);
+    return { el: container, textX: x + w / 2, textY: y + h / 2 };
   },
 
-  // Dynamic Smart Alignment Guide Engine
-  calculateSnapAndGuides(targetTable, rawX, rawY) {
+  createTableUnitRect(x, y, w, h, ns, isSelected, isBooked = false) {
+    const g = document.createElementNS(ns, 'g');
+
+    const rect = document.createElementNS(ns, 'rect');
+    rect.setAttribute('x', x); rect.setAttribute('y', y);
+    rect.setAttribute('width', w); rect.setAttribute('height', h);
+
+    if (isBooked) {
+      rect.setAttribute('fill', 'url(#honey-oak-table-booked)');
+      rect.setAttribute('stroke', isSelected ? '#2563eb' : '#9f1239');
+      rect.setAttribute('stroke-width', isSelected ? '2' : '1.5');
+    } else {
+      rect.setAttribute('fill', 'url(#honey-oak-table)');
+      rect.setAttribute('stroke', isSelected ? '#2563eb' : '#8c5822');
+      rect.setAttribute('stroke-width', isSelected ? '2' : '1');
+    }
+
+    rect.setAttribute('rx', '2'); rect.setAttribute('ry', '2');
+    g.appendChild(rect);
+
+    if (isSelected) {
+      const selectTint = document.createElementNS(ns, 'rect');
+      selectTint.setAttribute('x', x); selectTint.setAttribute('y', y);
+      selectTint.setAttribute('width', w); selectTint.setAttribute('height', h);
+      selectTint.setAttribute('fill', 'rgba(37, 99, 235, 0.18)');
+      selectTint.setAttribute('pointer-events', 'none');
+      selectTint.setAttribute('rx', '2');
+      g.appendChild(selectTint);
+    }
+
+    return g;
+  },
+
+  /* ----------------------------------------------------
+     DYNAMIC REAL-TIME CAD DISTANCE MEASUREMENT LINES
+     ---------------------------------------------------- */
+  renderDynamicDimensionLines() {
+    const layer = document.getElementById('editor-dimensions-layer');
+    if (!layer) return;
+    layer.innerHTML = '';
+
+    if (!this.selectedItem || this.selectedItem.type !== 'table') return;
+
+    const ns = 'http://www.w3.org/2000/svg';
+    const target = this.selectedItem.obj;
+    const hallW = this.hallWidthFt();
+    const hallH = this.hallHeightFt();
+
+    const tX = target.x;
+    const tY = target.y;
+    const tW = target.width;
+    const tH = target.height;
+    const cx = this.px(tX + tW / 2);
+
+    // 1. Distance to Left Wall
+    if (tX > 0.3) {
+      const distFt = tX;
+      const x1 = 0;
+      const x2 = this.px(tX);
+      const lineY = this.px(tY + 1);
+
+      this.drawCadDimensionLeader(layer, ns, x1, lineY, x2, lineY, Units.formatFeetInches(distFt), 'horizontal');
+    }
+
+    // 2. Distance to Right Obstacle / Wall
+    let minRightDistFt = hallW - (tX + tW);
+    let rightTargetX = this.px(hallW);
+
+    this.tables.forEach(other => {
+      if (String(other.id || other._tempId) === String(target.id || target._tempId)) return;
+      if (other.x >= tX + tW && Math.abs(other.y - tY) < Math.max(tH, other.height)) {
+        const gap = other.x - (tX + tW);
+        if (gap < minRightDistFt) {
+          minRightDistFt = gap;
+          rightTargetX = this.px(other.x);
+        }
+      }
+    });
+
+    if (minRightDistFt > 0.2) {
+      const x1 = this.px(tX + tW);
+      const x2 = rightTargetX;
+      const lineY = this.px(tY + 1);
+      this.drawCadDimensionLeader(layer, ns, x1, lineY, x2, lineY, Units.formatFeetInches(minRightDistFt), 'horizontal');
+    }
+
+    // 3. Distance to Bottom Row / Wall
+    let minBottomDistFt = hallH - (tY + tH);
+    let bottomTargetY = this.px(hallH);
+
+    this.tables.forEach(other => {
+      if (String(other.id || other._tempId) === String(target.id || target._tempId)) return;
+      if (other.y >= tY + tH && Math.abs(other.x - tX) < Math.max(tW, other.width)) {
+        const gap = other.y - (tY + tH);
+        if (gap < minBottomDistFt) {
+          minBottomDistFt = gap;
+          bottomTargetY = this.px(other.y);
+        }
+      }
+    });
+
+    if (minBottomDistFt > 0.2) {
+      const y1 = this.px(tY + tH);
+      const y2 = bottomTargetY;
+      const lineX = cx;
+      this.drawCadDimensionLeader(layer, ns, lineX, y1, lineX, y2, Units.formatFeetInches(minBottomDistFt), 'vertical');
+    }
+  },
+
+  drawCadDimensionLeader(layer, ns, x1, y1, x2, y2, text, orientation) {
+    const g = document.createElementNS(ns, 'g');
+    g.setAttribute('class', 'cad-dimension-group');
+    g.setAttribute('pointer-events', 'none');
+
+    const line = document.createElementNS(ns, 'line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.setAttribute('class', 'cad-dimension-line');
+    g.appendChild(line);
+
+    const tickLen = 4;
+    if (orientation === 'horizontal') {
+      const tick1 = document.createElementNS(ns, 'line');
+      tick1.setAttribute('x1', x1); tick1.setAttribute('y1', y1 - tickLen);
+      tick1.setAttribute('x2', x1); tick1.setAttribute('y2', y1 + tickLen);
+      tick1.setAttribute('class', 'cad-dimension-line');
+      g.appendChild(tick1);
+
+      const tick2 = document.createElementNS(ns, 'line');
+      tick2.setAttribute('x1', x2); tick2.setAttribute('y1', y2 - tickLen);
+      tick2.setAttribute('x2', x2); tick2.setAttribute('y2', y2 + tickLen);
+      tick2.setAttribute('class', 'cad-dimension-line');
+      g.appendChild(tick2);
+    } else {
+      const tick1 = document.createElementNS(ns, 'line');
+      tick1.setAttribute('x1', x1 - tickLen); tick1.setAttribute('y1', y1);
+      tick1.setAttribute('x2', x1 + tickLen); tick1.setAttribute('y2', y1);
+      tick1.setAttribute('class', 'cad-dimension-line');
+      g.appendChild(tick1);
+
+      const tick2 = document.createElementNS(ns, 'line');
+      tick2.setAttribute('x1', x2 - tickLen); tick2.setAttribute('y1', y2);
+      tick2.setAttribute('x2', x2 + tickLen); tick2.setAttribute('y2', y2);
+      tick2.setAttribute('class', 'cad-dimension-line');
+      g.appendChild(tick2);
+    }
+
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    const badgeW = text.length * 6.5 + 10;
+    const badgeH = 16;
+
+    const bgRect = document.createElementNS(ns, 'rect');
+    bgRect.setAttribute('x', midX - badgeW / 2);
+    bgRect.setAttribute('y', midY - badgeH / 2);
+    bgRect.setAttribute('width', badgeW);
+    bgRect.setAttribute('height', badgeH);
+    bgRect.setAttribute('class', 'cad-dimension-badge-bg');
+    g.appendChild(bgRect);
+
+    const txt = document.createElementNS(ns, 'text');
+    txt.setAttribute('x', midX);
+    txt.setAttribute('y', midY);
+    txt.setAttribute('class', 'cad-dimension-badge-text');
+    txt.textContent = text;
+    g.appendChild(txt);
+
+    layer.appendChild(g);
+  },
+
+  /* ----------------------------------------------------
+     ARCHITECTURAL ELEMENTS (WALL-INSET & OUTSIDE ITEMS)
+     ---------------------------------------------------- */
+  renderAllElements() {
+    const doorsLayer = document.getElementById('editor-doors-layer');
+    const textLayer = document.getElementById('editor-text-layer');
+    const structLayer = document.getElementById('editor-structures-layer');
+
+    if (doorsLayer) doorsLayer.innerHTML = '';
+    if (textLayer) textLayer.innerHTML = '';
+    if (structLayer) structLayer.innerHTML = '';
+
+    this.elements.forEach(elem => {
+      if (elem.type === 'door') {
+        if (doorsLayer) this.renderDoorElement(elem, doorsLayer);
+      } else if (elem.type === 'text') {
+        if (textLayer) this.renderTextElement(elem, textLayer);
+      } else if (elem.type === 'room_badge') {
+        if (textLayer) this.renderRoomBadgeElement(elem, textLayer);
+      } else {
+        if (structLayer) this.renderStructureElement(elem, structLayer);
+      }
+    });
+  },
+
+  renderRoomBadgeElement(badge, layer) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const group = document.createElementNS(ns, 'g');
+    const elemId = String(badge.id || 'room_badge_main');
+    group.setAttribute('class', 'arch-element arch-room-badge');
+    group.setAttribute('data-element-id', elemId);
+    group.setAttribute('pointer-events', 'all');
+    group.style.cursor = 'grab';
+
+    const cx = this.px(badge.x + (badge.width || 8) / 2);
+    const cy = this.px(badge.y + (badge.height || 3) / 2);
+
+    if (badge.rotation) {
+      group.setAttribute('transform', `rotate(${badge.rotation}, ${cx}, ${cy})`);
+    }
+
+    const x = this.px(badge.x);
+    const y = this.px(badge.y);
+    const w = this.px(badge.width || 8);
+    const h = this.px(badge.height || 3);
+
+    // Hit box
+    const hitBox = document.createElementNS(ns, 'rect');
+    hitBox.setAttribute('x', x - 4); hitBox.setAttribute('y', y - 4);
+    hitBox.setAttribute('width', w + 8); hitBox.setAttribute('height', h + 8);
+    hitBox.setAttribute('fill', 'transparent');
+    hitBox.setAttribute('pointer-events', 'all');
+    group.appendChild(hitBox);
+
+    const titleText = badge.label || this.eventData.name || 'Unnamed';
+    const areaFt = Math.round(this.hallWidthFt() * this.hallHeightFt());
+
+    const titleEl = document.createElementNS(ns, 'text');
+    titleEl.setAttribute('x', x);
+    titleEl.setAttribute('y', y + 10);
+    titleEl.setAttribute('fill', '#1e293b');
+    titleEl.setAttribute('font-size', '11');
+    titleEl.setAttribute('font-weight', '700');
+    titleEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
+    titleEl.setAttribute('pointer-events', 'none');
+    titleEl.textContent = titleText;
+    group.appendChild(titleEl);
+
+    const areaEl = document.createElementNS(ns, 'text');
+    areaEl.setAttribute('x', x);
+    areaEl.setAttribute('y', y + 24);
+    areaEl.setAttribute('fill', '#64748b');
+    areaEl.setAttribute('font-size', '9.5');
+    areaEl.setAttribute('font-weight', '600');
+    areaEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
+    areaEl.setAttribute('pointer-events', 'none');
+    areaEl.textContent = `${areaFt.toLocaleString('en-IN')} sq ft`;
+    group.appendChild(areaEl);
+
+    const isSelected = this.selectedItem && this.selectedItem.type === 'element' &&
+      String(this.selectedItem.obj.id || this.selectedItem.obj._tempId) === elemId;
+
+    if (isSelected) {
+      const selectBox = document.createElementNS(ns, 'rect');
+      selectBox.setAttribute('x', x - 6); selectBox.setAttribute('y', y - 4);
+      selectBox.setAttribute('width', w + 12); selectBox.setAttribute('height', h + 12);
+      selectBox.setAttribute('fill', 'none');
+      selectBox.setAttribute('stroke', '#2563eb');
+      selectBox.setAttribute('stroke-width', '1.5');
+      selectBox.setAttribute('stroke-dasharray', '3 3');
+      selectBox.setAttribute('rx', '4');
+      selectBox.setAttribute('pointer-events', 'none');
+      group.appendChild(selectBox);
+    }
+
+    layer.appendChild(group);
+  },
+
+  renderDoorElement(door, layer) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const group = document.createElementNS(ns, 'g');
+    const elemId = String(door.id || door._tempId);
+    group.setAttribute('class', `arch-element arch-door arch-door-${door.doorType || 'entrance'}`);
+    group.setAttribute('data-element-id', elemId);
+    group.setAttribute('pointer-events', 'all');
+    group.style.cursor = 'grab';
+
+    const w = this.px(door.width || 4);
+    const h = this.px(door.height || 2);
+    const cx = this.px(door.x + (door.width || 4) / 2);
+    const cy = this.px(door.y + (door.height || 2) / 2);
+
+    if (door.rotation) {
+      group.setAttribute('transform', `rotate(${door.rotation}, ${cx}, ${cy})`);
+    }
+
+    const x = this.px(door.x);
+    const y = this.px(door.y);
+
+    // Hit box
+    const hitBox = document.createElementNS(ns, 'rect');
+    hitBox.setAttribute('x', x - 4); hitBox.setAttribute('y', y - 4);
+    hitBox.setAttribute('width', w + 8); hitBox.setAttribute('height', Math.max(h, w) + 8);
+    hitBox.setAttribute('fill', 'transparent');
+    hitBox.setAttribute('pointer-events', 'all');
+    group.appendChild(hitBox);
+
+    if (door.doorType === 'window') {
+      const frame = document.createElementNS(ns, 'rect');
+      frame.setAttribute('x', x); frame.setAttribute('y', y);
+      frame.setAttribute('width', w); frame.setAttribute('height', this.px(WALL_THICKNESS_FT));
+      frame.setAttribute('fill', '#ffffff');
+      frame.setAttribute('stroke', '#1e293b');
+      frame.setAttribute('stroke-width', '1.5');
+      group.appendChild(frame);
+
+      const gLine1 = document.createElementNS(ns, 'line');
+      gLine1.setAttribute('x1', x); gLine1.setAttribute('y1', y + this.px(WALL_THICKNESS_FT)/3);
+      gLine1.setAttribute('x2', x + w); gLine1.setAttribute('y2', y + this.px(WALL_THICKNESS_FT)/3);
+      gLine1.setAttribute('stroke', '#38bdf8'); gLine1.setAttribute('stroke-width', '1.2');
+      group.appendChild(gLine1);
+
+      const gLine2 = document.createElementNS(ns, 'line');
+      gLine2.setAttribute('x1', x); gLine2.setAttribute('y1', y + (this.px(WALL_THICKNESS_FT)*2)/3);
+      gLine2.setAttribute('x2', x + w); gLine2.setAttribute('y2', y + (this.px(WALL_THICKNESS_FT)*2)/3);
+      gLine2.setAttribute('stroke', '#38bdf8'); gLine2.setAttribute('stroke-width', '1.2');
+      group.appendChild(gLine2);
+    } else {
+      const swingR = w;
+      const isExit = door.doorType === 'exit';
+
+      const cutout = document.createElementNS(ns, 'rect');
+      cutout.setAttribute('x', x); cutout.setAttribute('y', y - 4);
+      cutout.setAttribute('width', w); cutout.setAttribute('height', 8);
+      cutout.setAttribute('fill', '#ffffff');
+      group.appendChild(cutout);
+
+      const arc = document.createElementNS(ns, 'path');
+      arc.setAttribute('d', `M ${x} ${y} A ${swingR} ${swingR} 0 0 1 ${x + swingR} ${y + swingR}`);
+      arc.setAttribute('fill', 'none');
+      arc.setAttribute('stroke', isExit ? '#f87171' : '#cbd5e1');
+      arc.setAttribute('stroke-width', '1.2');
+      group.appendChild(arc);
+
+      const leaf = document.createElementNS(ns, 'rect');
+      leaf.setAttribute('x', x + swingR - 2); leaf.setAttribute('y', y);
+      leaf.setAttribute('width', 4); leaf.setAttribute('height', swingR);
+      leaf.setAttribute('fill', '#ffffff');
+      leaf.setAttribute('stroke', '#1e293b');
+      leaf.setAttribute('stroke-width', '1.2');
+      group.appendChild(leaf);
+
+      const jambL = document.createElementNS(ns, 'rect');
+      jambL.setAttribute('x', x - 2); jambL.setAttribute('y', y - 4);
+      jambL.setAttribute('width', 3); jambL.setAttribute('height', 8);
+      jambL.setAttribute('fill', '#1e293b');
+      group.appendChild(jambL);
+
+      const jambR = document.createElementNS(ns, 'rect');
+      jambR.setAttribute('x', x + w - 1); jambR.setAttribute('y', y - 4);
+      jambR.setAttribute('width', 3); jambR.setAttribute('height', 8);
+      jambR.setAttribute('fill', '#1e293b');
+      group.appendChild(jambR);
+    }
+
+    const isSelected = this.selectedItem && this.selectedItem.type === 'element' &&
+      String(this.selectedItem.obj.id || this.selectedItem.obj._tempId) === elemId;
+
+    if (isSelected) {
+      const selectOutline = document.createElementNS(ns, 'rect');
+      selectOutline.setAttribute('x', x - 4); selectOutline.setAttribute('y', y - 4);
+      selectOutline.setAttribute('width', w + 8); selectOutline.setAttribute('height', Math.max(h, w) + 8);
+      selectOutline.setAttribute('fill', 'none');
+      selectOutline.setAttribute('stroke', '#2563eb');
+      selectOutline.setAttribute('stroke-width', '1.5');
+      selectOutline.setAttribute('stroke-dasharray', '3 3');
+      selectOutline.setAttribute('rx', '4');
+      selectOutline.setAttribute('pointer-events', 'none');
+      group.appendChild(selectOutline);
+    }
+
+    layer.appendChild(group);
+  },
+
+  renderTextElement(elem, layer) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const group = document.createElementNS(ns, 'g');
+    const elemId = String(elem.id || elem._tempId);
+    group.setAttribute('class', 'arch-element arch-text-element');
+    group.setAttribute('data-element-id', elemId);
+    group.setAttribute('pointer-events', 'all');
+    group.style.cursor = 'grab';
+
+    const cx = this.px(elem.x + (elem.width || 4) / 2);
+    const cy = this.px(elem.y + (elem.height || 2) / 2);
+
+    if (elem.rotation) {
+      group.setAttribute('transform', `rotate(${elem.rotation}, ${cx}, ${cy})`);
+    }
+
+    const textStr = elem.text || 'LABEL';
+    const fontSize = elem.fontSize || 14;
+    const color = elem.color || '#0f172a';
+    const isBold = elem.fontWeight === 'bold' || elem.fontWeight === '700' || elem.fontWeight === '800';
+
+    const paddingX = 12;
+    const textLength = Math.max(textStr.length * (fontSize * 0.6) + paddingX * 2, 50);
+    const badgeH = fontSize + 12;
+
+    const badge = document.createElementNS(ns, 'rect');
+    badge.setAttribute('x', cx - textLength / 2);
+    badge.setAttribute('y', cy - badgeH / 2);
+    badge.setAttribute('width', textLength);
+    badge.setAttribute('height', badgeH);
+    badge.setAttribute('rx', elem.badge ? badgeH / 2 : 4);
+    badge.setAttribute('fill', elem.badge ? '#ffffff' : 'transparent');
+    badge.setAttribute('stroke', elem.badge ? color : 'transparent');
+    badge.setAttribute('stroke-width', '1.5');
+    if (elem.badge) badge.setAttribute('filter', 'drop-shadow(0 1px 3px rgba(0,0,0,0.06))');
+    group.appendChild(badge);
+
+    const textEl = document.createElementNS(ns, 'text');
+    textEl.setAttribute('x', cx);
+    textEl.setAttribute('y', cy + (fontSize * 0.35));
+    textEl.setAttribute('text-anchor', 'middle');
+    textEl.setAttribute('fill', color);
+    textEl.setAttribute('font-size', `${fontSize}`);
+    textEl.setAttribute('font-weight', isBold ? '700' : '600');
+    textEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
+    textEl.setAttribute('letter-spacing', '0.03em');
+    textEl.setAttribute('pointer-events', 'none');
+    textEl.textContent = textStr;
+    group.appendChild(textEl);
+
+    const isSelected = this.selectedItem && this.selectedItem.type === 'element' &&
+      String(this.selectedItem.obj.id || this.selectedItem.obj._tempId) === elemId;
+
+    if (isSelected) {
+      const box = document.createElementNS(ns, 'rect');
+      box.setAttribute('x', cx - textLength / 2 - 4); box.setAttribute('y', cy - badgeH / 2 - 4);
+      box.setAttribute('width', textLength + 8); box.setAttribute('height', badgeH + 8);
+      box.setAttribute('fill', 'none');
+      box.setAttribute('stroke', '#2563eb');
+      box.setAttribute('stroke-width', '1.5');
+      box.setAttribute('stroke-dasharray', '3 3');
+      box.setAttribute('rx', '6');
+      box.setAttribute('pointer-events', 'none');
+      group.appendChild(box);
+    }
+
+    layer.appendChild(group);
+  },
+
+  renderStructureElement(elem, layer) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const group = document.createElementNS(ns, 'g');
+    const elemId = String(elem.id || elem._tempId);
+    group.setAttribute('class', `arch-element arch-structure arch-${elem.type}`);
+    group.setAttribute('data-element-id', elemId);
+    group.setAttribute('pointer-events', 'all');
+    group.style.cursor = 'grab';
+
+    const w = this.px(elem.width || 2);
+    const h = this.px(elem.height || 2);
+    const x = this.px(elem.x);
+    const y = this.px(elem.y);
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+
+    if (elem.rotation) {
+      group.setAttribute('transform', `rotate(${elem.rotation}, ${cx}, ${cy})`);
+    }
+
+    const hitBox = document.createElementNS(ns, 'rect');
+    hitBox.setAttribute('x', x - 2); hitBox.setAttribute('y', y - 2);
+    hitBox.setAttribute('width', w + 4); hitBox.setAttribute('height', h + 4);
+    hitBox.setAttribute('fill', 'transparent');
+    hitBox.setAttribute('pointer-events', 'all');
+    group.appendChild(hitBox);
+
+    if (elem.type === 'pillar_round') {
+      const r = Math.min(w, h) / 2;
+      const col = document.createElementNS(ns, 'circle');
+      col.setAttribute('cx', cx); col.setAttribute('cy', cy); col.setAttribute('r', r);
+      col.setAttribute('fill', '#94a3b8'); col.setAttribute('stroke', '#334155'); col.setAttribute('stroke-width', '1.5');
+      group.appendChild(col);
+    } else if (elem.type === 'stage') {
+      const stage = document.createElementNS(ns, 'rect');
+      stage.setAttribute('x', x); stage.setAttribute('y', y);
+      stage.setAttribute('width', w); stage.setAttribute('height', h);
+      stage.setAttribute('fill', '#334155'); stage.setAttribute('stroke', '#0f172a'); stage.setAttribute('stroke-width', '2');
+      stage.setAttribute('rx', '4');
+      group.appendChild(stage);
+
+      const stageLabel = document.createElementNS(ns, 'text');
+      stageLabel.setAttribute('x', cx); stageLabel.setAttribute('y', cy + 5);
+      stageLabel.setAttribute('text-anchor', 'middle'); stageLabel.setAttribute('fill', '#f8fafc');
+      stageLabel.setAttribute('font-size', '13'); stageLabel.setAttribute('font-weight', '700');
+      stageLabel.setAttribute('pointer-events', 'none');
+      stageLabel.textContent = (elem.label || 'STAGE').toUpperCase();
+      group.appendChild(stageLabel);
+    } else {
+      const pillar = document.createElementNS(ns, 'rect');
+      pillar.setAttribute('x', x); pillar.setAttribute('y', y);
+      pillar.setAttribute('width', w); pillar.setAttribute('height', h);
+      pillar.setAttribute('fill', '#94a3b8'); pillar.setAttribute('stroke', '#334155'); pillar.setAttribute('stroke-width', '1.5');
+      pillar.setAttribute('rx', '2');
+      group.appendChild(pillar);
+    }
+
+    const isSelected = this.selectedItem && this.selectedItem.type === 'element' &&
+      String(this.selectedItem.obj.id || this.selectedItem.obj._tempId) === elemId;
+
+    if (isSelected) {
+      const ring = document.createElementNS(ns, 'rect');
+      ring.setAttribute('x', x - 4); ring.setAttribute('y', y - 4);
+      ring.setAttribute('width', w + 8); ring.setAttribute('height', h + 8);
+      ring.setAttribute('fill', 'none');
+      ring.setAttribute('stroke', '#2563eb');
+      ring.setAttribute('stroke-width', '1.5');
+      ring.setAttribute('stroke-dasharray', '3 3');
+      ring.setAttribute('rx', '6');
+      ring.setAttribute('pointer-events', 'none');
+      group.appendChild(ring);
+    }
+
+    layer.appendChild(group);
+  },
+
+  /* ----------------------------------------------------
+     TOOLBAR & PALETTE ACTIONS
+     ---------------------------------------------------- */
+  switchToolbarTab(tabName) {
+    const tabs = ['stalls', 'doors', 'text', 'structures'];
+    tabs.forEach(t => {
+      const btn = document.getElementById(`tab-btn-${t}`);
+      const group = document.getElementById(`subtools-${t}`);
+      if (btn) btn.classList.toggle('active', t === tabName);
+      if (group) group.classList.toggle('hidden', t !== tabName);
+    });
+  },
+
+  addTable(stallType = 'single') {
+    const defaults = STALL_DEFAULTS[stallType] || STALL_DEFAULTS.single;
+    const hallW = this.hallWidthFt();
+    const hallH = this.hallHeightFt();
+
+    const newTable = {
+      _tempId: 'table_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      event_id: parseInt(this.eventId),
+      table_number: this.getNextAvailableTableNum(),
+      label: defaults.label,
+      size: defaults.size,
+      price: 0,
+      x: Math.round(hallW / 2 - defaults.width / 2),
+      y: Math.round(hallH / 2 - defaults.height / 2),
+      width: defaults.width,
+      height: defaults.height,
+      rotation: 0,
+      shape: defaults.shape,
+      status: 'available'
+    };
+
+    this.clampToBounds(newTable, 'table');
+    this.tables.push(newTable);
+    this.renderAllObjects();
+    this.selectObject('table', newTable);
+    this.updateDirectoryList();
+
+    showToast(`Stall ${newTable.table_number} added — ${defaults.label} (${Units.formatDims(defaults.width, defaults.height)})`, 'success');
+  },
+
+  addDoor(doorType = 'entrance') {
+    const hallW = this.hallWidthFt();
+    const width = doorType === 'window' ? 6 : (doorType === 'double' ? 6 : 4);
+    const height = 2;
+
+    const newDoor = {
+      id: 'door_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      type: 'door',
+      doorType: doorType,
+      label: doorType === 'exit' ? 'EMERGENCY EXIT' : (doorType === 'window' ? 'WINDOW' : 'MAIN ENTRANCE'),
+      x: Math.round(hallW / 2 - width / 2),
+      y: 0,
+      width: width,
+      height: height,
+      rotation: 0
+    };
+
+    this.clampToBounds(newDoor, 'element');
+    this.elements.push(newDoor);
+    this.renderAllObjects();
+    this.selectObject('element', newDoor);
+    this.updateDirectoryList();
+
+    showToast(`Added ${newDoor.label} (${width} ft)`, 'success');
+  },
+
+  addTextElement(text = 'MAIN ENTRANCE', options = {}) {
+    const hallW = this.hallWidthFt();
+
+    const newText = {
+      id: 'text_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      type: 'text',
+      text: text,
+      fontSize: options.fontSize || 14,
+      fontWeight: options.fontWeight || '700',
+      color: options.color || '#0f172a',
+      badge: options.badge !== undefined ? options.badge : true,
+      x: Math.round(hallW / 2 - 4),
+      y: -5,
+      width: 8,
+      height: 3,
+      rotation: 0
+    };
+
+    this.clampToBounds(newText, 'element');
+    this.elements.push(newText);
+    this.renderAllObjects();
+    this.selectObject('element', newText);
+    this.updateDirectoryList();
+
+    showToast(`Added Sign: "${text}"`, 'success');
+  },
+
+  addCustomTextPrompt() {
+    const text = prompt('Enter text for label (e.g. VIP LOUNGE, NORTH ENTRANCE):', 'MAIN ENTRANCE');
+    if (text && text.trim()) {
+      this.addTextElement(text.trim(), { badge: true, color: '#2563eb' });
+    }
+  },
+
+  addStructure(structType = 'pillar_square') {
+    const hallW = this.hallWidthFt();
+    const hallH = this.hallHeightFt();
+
+    let width = 2;
+    let height = 2;
+    let label = 'Pillar';
+
+    if (structType === 'stage') {
+      width = 16;
+      height = 8;
+      label = 'Main Stage';
+    } else if (structType === 'arrow') {
+      width = 6;
+      height = 2;
+      label = 'Entry Flow';
+    }
+
+    const newStruct = {
+      id: 'struct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      type: structType,
+      label: label,
+      x: Math.round(hallW / 2 - width / 2),
+      y: Math.round(hallH / 2 - height / 2),
+      width: width,
+      height: height,
+      rotation: 0
+    };
+
+    this.clampToBounds(newStruct, 'element');
+    this.elements.push(newStruct);
+    this.renderAllObjects();
+    this.selectObject('element', newStruct);
+    this.updateDirectoryList();
+
+    showToast(`Added ${label}`, 'success');
+  },
+
+  /* ----------------------------------------------------
+     UNIFIED SELECTION & INSPECTOR ENGINE
+     ---------------------------------------------------- */
+  selectObject(type, obj) {
+    this.selectedItem = { type, obj };
+    this.renderAllObjects();
+    this.showProperties(this.selectedItem);
+    this.updateDirectoryList();
+  },
+
+  deselect() {
+    this.selectedItem = null;
+    this.renderAllObjects();
+    this.showEmptyProperties();
+    this.updateDirectoryList();
+    this.clearGuides();
+  },
+
+  showProperties(item) {
+    if (!item) {
+      this.showEmptyProperties();
+      return;
+    }
+
+    const badge = document.getElementById('inspector-badge');
+    const headerTitle = document.getElementById('inspector-header-title');
+    const body = document.getElementById('properties-body');
+
+    if (badge) badge.style.display = 'inline-block';
+
+    if (item.type === 'table') {
+      const table = item.obj;
+      if (headerTitle) headerTitle.textContent = `Stall ${table.table_number}`;
+      if (badge) { badge.textContent = 'Stall'; badge.className = 'badge badge-available'; }
+
+      body.innerHTML = `
+        <div class="form-group">
+          <label class="form-label">Stall Number</label>
+          <input type="text" class="form-input" value="${table.table_number}" onchange="layoutEditor.updateItemProp('table_number', this.value)" id="prop-number">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Label / Name</label>
+          <input type="text" class="form-input" value="${table.label || ''}" onchange="layoutEditor.updateItemProp('label', this.value)" id="prop-label">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rotation</label>
+          <div style="display: flex; gap: var(--space-xs); align-items: center;">
+            <input type="number" class="form-input" value="${table.rotation || 0}" step="90" onchange="layoutEditor.updateItemProp('rotation', (parseFloat(this.value)||0)%360)" id="prop-rotation">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.rotateSelected()" title="Rotate +90°">+90°</button>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
+          <div class="form-group">
+            <label class="form-label">Width</label>
+            <div class="input-with-unit">
+              <input type="number" class="form-input" step="0.25" min="${Units.STALL_MIN_FT}" max="${Units.STALL_MAX_FT}" value="${table.width}" onchange="layoutEditor.updateItemProp('width', Units.clampStallFt(this.value, ${Units.DEFAULT_STALL_WIDTH_FT}))" id="prop-width">
+              <span class="input-unit">ft</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Depth</label>
+            <div class="input-with-unit">
+              <input type="number" class="form-input" step="0.25" min="${Units.STALL_MIN_FT}" max="${Units.STALL_MAX_FT}" value="${table.height}" onchange="layoutEditor.updateItemProp('height', Units.clampStallFt(this.value, ${Units.DEFAULT_STALL_HEIGHT_FT}))" id="prop-height">
+              <span class="input-unit">ft</span>
+            </div>
+          </div>
+        </div>
+        <p class="form-hint" style="margin-top: -6px; margin-bottom: var(--space-sm);">
+          ${Units.formatDims(table.width, table.height)} &middot; ${Units.formatArea(table.width, table.height)}
+        </p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
+          <div class="form-group">
+            <label class="form-label">X Position</label>
+            <div class="input-with-unit">
+              <input type="number" class="form-input" step="0.25" value="${Units.roundFt(table.x)}" onchange="layoutEditor.updateItemProp('x', Units.roundFt(Units.toFeet(this.value, 0)))" id="prop-x">
+              <span class="input-unit">ft</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Y Position</label>
+            <div class="input-with-unit">
+              <input type="number" class="form-input" step="0.25" value="${Units.roundFt(table.y)}" onchange="layoutEditor.updateItemProp('y', Units.roundFt(Units.toFeet(this.value, 0)))" id="prop-y">
+              <span class="input-unit">ft</span>
+            </div>
+          </div>
+        </div>
+      `;
+    } else if (item.type === 'element') {
+      const elem = item.obj;
+      const isRoomBadge = elem.type === 'room_badge';
+      if (headerTitle) headerTitle.textContent = isRoomBadge ? 'Project Header Badge' : (elem.label || elem.text || 'Element');
+      if (badge) { badge.textContent = isRoomBadge ? 'Title' : elem.type; badge.className = 'badge badge-primary'; }
+
+      body.innerHTML = `
+        <div class="form-group">
+          <label class="form-label">${isRoomBadge ? 'Project Name' : 'Label / Name'}</label>
+          <input type="text" class="form-input" value="${elem.label || elem.text || ''}" onchange="layoutEditor.updateItemProp(elem.text !== undefined ? 'text' : 'label', this.value)">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
+          <div class="form-group">
+            <label class="form-label">X Position</label>
+            <div class="input-with-unit">
+              <input type="number" class="form-input" step="0.5" value="${Units.roundFt(elem.x)}" onchange="layoutEditor.updateItemProp('x', Units.roundFt(parseFloat(this.value)||0))">
+              <span class="input-unit">ft</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Y Position</label>
+            <div class="input-with-unit">
+              <input type="number" class="form-input" step="0.5" value="${Units.roundFt(elem.y)}" onchange="layoutEditor.updateItemProp('y', Units.roundFt(parseFloat(this.value)||0))">
+              <span class="input-unit">ft</span>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rotation</label>
+          <div style="display: flex; gap: var(--space-xs); align-items: center;">
+            <input type="number" class="form-input" value="${elem.rotation || 0}" step="90" onchange="layoutEditor.updateItemProp('rotation', (parseFloat(this.value)||0)%360)">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.rotateSelected()">+90°</button>
+          </div>
+        </div>
+      `;
+    }
+  },
+
+  showEmptyProperties() {
+    const badge = document.getElementById('inspector-badge');
+    const headerTitle = document.getElementById('inspector-header-title');
+    if (badge) badge.style.display = 'none';
+    if (headerTitle) headerTitle.textContent = 'Inspector';
+
+    document.getElementById('properties-body').innerHTML = `
+      <p class="text-muted" style="font-size: 0.85rem; text-align: center; padding: var(--space-md) 0;">
+        Select a stall, door, or label on the floor plan to edit its properties.
+      </p>
+    `;
+  },
+
+  updateItemProp(prop, value) {
+    if (!this.selectedItem) return;
+    const obj = this.selectedItem.obj;
+    obj[prop] = value;
+    this.clampToBounds(obj, this.selectedItem.type);
+    this.renderAllObjects();
+    this.updateDirectoryList();
+    this.showProperties(this.selectedItem);
+  },
+
+  rotateSelected() {
+    if (!this.selectedItem) return;
+    const obj = this.selectedItem.obj;
+    obj.rotation = ((obj.rotation || 0) + 90) % 360;
+    this.clampToBounds(obj, this.selectedItem.type);
+    this.renderAllObjects();
+    this.showProperties(this.selectedItem);
+    this.updateDirectoryList();
+  },
+
+  duplicateSelected() {
+    if (!this.selectedItem) return;
+
+    if (this.selectedItem.type === 'table') {
+      const copy = {
+        ...this.selectedItem.obj,
+        id: undefined,
+        _tempId: 'table_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        table_number: this.getNextAvailableTableNum(),
+        x: this.selectedItem.obj.x + 1,
+        y: this.selectedItem.obj.y + 1,
+        status: 'available'
+      };
+      this.clampToBounds(copy, 'table');
+      this.tables.push(copy);
+      this.renderAllObjects();
+      this.selectObject('table', copy);
+      this.updateDirectoryList();
+      showToast(`Duplicated as Stall ${copy.table_number}`, 'success');
+    } else {
+      const copy = {
+        ...this.selectedItem.obj,
+        id: (this.selectedItem.obj.type || 'elem') + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        _tempId: undefined,
+        x: this.selectedItem.obj.x + 1,
+        y: this.selectedItem.obj.y + 1
+      };
+      this.clampToBounds(copy, 'element');
+      this.elements.push(copy);
+      this.renderAllObjects();
+      this.selectObject('element', copy);
+      this.updateDirectoryList();
+      showToast(`Duplicated ${copy.label || copy.type}`, 'success');
+    }
+  },
+
+  deleteSelected() {
+    if (!this.selectedItem) return;
+
+    if (this.selectedItem.type === 'table') {
+      const table = this.selectedItem.obj;
+      if (table.status === 'booked') {
+        showToast('Cannot delete a reserved stall.', 'error');
+        return;
+      }
+      const idx = this.tables.indexOf(table);
+      if (idx > -1) {
+        const num = table.table_number;
+        this.tables.splice(idx, 1);
+        this.deselect();
+        showToast(`Stall ${num} removed`, 'success');
+      }
+    } else {
+      const elem = this.selectedItem.obj;
+      if (elem.type === 'room_badge') {
+        showToast('Project header badge cannot be deleted.', 'info');
+        return;
+      }
+      const idx = this.elements.indexOf(elem);
+      if (idx > -1) {
+        const label = elem.label || elem.text || elem.type;
+        this.elements.splice(idx, 1);
+        this.deselect();
+        showToast(`Removed "${label}"`, 'success');
+      }
+    }
+  },
+
+  /* ----------------------------------------------------
+     DIRECTORY LIST
+     ---------------------------------------------------- */
+  filterDirectory(filter) {
+    this.directoryFilter = filter;
+    const tabs = document.querySelectorAll('.dir-tab');
+    tabs.forEach(t => t.classList.remove('active'));
+    if (event && event.target) event.target.classList.add('active');
+    this.updateDirectoryList();
+  },
+
+  updateDirectoryList() {
+    const list = document.getElementById('table-list');
+    const totalCount = document.getElementById('total-items-count');
+    if (!list) return;
+
+    const total = this.tables.length + this.elements.length;
+    if (totalCount) totalCount.textContent = total;
+
+    if (total === 0) {
+      list.innerHTML = '<p class="text-muted" style="font-size: 0.85rem; text-align: center;">No items placed yet</p>';
+      return;
+    }
+
+    let items = [];
+
+    if (this.directoryFilter === 'all' || this.directoryFilter === 'stalls') {
+      this.tables.forEach(t => {
+        items.push({
+          type: 'table',
+          id: String(t.id || t._tempId),
+          obj: t,
+          title: `Stall ${t.table_number}`,
+          subtitle: `${Units.formatFeetShort(t.width)} × ${Units.formatFeetShort(t.height)} · ${t.label || t.shape}`,
+          status: t.status
+        });
+      });
+    }
+
+    if (this.directoryFilter === 'all' || this.directoryFilter === 'elements') {
+      this.elements.forEach(el => {
+        let tag = '[Sign]';
+        let title = el.label || el.text || el.type;
+        if (el.type === 'room_badge') tag = '[Title]';
+        else if (el.type === 'door') tag = el.doorType === 'exit' ? '[Exit]' : (el.doorType === 'window' ? '[Window]' : '[Entrance]');
+        else if (el.type === 'pillar_square' || el.type === 'pillar_round') tag = '[Column]';
+        else if (el.type === 'stage') tag = '[Stage]';
+        else if (el.type === 'arrow') tag = '[Arrow]';
+
+        items.push({
+          type: 'element',
+          id: String(el.id || el._tempId),
+          obj: el,
+          title: `${tag} ${title}`,
+          subtitle: `${Units.formatFeetShort(el.width || 4)} × ${Units.formatFeetShort(el.height || 2)}`,
+          status: 'element'
+        });
+      });
+    }
+
+    const selectedId = this.selectedItem ? String(this.selectedItem.obj.id || this.selectedItem.obj._tempId) : null;
+
+    list.innerHTML = items.map(item => {
+      const isSelected = String(item.id) === String(selectedId);
+      const statusDot = item.status === 'booked'
+        ? '<span style="width:6px;height:6px;border-radius:50%;background:var(--status-booked);display:inline-block;"></span> '
+        : '';
+
+      return `
+        <div class="table-list-item ${isSelected ? 'selected' : ''}" onclick="layoutEditor.selectById('${item.type}', '${item.id}')">
+          <span>${statusDot}<strong>${item.title}</strong></span>
+          <span style="color: var(--text-muted); font-size: 0.75rem;">${item.subtitle}</span>
+        </div>
+      `;
+    }).join('');
+  },
+
+  selectById(type, id) {
+    if (type === 'table') {
+      const table = this.tables.find(t => String(t.id || t._tempId) === String(id));
+      if (table) this.selectObject('table', table);
+    } else {
+      const elem = this.elements.find(e => String(e.id || e._tempId) === String(id));
+      if (elem) this.selectObject('element', elem);
+    }
+  },
+
+  /* ----------------------------------------------------
+     DYNAMIC SMART ALIGNMENT GUIDES & SNAPPING
+     ---------------------------------------------------- */
+  calculateSnapAndGuides(targetObj, rawX, rawY) {
     const layer = document.getElementById('editor-guides-layer');
     if (layer) layer.innerHTML = '';
 
     let snappedX = rawX;
     let snappedY = rawY;
 
-    // Apply grid snap first (grid spacing is in feet)
     if (this.snapGridFt > 0) {
       snappedX = Math.round(rawX / this.snapGridFt) * this.snapGridFt;
       snappedY = Math.round(rawY / this.snapGridFt) * this.snapGridFt;
     }
 
-    if (!this.smartGuidesEnabled) {
-      return { x: snappedX, y: snappedY };
-    }
+    if (!this.smartGuidesEnabled) return { x: snappedX, y: snappedY };
 
     const ns = 'http://www.w3.org/2000/svg';
     const hallW = this.hallWidthFt();
     const hallH = this.hallHeightFt();
 
-    const targetW = targetTable.width;
-    const targetH = targetTable.height;
+    const targetW = targetObj.width || 4;
+    const targetH = targetObj.height || 2;
 
-    // Target edges & center
     const targetPointsX = [
       { type: 'left', pos: rawX },
       { type: 'center', pos: rawX + targetW / 2 },
@@ -392,14 +1621,18 @@ const layoutEditor = {
     let guideX = null;
     let guideY = null;
 
-    // Collect all reference points from other tables
-    const refTables = this.tables.filter(t => (t.id || t._tempId) !== (targetTable.id || targetTable._tempId));
+    const targetId = String(targetObj.id || targetObj._tempId);
+    const allRefs = [
+      ...this.tables.filter(t => String(t.id || t._tempId) !== targetId),
+      ...this.elements.filter(e => String(e.id || e._tempId) !== targetId)
+    ];
 
-    for (const ref of refTables) {
-      const refPointsX = [ref.x, ref.x + ref.width / 2, ref.x + ref.width];
-      const refPointsY = [ref.y, ref.y + ref.height / 2, ref.y + ref.height];
+    for (const ref of allRefs) {
+      const refW = ref.width || 4;
+      const refH = ref.height || 2;
+      const refPointsX = [ref.x, ref.x + refW / 2, ref.x + refW];
+      const refPointsY = [ref.y, ref.y + refH / 2, ref.y + refH];
 
-      // Check X alignment
       if (guideX === null) {
         for (const tp of targetPointsX) {
           for (const rp of refPointsX) {
@@ -415,7 +1648,6 @@ const layoutEditor = {
         }
       }
 
-      // Check Y alignment
       if (guideY === null) {
         for (const tp of targetPointsY) {
           for (const rp of refPointsY) {
@@ -432,20 +1664,19 @@ const layoutEditor = {
       }
     }
 
-    // Render guide lines if snapped
     if (layer) {
       if (guideX !== null) {
         const line = document.createElementNS(ns, 'line');
-        line.setAttribute('x1', this.px(guideX)); line.setAttribute('y1', '0');
-        line.setAttribute('x2', this.px(guideX)); line.setAttribute('y2', this.px(hallH));
+        line.setAttribute('x1', this.px(guideX)); line.setAttribute('y1', '-500');
+        line.setAttribute('x2', this.px(guideX)); line.setAttribute('y2', this.px(hallH + 500));
         line.setAttribute('class', 'smart-guide-line');
         layer.appendChild(line);
       }
 
       if (guideY !== null) {
         const line = document.createElementNS(ns, 'line');
-        line.setAttribute('x1', '0'); line.setAttribute('y1', this.px(guideY));
-        line.setAttribute('x2', this.px(hallW)); line.setAttribute('y2', this.px(guideY));
+        line.setAttribute('x1', '-500'); line.setAttribute('y1', this.px(guideY));
+        line.setAttribute('x2', this.px(hallW + 500)); line.setAttribute('y2', this.px(guideY));
         line.setAttribute('class', 'smart-guide-line');
         layer.appendChild(line);
       }
@@ -454,34 +1685,26 @@ const layoutEditor = {
     return { x: snappedX, y: snappedY };
   },
 
-  // Boundary Constraint Engine: Prevents stalls from exceeding hall perimeter
-  clampTableToBounds(table) {
-    if (!table || !this.eventData) return;
+  clampToBounds(obj, type = 'table') {
+    if (!obj || !this.eventData) return;
     const hallW = this.hallWidthFt();
     const hallH = this.hallHeightFt();
 
-    let effW = table.width || Units.DEFAULT_STALL_WIDTH_FT;
-    let effH = table.height || Units.DEFAULT_STALL_HEIGHT_FT;
+    const w = obj.width || 4;
+    const h = obj.height || 2;
 
-    // Handle 90/270 degree rotation dimension swaps
-    if (table.rotation === 90 || table.rotation === 270) {
-      effW = table.height || Units.DEFAULT_STALL_HEIGHT_FT;
-      effH = table.width || Units.DEFAULT_STALL_WIDTH_FT;
+    if (type === 'table') {
+      obj.x = Units.roundFt(Math.max(0, Math.min(hallW - w, obj.x)));
+      obj.y = Units.roundFt(Math.max(0, Math.min(hallH - h, obj.y)));
+    } else {
+      const minX = -ELEMENT_OUTSIDE_MARGIN_FT;
+      const maxX = hallW + ELEMENT_OUTSIDE_MARGIN_FT - w;
+      const minY = -ELEMENT_OUTSIDE_MARGIN_FT;
+      const maxY = hallH + ELEMENT_OUTSIDE_MARGIN_FT - h;
+
+      obj.x = Units.roundFt(Math.max(minX, Math.min(maxX, obj.x)));
+      obj.y = Units.roundFt(Math.max(minY, Math.min(maxY, obj.y)));
     }
-
-    const cx = table.x + (table.width / 2);
-    const cy = table.y + (table.height / 2);
-
-    const minCx = effW / 2;
-    const maxCx = hallW - effW / 2;
-    const minCy = effH / 2;
-    const maxCy = hallH - effH / 2;
-
-    const clampedCx = Math.max(minCx, Math.min(maxCx, cx));
-    const clampedCy = Math.max(minCy, Math.min(maxCy, cy));
-
-    table.x = Units.roundFt(clampedCx - table.width / 2);
-    table.y = Units.roundFt(clampedCy - table.height / 2);
   },
 
   clearGuides() {
@@ -489,243 +1712,20 @@ const layoutEditor = {
     if (layer) layer.innerHTML = '';
   },
 
-  addTable(stallType = 'rect_short') {
-    const defaults = STALL_DEFAULTS[stallType] || STALL_DEFAULTS.rect_short;
-    const hallW = this.hallWidthFt();
-    const hallH = this.hallHeightFt();
-
-    const newTable = {
-      _tempId: 'new_' + Date.now(),
-      event_id: parseInt(this.eventId),
-      table_number: this.getNextAvailableTableNum(),
-      label: defaults.label,
-      size: defaults.size,
-      price: 0,
-      x: Math.round(hallW / 2 - defaults.width / 2),
-      y: Math.round(hallH / 2 - defaults.height / 2),
-      width: defaults.width,
-      height: defaults.height,
-      rotation: 0,
-      shape: defaults.shape,
-      status: 'available'
-    };
-
-    this.clampTableToBounds(newTable);
-    this.tables.push(newTable);
-    this.renderAllTables();
-    this.selectTableObj(newTable);
-    this.updateTableList();
-
-    showToast(`Stall ${newTable.table_number} added — ${defaults.label}, ${Units.formatDims(defaults.width, defaults.height)}`, 'success');
-  },
-
-  rotateSelected() {
-    if (!this.selectedTable) {
-      showToast('Select a stall first', 'info');
-      return;
-    }
-
-    this.selectedTable.rotation = ((this.selectedTable.rotation || 0) + 90) % 360;
-    this.clampTableToBounds(this.selectedTable);
-    this.renderAllTables();
-    this.showProperties(this.selectedTable);
-    this.updateTableList();
-
-    showToast(`Stall ${this.selectedTable.table_number} rotated to ${this.selectedTable.rotation}°`, 'info');
-  },
-
-  deleteSelected() {
-    if (!this.selectedTable) {
-      showToast('Select a stall first', 'info');
-      return;
-    }
-
-    if (this.selectedTable.status === 'booked') {
-      showToast('Cannot delete a reserved stall. Cancel the booking first.', 'error');
-      return;
-    }
-
-    const idx = this.tables.indexOf(this.selectedTable);
-    if (idx > -1) {
-      const num = this.selectedTable.table_number;
-      this.tables.splice(idx, 1);
-      this.selectedTable = null;
-      this.renderAllTables();
-      this.updateTableList();
-      this.showEmptyProperties();
-      showToast(`Stall ${num} removed`, 'success');
-    }
-  },
-
-  duplicateSelected() {
-    if (!this.selectedTable) {
-      showToast('Select a stall first', 'info');
-      return;
-    }
-
-    const copy = {
-      ...this.selectedTable,
-      id: undefined,
-      _tempId: 'new_' + Date.now(),
-      table_number: this.getNextAvailableTableNum(),
-      x: this.selectedTable.x + 1,
-      y: this.selectedTable.y + 1,
-      status: 'available'
-    };
-
-    this.clampTableToBounds(copy);
-    this.tables.push(copy);
-    this.renderAllTables();
-    this.selectTableObj(copy);
-    this.updateTableList();
-
-    showToast(`Duplicated as stall ${copy.table_number}`, 'success');
-  },
-
-  selectTableObj(table) {
-    this.selectedTable = table;
-    this.renderAllTables();
-    this.showProperties(table);
-    this.updateTableList();
-  },
-
-  showProperties(table) {
-    const body = document.getElementById('properties-body');
-
-    body.innerHTML = `
-      <div class="form-group">
-        <label class="form-label">Stall Number</label>
-        <input type="text" class="form-input" value="${table.table_number}" onchange="layoutEditor.updateProp('table_number', this.value)" id="prop-number">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Label</label>
-        <input type="text" class="form-input" value="${table.label || ''}" onchange="layoutEditor.updateProp('label', this.value)" id="prop-label">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Rotation (°)</label>
-        <div style="display: flex; gap: var(--space-xs); align-items: center;">
-          <input type="number" class="form-input" value="${table.rotation || 0}" step="90" onchange="layoutEditor.updateProp('rotation', (parseFloat(this.value)||0)%360)" id="prop-rotation">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.rotateSelected()" title="Rotate +90°">+90°</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Size Category</label>
-        <select class="form-select" onchange="layoutEditor.updateProp('size', this.value)" id="prop-size">
-          <option value="small" ${table.size === 'small' ? 'selected' : ''}>Small</option>
-          <option value="medium" ${table.size === 'medium' ? 'selected' : ''}>Medium</option>
-          <option value="large" ${table.size === 'large' ? 'selected' : ''}>Large</option>
-        </select>
-      </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
-        <div class="form-group">
-          <label class="form-label">Width</label>
-          <div class="input-with-unit">
-            <input type="number" class="form-input" step="0.25" min="${Units.STALL_MIN_FT}" max="${Units.STALL_MAX_FT}" value="${table.width}" onchange="layoutEditor.updateProp('width', Units.clampStallFt(this.value, ${Units.DEFAULT_STALL_WIDTH_FT}))" id="prop-width">
-            <span class="input-unit">ft</span>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Depth</label>
-          <div class="input-with-unit">
-            <input type="number" class="form-input" step="0.25" min="${Units.STALL_MIN_FT}" max="${Units.STALL_MAX_FT}" value="${table.height}" onchange="layoutEditor.updateProp('height', Units.clampStallFt(this.value, ${Units.DEFAULT_STALL_HEIGHT_FT}))" id="prop-height">
-            <span class="input-unit">ft</span>
-          </div>
-        </div>
-      </div>
-      <p class="form-hint" style="margin-top: -6px; margin-bottom: var(--space-sm);">
-        ${Units.formatDims(table.width, table.height)} &middot; ${Units.formatArea(table.width, table.height)}
-      </p>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
-        <div class="form-group">
-          <label class="form-label">X from left</label>
-          <div class="input-with-unit">
-            <input type="number" class="form-input" step="0.25" value="${Units.roundFt(table.x)}" onchange="layoutEditor.updateProp('x', Units.roundFt(Units.toFeet(this.value, 0)))" id="prop-x">
-            <span class="input-unit">ft</span>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Y from top</label>
-          <div class="input-with-unit">
-            <input type="number" class="form-input" step="0.25" value="${Units.roundFt(table.y)}" onchange="layoutEditor.updateProp('y', Units.roundFt(Units.toFeet(this.value, 0)))" id="prop-y">
-            <span class="input-unit">ft</span>
-          </div>
-        </div>
-      </div>
-      ${table.status === 'booked' ? '<p class="badge badge-booked" style="margin-top: 8px;">Reserved &ndash; Locked</p>' : ''}
-    `;
-  },
-
-  showEmptyProperties() {
-    document.getElementById('properties-body').innerHTML = `
-      <p class="text-muted" style="font-size: 0.85rem; text-align: center; padding: var(--space-md) 0;">
-        Select a stall on the floor plan to edit its properties.
-      </p>
-    `;
-  },
-
-  updateProp(prop, value) {
-    if (!this.selectedTable) return;
-    this.selectedTable[prop] = value;
-    this.clampTableToBounds(this.selectedTable);
-    this.renderAllTables();
-    this.updateTableList();
-    this.showProperties(this.selectedTable);
-  },
-
-  updateTableList() {
-    const list = document.getElementById('table-list');
-    const count = document.getElementById('table-count');
-    count.textContent = this.tables.length;
-
-    if (this.tables.length === 0) {
-      list.innerHTML = '<p class="text-muted" style="font-size: 0.85rem; text-align: center;">No stalls placed yet</p>';
-      return;
-    }
-
-    const sorted = [...this.tables].sort((a, b) => {
-      const na = parseInt(a.table_number) || 0;
-      const nb = parseInt(b.table_number) || 0;
-      return na - nb;
-    });
-
-    const selectedId = this.selectedTable ? (this.selectedTable.id || this.selectedTable._tempId) : null;
-
-    list.innerHTML = sorted.map(t => {
-      const id = t.id || t._tempId;
-      const isSelected = id === selectedId;
-      const dims = `${Units.formatFeetShort(t.width)} × ${Units.formatFeetShort(t.height)}`;
-      const rot = t.rotation ? ` · ${t.rotation}°` : '';
-      const statusDot = t.status === 'booked'
-        ? '<span style="width:6px;height:6px;border-radius:50%;background:var(--status-booked);display:inline-block;"></span>'
-        : '';
-
-      return `
-        <div class="table-list-item ${isSelected ? 'selected' : ''}" onclick="layoutEditor.selectTableById('${id}')">
-          <span>${statusDot} <strong>${t.table_number}</strong> &middot; ${t.label || t.shape}</span>
-          <span style="color: var(--text-muted); font-size: 0.75rem;">${dims}${rot}</span>
-        </div>
-      `;
-    }).join('');
-  },
-
-  selectTableById(id) {
-    const table = this.tables.find(t => (t.id || t._tempId) == id);
-    if (table) this.selectTableObj(table);
-  },
-
   updateFloatingActionsPosition() {
     const floatingEl = document.getElementById('table-floating-actions');
     if (!floatingEl) return;
 
-    if (!this.selectedTable) {
+    if (!this.selectedItem) {
       floatingEl.classList.add('hidden');
       return;
     }
 
     try {
-      const table = this.selectedTable;
-      const cx = this.px(table.x + (table.width / 2));
-      const topY = this.px(table.y) - 25;
+      const obj = this.selectedItem.obj;
+      const w = obj.width || 4;
+      const cx = this.px(obj.x + (w / 2));
+      const topY = this.px(obj.y) - 15;
 
       const pt = this.svg.createSVGPoint();
       pt.x = cx;
@@ -740,12 +1740,6 @@ const layoutEditor = {
       floatingEl.style.left = `${left}px`;
       floatingEl.style.top = `${top}px`;
       floatingEl.classList.remove('hidden');
-
-      const rotDeg = table.rotation || 0;
-      const rotateBtn = floatingEl.querySelector('button');
-      if (rotateBtn) {
-        rotateBtn.innerHTML = `Rotate (${rotDeg}°)`;
-      }
     } catch (e) {
       floatingEl.classList.add('hidden');
     }
@@ -766,13 +1760,16 @@ const layoutEditor = {
     showToast(`Smart alignment guides ${this.smartGuidesEnabled ? 'enabled' : 'disabled'}`, 'info');
   },
 
+  /* ----------------------------------------------------
+     SAVE FLOOR PLAN
+     ---------------------------------------------------- */
   async saveLayout() {
     const saveBtn = document.getElementById('save-layout-btn');
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving...';
 
     try {
-      const payload = this.tables.map(t => ({
+      const tablesPayload = this.tables.map(t => ({
         id: t.id || undefined,
         table_number: t.table_number,
         label: t.label,
@@ -787,10 +1784,34 @@ const layoutEditor = {
         status: t.status || 'available'
       }));
 
+      const elementsPayload = this.elements.map(el => ({
+        id: el.id || undefined,
+        _tempId: el._tempId,
+        type: el.type,
+        doorType: el.doorType,
+        text: el.text,
+        fontSize: el.fontSize,
+        fontWeight: el.fontWeight,
+        color: el.color,
+        badge: el.badge,
+        label: el.label,
+        width: el.width,
+        height: el.height,
+        x: Units.roundFt(el.x),
+        y: Units.roundFt(el.y),
+        rotation: el.rotation || 0
+      }));
+
       const res = await fetch(`/api/admin/events/${this.eventId}/tables`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tables: payload })
+        body: JSON.stringify({
+          tables: tablesPayload,
+          hall_elements: elementsPayload,
+          hall_width: this.hallWidthFt(),
+          hall_height: this.hallHeightFt(),
+          hall_rotation: this.eventData.hall_rotation || 0
+        })
       });
 
       if (!res.ok) {
@@ -800,12 +1821,24 @@ const layoutEditor = {
 
       const result = await res.json();
       this.tables = result.tables;
-      this.selectedTable = null;
-      this.renderAllTables();
-      this.updateTableList();
-      this.showEmptyProperties();
+      if (result.event) {
+        this.eventData = result.event;
+        if (result.event.hall_elements) {
+          try {
+            this.elements = Array.isArray(result.event.hall_elements)
+              ? result.event.hall_elements
+              : JSON.parse(result.event.hall_elements);
+          } catch (e) { }
+        }
+      }
 
-      showToast('Floor plan saved', 'success');
+      this.elements.forEach((el, idx) => {
+        if (!el.id) el.id = 'elem_' + Date.now() + '_' + idx;
+      });
+
+      this.ensureRoomBadgeElement();
+      this.deselect();
+      showToast('Floor plan saved successfully', 'success');
 
     } catch (err) {
       showToast(err.message, 'error');
@@ -815,69 +1848,91 @@ const layoutEditor = {
     }
   },
 
+  /* ----------------------------------------------------
+     EVENT BINDINGS & GESTURES
+     ---------------------------------------------------- */
   bindEvents() {
-    // Click / drag on SVG
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.dropdown-wrapper')) {
+        this.closeFloorRotateMenu();
+      }
+    });
+
     this.svg.addEventListener('mousedown', (e) => {
-      // Rotate knob click
-      if (e.target.dataset.rotateKnob || e.target.classList.contains('rotate-handle-knob')) {
+      // Rotate handle knob or curved rotation arc
+      if (e.target.dataset.rotateKnob || e.target.closest('[data-rotate-knob]')) {
         this.rotateSelected();
         e.preventDefault();
         e.stopPropagation();
         return;
       }
 
-      const group = e.target.closest('.table-group');
+      // Check if clicked a table
+      const groupTable = e.target.closest('[data-table-id]');
+      if (groupTable) {
+        const id = groupTable.getAttribute('data-table-id');
+        const table = this.tables.find(t => String(t.id || t._tempId) === String(id));
+        if (table) {
+          this.selectObject('table', table);
 
-      if (group) {
-        const id = group.dataset.tableId;
-        const table = this.tables.find(t => (t.id || t._tempId) == id);
-        if (!table) return;
+          if (table.status !== 'booked') {
+            this.isDragging = true;
+            this.dragTarget = { type: 'table', obj: table };
+            const pt = this.svgPointFt(e.clientX, e.clientY);
+            this.dragOffset = { x: pt.x - table.x, y: pt.y - table.y };
+          }
 
-        this.selectTableObj(table);
-
-        if (table.status !== 'booked') {
-          this.isDragging = true;
-          this.dragTable = table;
-          const pt = this.svgPointFt(e.clientX, e.clientY);
-          this.dragOffset = { x: pt.x - table.x, y: pt.y - table.y };
+          e.preventDefault();
+          e.stopPropagation();
+          return;
         }
-
-        e.preventDefault();
-        e.stopPropagation();
-        return;
       }
 
-      // Clicked empty space — deselect
-      this.selectedTable = null;
-      this.renderAllTables();
-      this.updateTableList();
-      this.showEmptyProperties();
-      this.clearGuides();
+      // Check if clicked an architectural element (door, text, room badge, structure)
+      const groupElem = e.target.closest('[data-element-id]');
+      if (groupElem) {
+        const id = groupElem.getAttribute('data-element-id');
+        const elem = this.elements.find(el => String(el.id || el._tempId) === String(id));
+        if (elem) {
+          this.selectObject('element', elem);
 
-      // Start panning
+          this.isDragging = true;
+          this.dragTarget = { type: 'element', obj: elem };
+          const pt = this.svgPointFt(e.clientX, e.clientY);
+          this.dragOffset = { x: pt.x - elem.x, y: pt.y - elem.y };
+
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+      }
+
+      // Clicked empty canvas space
+      this.deselect();
+
       this.isPanning = true;
       this.panStart = { x: e.clientX, y: e.clientY };
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (this.isDragging && this.dragTable) {
+      if (this.isDragging && this.dragTarget) {
+        const obj = this.dragTarget.obj;
+        const type = this.dragTarget.type;
         const pt = this.svgPointFt(e.clientX, e.clientY);
         const rawX = pt.x - this.dragOffset.x;
         const rawY = pt.y - this.dragOffset.y;
 
-        // Calculate precision snap & alignment guides
-        const snapped = this.calculateSnapAndGuides(this.dragTable, rawX, rawY);
+        const snapped = this.calculateSnapAndGuides(obj, rawX, rawY);
+        obj.x = snapped.x;
+        obj.y = snapped.y;
+        this.clampToBounds(obj, type);
 
-        this.dragTable.x = snapped.x;
-        this.dragTable.y = snapped.y;
-        this.clampTableToBounds(this.dragTable);
-
-        this.renderAllTables();
+        this.renderAllObjects();
 
         const propX = document.getElementById('prop-x');
         const propY = document.getElementById('prop-y');
-        if (propX) propX.value = Units.roundFt(this.dragTable.x);
-        if (propY) propY.value = Units.roundFt(this.dragTable.y);
+        if (propX) propX.value = Units.roundFt(obj.x);
+        if (propY) propY.value = Units.roundFt(obj.y);
         return;
       }
 
@@ -894,13 +1949,13 @@ const layoutEditor = {
     window.addEventListener('mouseup', () => {
       if (this.isDragging) {
         this.isDragging = false;
-        this.dragTable = null;
+        this.dragTarget = null;
         this.clearGuides();
       }
       this.isPanning = false;
     });
 
-    // Zoom centered on cursor
+    // Zoom on wheel
     this.canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       const factor = e.deltaY > 0 ? 1.1 : 0.9;
@@ -918,11 +1973,14 @@ const layoutEditor = {
       this.applyViewBox();
     }, { passive: false });
 
-    // Blender Hotkeys: G (Grab), R (Rotate), Shift+D (Duplicate), X/Del (Delete), Esc (Cancel/Deselect)
+    // Keyboard Shortcuts: R, Shift+D, Del/Backspace, Esc, Ctrl+S
     window.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
 
-      if (e.key === 'Delete' || e.key === 'Backspace' || e.key === 'x' || e.key === 'X') {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        this.saveLayout();
+      } else if (e.key === 'Delete' || e.key === 'Backspace' || e.key === 'x' || e.key === 'X') {
         this.deleteSelected();
       } else if (e.key === 'd' || e.key === 'D') {
         if (e.shiftKey || e.ctrlKey || e.metaKey) {
@@ -931,16 +1989,8 @@ const layoutEditor = {
         }
       } else if (e.key === 'r' || e.key === 'R') {
         this.rotateSelected();
-      } else if (e.key === 'g' || e.key === 'G') {
-        if (this.selectedTable) {
-          showToast(`Grabbed Stall ${this.selectedTable.table_number}. Move mouse to reposition.`, 'info');
-        }
       } else if (e.key === 'Escape') {
-        this.selectedTable = null;
-        this.renderAllTables();
-        this.updateTableList();
-        this.showEmptyProperties();
-        this.clearGuides();
+        this.deselect();
       }
     });
   },
@@ -953,7 +2003,6 @@ const layoutEditor = {
     return pt.matrixTransform(ctm);
   },
 
-  /** Screen coordinates to hall coordinates, in feet. */
   svgPointFt(clientX, clientY) {
     const pt = this.svgPoint(clientX, clientY);
     return { x: Units.pxToFt(pt.x), y: Units.pxToFt(pt.y) };
@@ -980,8 +2029,7 @@ const layoutEditor = {
   },
 
   resetView() {
-    this.viewBox = { ...this.originalViewBox };
-    this.applyViewBox();
+    this.setupViewBox();
   }
 };
 

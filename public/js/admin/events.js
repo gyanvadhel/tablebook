@@ -158,7 +158,7 @@ async function editEvent(id) {
   try {
     const res = await fetch(`/api/admin/events`);
     const events = await res.json();
-    const event = events.find(e => e.id === id);
+    const event = Array.isArray(events) ? events.find(e => String(e.id) === String(id)) : null;
     if (event) {
       openEventModal(event);
     }

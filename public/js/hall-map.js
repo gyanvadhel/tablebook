@@ -59,9 +59,22 @@ const hallMap = {
       this.eventData = data.event;
       this.tables = data.tables;
 
+      if (this.eventData.hall_elements) {
+        try {
+          this.elements = Array.isArray(this.eventData.hall_elements)
+            ? this.eventData.hall_elements
+            : JSON.parse(this.eventData.hall_elements);
+        } catch (e) {
+          this.elements = [];
+        }
+      } else {
+        this.elements = [];
+      }
+
       this.populateEventHeader();
       this.setupViewBox();
       this.renderHall();
+      this.renderElements();
       this.renderTables();
       this.updateCounts();
       this.bindEvents();
@@ -104,11 +117,35 @@ const hallMap = {
   },
 
   setupViewBox() {
-    const w = this.px(this.hallWidthFt());
-    const h = this.px(this.hallHeightFt());
-    const padding = this.px(HALL_PADDING_FT);
+    const hallW = this.hallWidthFt();
+    const hallH = this.hallHeightFt();
 
-    this.viewBox = { x: -padding, y: -padding, w: w + padding * 2, h: h + padding * 2 };
+    // Include bounds of elements placed outside the hall
+    let minXFt = 0;
+    let minYFt = 0;
+    let maxXFt = hallW;
+    let maxYFt = hallH;
+
+    if (this.elements && this.elements.length) {
+      this.elements.forEach(el => {
+        const ex = el.x || 0;
+        const ey = el.y || 0;
+        const ew = el.width || 4;
+        const eh = el.height || 2;
+        if (ex < minXFt) minXFt = ex;
+        if (ey < minYFt) minYFt = ey;
+        if (ex + ew > maxXFt) maxXFt = ex + ew;
+        if (ey + eh > maxYFt) maxYFt = ey + eh;
+      });
+    }
+
+    const padding = this.px(8);
+    const minX = this.px(minXFt) - padding;
+    const minY = this.px(minYFt) - padding;
+    const totalW = this.px(maxXFt - minXFt) + padding * 2;
+    const totalH = this.px(maxYFt - minYFt) + padding * 2;
+
+    this.viewBox = { x: minX, y: minY, w: totalW, h: totalH };
     this.originalViewBox = { ...this.viewBox };
     this.applyViewBox();
   },
@@ -122,45 +159,118 @@ const hallMap = {
     const heightFt = this.hallHeightFt();
     const w = this.px(widthFt);
     const h = this.px(heightFt);
+    const wallThick = this.px(0.8);
     const ns = 'http://www.w3.org/2000/svg';
 
-    // Grid squares are a real 5 ft, so the plan reads at true scale
-    const gridFt = 5;
-    const grid = this.px(gridFt);
+    this.svg.innerHTML = '';
 
     const defs = document.createElementNS(ns, 'defs');
-    const pattern = document.createElementNS(ns, 'pattern');
-    pattern.setAttribute('id', 'hall-grid');
-    pattern.setAttribute('width', grid);
-    pattern.setAttribute('height', grid);
-    pattern.setAttribute('patternUnits', 'userSpaceOnUse');
 
-    const gridLine1 = document.createElementNS(ns, 'line');
-    gridLine1.setAttribute('x1', grid); gridLine1.setAttribute('y1', '0');
-    gridLine1.setAttribute('x2', grid); gridLine1.setAttribute('y2', grid);
-    gridLine1.setAttribute('class', 'hall-grid-line');
-    const gridLine2 = document.createElementNS(ns, 'line');
-    gridLine2.setAttribute('x1', '0'); gridLine2.setAttribute('y1', grid);
-    gridLine2.setAttribute('x2', grid); gridLine2.setAttribute('y2', grid);
-    gridLine2.setAttribute('class', 'hall-grid-line');
-    pattern.appendChild(gridLine1);
-    pattern.appendChild(gridLine2);
-    defs.appendChild(pattern);
+    // Canvas subtle grid pattern
+    const minor = this.px(1);
+    const major = this.px(5);
+    const gridPattern = document.createElementNS(ns, 'pattern');
+    gridPattern.setAttribute('id', 'public-bg-grid');
+    gridPattern.setAttribute('width', major);
+    gridPattern.setAttribute('height', major);
+    gridPattern.setAttribute('patternUnits', 'userSpaceOnUse');
+    gridPattern.innerHTML = `
+      <rect width="${major}" height="${major}" fill="#f4f5f7"/>
+      <path d="M ${minor} 0 L 0 0 0 ${minor} M ${minor*2} 0 L 0 0 0 ${minor*2} M ${minor*3} 0 L 0 0 0 ${minor*3} M ${minor*4} 0 L 0 0 0 ${minor*4}" fill="none" stroke="#e6e9ee" stroke-width="0.8"/>
+      <path d="M ${major} 0 L 0 0 0 ${major}" fill="none" stroke="#d5dbe3" stroke-width="1.2"/>
+    `;
+    defs.appendChild(gridPattern);
+
+    // Warm Architectural Hardwood Floor Parquet Pattern
+    const plankW = this.px(16);
+    const plankH = this.px(2);
+    const woodFloorPattern = document.createElementNS(ns, 'pattern');
+    woodFloorPattern.setAttribute('id', 'wood-floor-texture-public');
+    woodFloorPattern.setAttribute('width', plankW);
+    woodFloorPattern.setAttribute('height', plankH * 2);
+    woodFloorPattern.setAttribute('patternUnits', 'userSpaceOnUse');
+    woodFloorPattern.innerHTML = `
+      <rect width="${plankW}" height="${plankH * 2}" fill="#ded4c5"/>
+      <line x1="0" y1="${plankH}" x2="${plankW}" y2="${plankH}" stroke="#cfc3b1" stroke-width="1"/>
+      <line x1="0" y1="${plankH * 2}" x2="${plankW}" y2="${plankH * 2}" stroke="#cfc3b1" stroke-width="1"/>
+      <line x1="${plankW / 2}" y1="0" x2="${plankW / 2}" y2="${plankH}" stroke="#cfc3b1" stroke-width="0.8"/>
+      <line x1="${plankW}" y1="${plankH}" x2="${plankW}" y2="${plankH * 2}" stroke="#cfc3b1" stroke-width="0.8"/>
+      <line x1="0" y1="${plankH}" x2="0" y2="${plankH * 2}" stroke="#cfc3b1" stroke-width="0.8"/>
+    `;
+    defs.appendChild(woodFloorPattern);
+
+    // Honey Oak Table Wood Pattern (Available)
+    const tableWood = document.createElementNS(ns, 'pattern');
+    tableWood.setAttribute('id', 'honey-oak-table-public');
+    tableWood.setAttribute('width', this.px(4));
+    tableWood.setAttribute('height', this.px(2));
+    tableWood.setAttribute('patternUnits', 'userSpaceOnUse');
+    tableWood.innerHTML = `
+      <rect width="${this.px(4)}" height="${this.px(2)}" fill="#c98a46"/>
+      <line x1="0" y1="${this.px(1)}" x2="${this.px(4)}" y2="${this.px(1)}" stroke="#b87733" stroke-width="0.8" stroke-dasharray="8 2"/>
+    `;
+    defs.appendChild(tableWood);
+
+    // Crimson Red Table Pattern (Booked / Reserved)
+    const tableBooked = document.createElementNS(ns, 'pattern');
+    tableBooked.setAttribute('id', 'booked-table-public');
+    tableBooked.setAttribute('width', this.px(4));
+    tableBooked.setAttribute('height', this.px(2));
+    tableBooked.setAttribute('patternUnits', 'userSpaceOnUse');
+    tableBooked.innerHTML = `
+      <rect width="${this.px(4)}" height="${this.px(2)}" fill="#e11d48"/>
+      <line x1="0" y1="${this.px(1)}" x2="${this.px(4)}" y2="${this.px(1)}" stroke="#be123c" stroke-width="0.8" stroke-dasharray="8 2"/>
+    `;
+    defs.appendChild(tableBooked);
+
     this.svg.appendChild(defs);
 
-    // Floor
+    // Background Canvas
+    const bgCanvas = document.createElementNS(ns, 'rect');
+    bgCanvas.setAttribute('x', -this.px(20)); bgCanvas.setAttribute('y', -this.px(20));
+    bgCanvas.setAttribute('width', w + this.px(40)); bgCanvas.setAttribute('height', h + this.px(40));
+    bgCanvas.setAttribute('fill', 'url(#public-bg-grid)');
+    this.svg.appendChild(bgCanvas);
+
+    // Architectural Perimeter Wall
+    const wallOuter = document.createElementNS(ns, 'rect');
+    wallOuter.setAttribute('x', -wallThick); wallOuter.setAttribute('y', -wallThick);
+    wallOuter.setAttribute('width', w + wallThick * 2); wallOuter.setAttribute('height', h + wallThick * 2);
+    wallOuter.setAttribute('fill', '#475569'); wallOuter.setAttribute('stroke', '#1e293b'); wallOuter.setAttribute('stroke-width', '1.5');
+    wallOuter.setAttribute('rx', '2');
+    this.svg.appendChild(wallOuter);
+
+    // Hardwood Floor Plan
     const floor = document.createElementNS(ns, 'rect');
     floor.setAttribute('x', '0'); floor.setAttribute('y', '0');
     floor.setAttribute('width', w); floor.setAttribute('height', h);
-    floor.setAttribute('fill', 'url(#hall-grid)'); floor.setAttribute('rx', '4');
+    floor.setAttribute('fill', 'url(#wood-floor-texture-public)');
+    floor.setAttribute('stroke', '#1e293b'); floor.setAttribute('stroke-width', '1.5');
     this.svg.appendChild(floor);
 
-    // Hall boundary
-    const boundary = document.createElementNS(ns, 'rect');
-    boundary.setAttribute('x', '0'); boundary.setAttribute('y', '0');
-    boundary.setAttribute('width', w); boundary.setAttribute('height', h);
-    boundary.setAttribute('class', 'hall-boundary'); boundary.setAttribute('rx', '4');
-    this.svg.appendChild(boundary);
+    // Room name & Area badge (only render static if no room_badge element is placed)
+    const hasCustomRoomBadge = this.elements && this.elements.some(el => el.type === 'room_badge');
+    if (!hasCustomRoomBadge) {
+      const areaFt = Math.round(widthFt * heightFt);
+      const roomInfoG = document.createElementNS(ns, 'g');
+      roomInfoG.setAttribute('transform', 'translate(10, 18)');
+      roomInfoG.setAttribute('pointer-events', 'none');
+
+      const roomTitle = document.createElementNS(ns, 'text');
+      roomTitle.setAttribute('x', '0'); roomTitle.setAttribute('y', '0');
+      roomTitle.setAttribute('fill', '#334155'); roomTitle.setAttribute('font-size', '11');
+      roomTitle.setAttribute('font-weight', '700'); roomTitle.setAttribute('font-family', 'Inter, sans-serif');
+      roomTitle.textContent = this.eventData.name || 'Main Hall';
+      roomInfoG.appendChild(roomTitle);
+
+      const roomArea = document.createElementNS(ns, 'text');
+      roomArea.setAttribute('x', '0'); roomArea.setAttribute('y', '13');
+      roomArea.setAttribute('fill', '#475569'); roomArea.setAttribute('font-size', '9.5');
+      roomArea.setAttribute('font-weight', '600'); roomArea.setAttribute('font-family', 'Inter, sans-serif');
+      roomArea.textContent = `${areaFt.toLocaleString('en-IN')} sq ft`;
+      roomInfoG.appendChild(roomArea);
+      this.svg.appendChild(roomInfoG);
+    }
 
     this.renderDimensionLabels(widthFt, heightFt, ns);
     this.renderScaleBar(widthFt, heightFt, ns);
@@ -217,8 +327,12 @@ const hallMap = {
     tablesGroup.setAttribute('id', 'tables-layer');
 
     this.tables.forEach(table => {
+      const isBooked = table.status === 'booked';
+      const isSelected = this.selectedTable && this.selectedTable.id === table.id;
+      const effectiveStatus = isSelected ? 'selected' : (isBooked ? 'booked' : 'available');
+
       const group = document.createElementNS(ns, 'g');
-      group.setAttribute('class', `table-group table-${table.status}`);
+      group.setAttribute('class', `table-group table-${effectiveStatus}`);
       group.setAttribute('data-table-id', table.id);
       group.setAttribute('data-table-number', table.table_number);
 
@@ -228,21 +342,42 @@ const hallMap = {
         group.setAttribute('transform', `rotate(${table.rotation}, ${cx}, ${cy})`);
       }
 
-      const shapeInfo = this.renderStallShape(table, ns);
+      const shapeInfo = this.renderStallShape(table, ns, effectiveStatus);
       group.appendChild(shapeInfo.el);
 
-      // Table number label
+      // Table number label (white for booked/selected, dark for available)
+      const numY = shapeInfo.textY - 5;
       const label = document.createElementNS(ns, 'text');
       label.setAttribute('x', shapeInfo.textX);
-      label.setAttribute('y', shapeInfo.textY);
+      label.setAttribute('y', numY);
       label.setAttribute('class', 'table-number');
+      label.setAttribute('fill', isBooked || isSelected ? '#ffffff' : '#1e293b');
       label.textContent = table.table_number;
 
       if (table.rotation) {
-        label.setAttribute('transform', `rotate(${-table.rotation}, ${shapeInfo.textX}, ${shapeInfo.textY})`);
+        label.setAttribute('transform', `rotate(${-table.rotation}, ${shapeInfo.textX}, ${numY})`);
       }
-
       group.appendChild(label);
+
+      // Stall dimensions in FEET
+      const dimY = shapeInfo.textY + 8;
+      const dimLabel = document.createElementNS(ns, 'text');
+      dimLabel.setAttribute('x', shapeInfo.textX);
+      dimLabel.setAttribute('y', dimY);
+      dimLabel.setAttribute('class', 'table-dimensions');
+      dimLabel.setAttribute('font-size', '8.5');
+      dimLabel.setAttribute('font-weight', '600');
+      dimLabel.setAttribute('text-anchor', 'middle');
+      dimLabel.setAttribute('dominant-baseline', 'central');
+      dimLabel.setAttribute('fill', isBooked ? '#ffe4e6' : (isSelected ? '#dbeafe' : '#475569'));
+      dimLabel.setAttribute('font-family', 'Inter, sans-serif');
+      dimLabel.setAttribute('pointer-events', 'none');
+      dimLabel.textContent = `${Units.formatFeetShort(table.width)} × ${Units.formatFeetShort(table.height)}`;
+
+      if (table.rotation) {
+        dimLabel.setAttribute('transform', `rotate(${-table.rotation}, ${shapeInfo.textX}, ${dimY})`);
+      }
+      group.appendChild(dimLabel);
 
       tablesGroup.appendChild(group);
     });
@@ -250,56 +385,341 @@ const hallMap = {
     this.svg.appendChild(tablesGroup);
   },
 
-  renderStallShape(table, ns) {
-    // Read shape directly from API — no hardcoded orientation mapping.
-    // Stored geometry is in feet; the path below is in drawing units.
+  renderElements() {
+    if (!this.elements || !this.elements.length) return;
+    const ns = 'http://www.w3.org/2000/svg';
+    const elementsGroup = document.createElementNS(ns, 'g');
+    elementsGroup.setAttribute('id', 'hall-elements-layer');
+
+    this.elements.forEach(elem => {
+      if (elem.type === 'door') {
+        this.renderDoorElement(elem, elementsGroup, ns);
+      } else if (elem.type === 'text') {
+        this.renderTextElement(elem, elementsGroup, ns);
+      } else if (elem.type === 'room_badge') {
+        this.renderRoomBadgeElement(elem, elementsGroup, ns);
+      } else {
+        this.renderStructureElement(elem, elementsGroup, ns);
+      }
+    });
+
+    this.svg.appendChild(elementsGroup);
+  },
+
+  renderRoomBadgeElement(badge, layer, ns) {
+    const group = document.createElementNS(ns, 'g');
+    const elemId = String(badge.id || 'room_badge_main');
+    group.setAttribute('class', 'arch-element arch-room-badge');
+
+    const cx = this.px(badge.x + (badge.width || 8) / 2);
+    const cy = this.px(badge.y + (badge.height || 3) / 2);
+
+    if (badge.rotation) {
+      group.setAttribute('transform', `rotate(${badge.rotation}, ${cx}, ${cy})`);
+    }
+
+    const x = this.px(badge.x);
+    const y = this.px(badge.y);
+    const titleText = badge.label || this.eventData.name || 'Unnamed';
+    const areaFt = Math.round(this.hallWidthFt() * this.hallHeightFt());
+
+    const titleEl = document.createElementNS(ns, 'text');
+    titleEl.setAttribute('x', x);
+    titleEl.setAttribute('y', y + 10);
+    titleEl.setAttribute('fill', '#1e293b');
+    titleEl.setAttribute('font-size', '11');
+    titleEl.setAttribute('font-weight', '700');
+    titleEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
+    titleEl.textContent = titleText;
+    group.appendChild(titleEl);
+
+    const areaEl = document.createElementNS(ns, 'text');
+    areaEl.setAttribute('x', x);
+    areaEl.setAttribute('y', y + 24);
+    areaEl.setAttribute('fill', '#64748b');
+    areaEl.setAttribute('font-size', '9.5');
+    areaEl.setAttribute('font-weight', '600');
+    areaEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
+    areaEl.textContent = `${areaFt.toLocaleString('en-IN')} sq ft`;
+    group.appendChild(areaEl);
+
+    layer.appendChild(group);
+  },
+
+  renderDoorElement(door, layer, ns) {
+    const group = document.createElementNS(ns, 'g');
+    group.setAttribute('class', `arch-element arch-door arch-door-${door.doorType || 'entrance'}`);
+
+    const w = this.px(door.width || 4);
+    const h = this.px(door.height || 2);
+    const cx = this.px(door.x + (door.width || 4) / 2);
+    const cy = this.px(door.y + (door.height || 2) / 2);
+
+    if (door.rotation) {
+      group.setAttribute('transform', `rotate(${door.rotation}, ${cx}, ${cy})`);
+    }
+
+    const x = this.px(door.x);
+    const y = this.px(door.y);
+
+    if (door.doorType === 'double') {
+      const halfW = w / 2;
+      const arcPath = `M ${x} ${y} A ${halfW} ${halfW} 0 0 1 ${x + halfW} ${y + halfW} L ${x + halfW} ${y} M ${x + w} ${y} A ${halfW} ${halfW} 0 0 0 ${x + halfW} ${y + halfW} L ${x + halfW} ${y}`;
+      const arc = document.createElementNS(ns, 'path');
+      arc.setAttribute('d', arcPath);
+      arc.setAttribute('fill', 'rgba(37, 99, 235, 0.08)');
+      arc.setAttribute('stroke', '#2563eb');
+      arc.setAttribute('stroke-dasharray', '3 2');
+      group.appendChild(arc);
+
+      const frame = document.createElementNS(ns, 'rect');
+      frame.setAttribute('x', x); frame.setAttribute('y', y - 3);
+      frame.setAttribute('width', w); frame.setAttribute('height', 6);
+      frame.setAttribute('fill', '#1e293b'); frame.setAttribute('rx', '2');
+      group.appendChild(frame);
+    } else if (door.doorType === 'gate') {
+      const frame = document.createElementNS(ns, 'rect');
+      frame.setAttribute('x', x); frame.setAttribute('y', y);
+      frame.setAttribute('width', w); frame.setAttribute('height', Math.max(h, 8));
+      frame.setAttribute('fill', '#f8fafc'); frame.setAttribute('stroke', '#64748b'); frame.setAttribute('stroke-width', '1.5');
+      group.appendChild(frame);
+    } else {
+      const swingR = w;
+      const isExit = door.doorType === 'exit';
+      const color = isExit ? '#dc2626' : '#059669';
+
+      const arc = document.createElementNS(ns, 'path');
+      arc.setAttribute('d', `M ${x} ${y} A ${swingR} ${swingR} 0 0 1 ${x + swingR} ${y + swingR} L ${x} ${y + swingR} Z`);
+      arc.setAttribute('fill', isExit ? 'rgba(220, 38, 38, 0.1)' : 'rgba(5, 150, 105, 0.1)');
+      arc.setAttribute('stroke', color);
+      arc.setAttribute('stroke-width', '1.2');
+      arc.setAttribute('stroke-dasharray', '3 2');
+      group.appendChild(arc);
+
+      const leaf = document.createElementNS(ns, 'line');
+      leaf.setAttribute('x1', x); leaf.setAttribute('y1', y);
+      leaf.setAttribute('x2', x); leaf.setAttribute('y2', y + swingR);
+      leaf.setAttribute('stroke', color); leaf.setAttribute('stroke-width', '2.5');
+      group.appendChild(leaf);
+
+      const threshold = document.createElementNS(ns, 'line');
+      threshold.setAttribute('x1', x); threshold.setAttribute('y1', y);
+      threshold.setAttribute('x2', x + w); threshold.setAttribute('y2', y);
+      threshold.setAttribute('stroke', '#0f172a'); threshold.setAttribute('stroke-width', '3');
+      group.appendChild(threshold);
+    }
+
+    const badgeG = document.createElementNS(ns, 'g');
+    badgeG.setAttribute('transform', `translate(${cx}, ${cy})`);
+
+    const labelText = door.label || (door.doorType === 'exit' ? 'EMERGENCY EXIT' : 'MAIN ENTRANCE');
+    const badgeRect = document.createElementNS(ns, 'rect');
+    const textWidth = Math.max(labelText.length * 6.5 + 16, 50);
+    badgeRect.setAttribute('x', -textWidth / 2); badgeRect.setAttribute('y', -10);
+    badgeRect.setAttribute('width', textWidth); badgeRect.setAttribute('height', 20);
+    badgeRect.setAttribute('rx', '10');
+    badgeRect.setAttribute('fill', door.doorType === 'exit' ? '#fee2e2' : '#dcfce7');
+    badgeRect.setAttribute('stroke', door.doorType === 'exit' ? '#ef4444' : '#10b981');
+    badgeRect.setAttribute('stroke-width', '1');
+    badgeG.appendChild(badgeRect);
+
+    const txt = document.createElementNS(ns, 'text');
+    txt.setAttribute('x', 0); txt.setAttribute('y', 3);
+    txt.setAttribute('text-anchor', 'middle');
+    txt.setAttribute('fill', door.doorType === 'exit' ? '#991b1b' : '#065f46');
+    txt.setAttribute('font-size', '9');
+    txt.setAttribute('font-weight', '700');
+    txt.setAttribute('font-family', 'Inter, sans-serif');
+    txt.textContent = labelText;
+    badgeG.appendChild(txt);
+
+    if (door.rotation) {
+      badgeG.setAttribute('transform', `translate(${cx}, ${cy}) rotate(${-door.rotation})`);
+    }
+    group.appendChild(badgeG);
+
+    layer.appendChild(group);
+  },
+
+  renderTextElement(elem, layer, ns) {
+    const group = document.createElementNS(ns, 'g');
+    group.setAttribute('class', 'arch-element arch-text-element');
+
+    const cx = this.px(elem.x + (elem.width || 4) / 2);
+    const cy = this.px(elem.y + (elem.height || 2) / 2);
+
+    if (elem.rotation) {
+      group.setAttribute('transform', `rotate(${elem.rotation}, ${cx}, ${cy})`);
+    }
+
+    const textStr = elem.text || 'LABEL';
+    const fontSize = elem.fontSize || 14;
+    const color = elem.color || '#0f172a';
+    const isBold = elem.fontWeight === 'bold' || elem.fontWeight === '700' || elem.fontWeight === '800';
+
+    if (elem.badge) {
+      const paddingX = 14;
+      const textLength = textStr.length * (fontSize * 0.58) + paddingX * 2;
+      const badgeH = fontSize + 14;
+
+      const badge = document.createElementNS(ns, 'rect');
+      badge.setAttribute('x', cx - textLength / 2);
+      badge.setAttribute('y', cy - badgeH / 2);
+      badge.setAttribute('width', textLength);
+      badge.setAttribute('height', badgeH);
+      badge.setAttribute('rx', badgeH / 2);
+      badge.setAttribute('fill', '#ffffff');
+      badge.setAttribute('stroke', color);
+      badge.setAttribute('stroke-width', '1.5');
+      badge.setAttribute('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.06))');
+      group.appendChild(badge);
+    }
+
+    const textEl = document.createElementNS(ns, 'text');
+    textEl.setAttribute('x', cx);
+    textEl.setAttribute('y', cy + (fontSize * 0.35));
+    textEl.setAttribute('text-anchor', 'middle');
+    textEl.setAttribute('fill', color);
+    textEl.setAttribute('font-size', `${fontSize}`);
+    textEl.setAttribute('font-weight', isBold ? '700' : '500');
+    textEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
+    textEl.setAttribute('letter-spacing', '0.04em');
+    textEl.textContent = textStr;
+    group.appendChild(textEl);
+
+    layer.appendChild(group);
+  },
+
+  renderStructureElement(elem, layer, ns) {
+    const group = document.createElementNS(ns, 'g');
+    group.setAttribute('class', `arch-element arch-structure arch-${elem.type}`);
+
+    const w = this.px(elem.width || 2);
+    const h = this.px(elem.height || 2);
+    const x = this.px(elem.x);
+    const y = this.px(elem.y);
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+
+    if (elem.rotation) {
+      group.setAttribute('transform', `rotate(${elem.rotation}, ${cx}, ${cy})`);
+    }
+
+    if (elem.type === 'pillar_round') {
+      const r = Math.min(w, h) / 2;
+      const col = document.createElementNS(ns, 'circle');
+      col.setAttribute('cx', cx); col.setAttribute('cy', cy); col.setAttribute('r', r);
+      col.setAttribute('fill', '#cbd5e1'); col.setAttribute('stroke', '#475569'); col.setAttribute('stroke-width', '2');
+      group.appendChild(col);
+    } else if (elem.type === 'stage') {
+      const stage = document.createElementNS(ns, 'rect');
+      stage.setAttribute('x', x); stage.setAttribute('y', y);
+      stage.setAttribute('width', w); stage.setAttribute('height', h);
+      stage.setAttribute('fill', '#334155'); stage.setAttribute('stroke', '#0f172a'); stage.setAttribute('stroke-width', '2');
+      stage.setAttribute('rx', '4');
+      group.appendChild(stage);
+
+      const stageLabel = document.createElementNS(ns, 'text');
+      stageLabel.setAttribute('x', cx); stageLabel.setAttribute('y', cy + 5);
+      stageLabel.setAttribute('text-anchor', 'middle'); stageLabel.setAttribute('fill', '#f8fafc');
+      stageLabel.setAttribute('font-size', '13'); stageLabel.setAttribute('font-weight', '700');
+      stageLabel.setAttribute('letter-spacing', '0.08em');
+      stageLabel.textContent = (elem.label || 'MAIN STAGE').toUpperCase();
+      group.appendChild(stageLabel);
+    } else if (elem.type === 'arrow') {
+      const arrowPath = `M ${x} ${cy - 4} H ${x + w - 12} V ${cy - 10} L ${x + w} ${cy} L ${x + w - 12} ${cy + 10} V ${cy + 4} H ${x} Z`;
+      const arrow = document.createElementNS(ns, 'path');
+      arrow.setAttribute('d', arrowPath);
+      arrow.setAttribute('fill', '#3b82f6'); arrow.setAttribute('stroke', '#1d4ed8'); arrow.setAttribute('stroke-width', '1');
+      group.appendChild(arrow);
+    } else {
+      const pillar = document.createElementNS(ns, 'rect');
+      pillar.setAttribute('x', x); pillar.setAttribute('y', y);
+      pillar.setAttribute('width', w); pillar.setAttribute('height', h);
+      pillar.setAttribute('fill', '#cbd5e1'); pillar.setAttribute('stroke', '#475569'); pillar.setAttribute('stroke-width', '2');
+      pillar.setAttribute('rx', '2');
+      group.appendChild(pillar);
+    }
+
+    layer.appendChild(group);
+  },
+
+  renderStallShape(table, ns, status = 'available') {
     const shape = table.shape || 'rect';
     const x = this.px(table.x);
     const y = this.px(table.y);
     const w = this.px(table.width || Units.DEFAULT_STALL_WIDTH_FT);
     const h = this.px(table.height || Units.DEFAULT_STALL_HEIGHT_FT);
-    const armH = Math.min(this.px(2), h * 0.45);
-    const armW = Math.min(this.px(3), w * 0.5);
 
-    let pathD = null;
-    let textX = x + w / 2;
-    let textY = y + h / 2;
+    const container = document.createElementNS(ns, 'g');
+    container.setAttribute('class', 'table-shape-container');
 
-    if (shape === 'L_TOP_LEFT') {
-      pathD = `M ${x} ${y} H ${x + w} V ${y + h} H ${x + w - armW} V ${y + armH} H ${x} Z`;
-      textX = x + w - (armW / 2);
-      textY = y + armH + (h - armH) / 2;
-    } else if (shape === 'L_TOP_RIGHT') {
-      pathD = `M ${x} ${y} H ${x + w} V ${y + armH} H ${x + armW} V ${y + h} H ${x} Z`;
-      textX = x + (armW / 2);
-      textY = y + armH + (h - armH) / 2;
-    } else if (shape === 'L_BOT_RIGHT') {
-      pathD = `M ${x} ${y} H ${x + armW} V ${y + h - armH} H ${x + w} V ${y + h} H ${x} Z`;
-      textX = x + (armW / 2);
-      textY = y + (h - armH) / 2;
-    } else if (shape === 'L-Stall' || shape === 'L_BOT_LEFT' || shape.startsWith('L') || (table.label && table.label.includes('L-Stall'))) {
-      // Standard base L-Stall (bottom-left corner)
-      pathD = `M ${x + w - armW} ${y} H ${x + w} V ${y + h} H ${x} V ${y + h - armH} H ${x + w - armW} Z`;
-      textX = x + w - (armW / 2);
-      textY = y + (h - armH) / 2;
+    if (shape === 'Pod' || (table.width >= 7.5 && table.height >= 3.5)) {
+      const halfW = w / 2;
+      const halfH = h / 2;
+      const t1 = this.createTableUnitRect(x, y, halfW, halfH, ns, status);
+      const t2 = this.createTableUnitRect(x + halfW, y, halfW, halfH, ns, status);
+      const t3 = this.createTableUnitRect(x, y + halfH, halfW, halfH, ns, status);
+      const t4 = this.createTableUnitRect(x + halfW, y + halfH, halfW, halfH, ns, status);
+      container.appendChild(t1); container.appendChild(t2);
+      container.appendChild(t3); container.appendChild(t4);
+      return { el: container, textX: x + w / 2, textY: y + h / 2 };
     }
 
-    if (pathD) {
-      const el = document.createElementNS(ns, 'path');
-      el.setAttribute('d', pathD);
-      el.setAttribute('class', 'table-shape');
-      el.setAttribute('stroke-linejoin', 'round');
-      el.setAttribute('stroke-linecap', 'round');
-      return { el, textX, textY };
+    if (shape === 'T-Stall') {
+      const halfW = w / 3;
+      const topT = this.createTableUnitRect(x, y, w, h / 2, ns, status);
+      const stemT = this.createTableUnitRect(x + halfW, y + h / 2, halfW, h / 2, ns, status);
+      container.appendChild(topT);
+      container.appendChild(stemT);
+      return { el: container, textX: x + w / 2, textY: y + h / 2 };
     }
 
-    // Default rectangle
-    const el = document.createElementNS(ns, 'rect');
-    el.setAttribute('x', x); el.setAttribute('y', y);
-    el.setAttribute('width', w); el.setAttribute('height', h);
-    el.setAttribute('class', 'table-shape');
-    el.setAttribute('rx', '4'); el.setAttribute('ry', '4');
-    return { el, textX, textY };
+    if (shape === 'L-Stall' || shape.startsWith('L')) {
+      const armW = this.px(2);
+      const armH = this.px(2);
+      const topT = this.createTableUnitRect(x, y, w, armH, ns, status);
+      const sideT = this.createTableUnitRect(x, y + armH, armW, h - armH, ns, status);
+      container.appendChild(topT);
+      container.appendChild(sideT);
+      return { el: container, textX: x + w / 2, textY: y + h / 2 };
+    }
+
+    if (table.width >= 7.5 && table.height <= 3) {
+      const halfW = w / 2;
+      const t1 = this.createTableUnitRect(x, y, halfW, h, ns, status);
+      const t2 = this.createTableUnitRect(x + halfW, y, halfW, h, ns, status);
+      container.appendChild(t1);
+      container.appendChild(t2);
+      return { el: container, textX: x + w / 2, textY: y + h / 2 };
+    }
+
+    const tRect = this.createTableUnitRect(x, y, w, h, ns, status);
+    container.appendChild(tRect);
+    return { el: container, textX: x + w / 2, textY: y + h / 2 };
+  },
+
+  createTableUnitRect(x, y, w, h, ns, status = 'available') {
+    const rect = document.createElementNS(ns, 'rect');
+    rect.setAttribute('x', x); rect.setAttribute('y', y);
+    rect.setAttribute('width', w); rect.setAttribute('height', h);
+
+    if (status === 'booked') {
+      rect.setAttribute('fill', 'url(#booked-table-public)');
+      rect.setAttribute('stroke', '#9f1239');
+      rect.setAttribute('stroke-width', '1.5');
+    } else if (status === 'selected') {
+      rect.setAttribute('fill', '#2563eb');
+      rect.setAttribute('stroke', '#1d4ed8');
+      rect.setAttribute('stroke-width', '2');
+    } else {
+      rect.setAttribute('fill', 'url(#honey-oak-table-public)');
+      rect.setAttribute('stroke', '#8c5822');
+      rect.setAttribute('stroke-width', '1');
+    }
+
+    rect.setAttribute('rx', '2'); rect.setAttribute('ry', '2');
+    return rect;
   },
 
   updateCounts() {
@@ -315,8 +735,8 @@ const hallMap = {
       const group = e.target.closest('.table-group');
       if (!group) return;
 
-      const tableId = parseInt(group.dataset.tableId);
-      const table = this.tables.find(t => t.id === tableId);
+      const tableId = group.dataset.tableId;
+      const table = this.tables.find(t => String(t.id) === String(tableId));
 
       if (!table || table.status === 'booked' || table.status === 'blocked') return;
 
@@ -335,8 +755,8 @@ const hallMap = {
         return;
       }
 
-      const tableId = parseInt(group.dataset.tableId);
-      const table = this.tables.find(t => t.id === tableId);
+      const tableId = group.dataset.tableId;
+      const table = this.tables.find(t => String(t.id) === String(tableId));
       if (!table) return;
 
       const dims = Units.formatDims(table.width, table.height);
