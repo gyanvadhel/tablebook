@@ -534,10 +534,10 @@
 }
 
 /* ============================================
-   Apple-Grade Floor Plan Studio Enhancements
+   Floor Plan Studio Toolbar & Menus
    ============================================ */
 
-.apple-toolbar {
+.cad-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -563,7 +563,7 @@
   color: var(--text-muted);
 }
 
-/* Apple Segmented Control */
+/* Segmented Control */
 .segmented-control {
   display: inline-flex;
   background: var(--bg-secondary);
@@ -634,8 +634,8 @@
   border-color: #f87171;
 }
 
-/* Apple Dropdown Menu */
-.apple-menu {
+/* Dropdown Menu */
+.cad-menu {
   background: var(--bg-card);
   border: 1px solid var(--border-medium);
   border-radius: var(--radius-md);
@@ -646,11 +646,11 @@
   gap: 2px;
 }
 
-.apple-menu.hidden {
+.cad-menu.hidden {
   display: none;
 }
 
-.apple-menu .menu-item {
+.cad-menu .menu-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -666,7 +666,7 @@
   transition: all var(--transition-fast);
 }
 
-.apple-menu .menu-item:hover {
+.cad-menu .menu-item:hover {
   background: var(--bg-secondary);
 }
 
