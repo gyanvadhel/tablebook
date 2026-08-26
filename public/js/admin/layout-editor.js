@@ -523,32 +523,6 @@ const layoutEditor = {
     const shapeInfo = this.renderStallShape(table, ns, isSelected);
     group.appendChild(shapeInfo.el);
 
-    // Selection Halo & Curved Rotation Arc Handle (↷ ↶)
-    if (isSelected) {
-      const rotGroup = document.createElementNS(ns, 'g');
-      rotGroup.setAttribute('class', 'cad-rotation-arc-group');
-      rotGroup.setAttribute('data-rotate-knob', 'true');
-      rotGroup.setAttribute('pointer-events', 'all');
-
-      const arcRadius = Math.max(this.px(table.width) / 2 + 10, 32);
-      const arcY = this.px(table.y + table.height) + 16;
-      const arcWidth = Math.min(arcRadius * 1.5, 70);
-
-      const arcPath = document.createElementNS(ns, 'path');
-      arcPath.setAttribute('d', `M ${cx - arcWidth / 2} ${arcY} A ${arcRadius} ${arcRadius} 0 0 0 ${cx + arcWidth / 2} ${arcY}`);
-      arcPath.setAttribute('fill', 'none');
-      arcPath.setAttribute('stroke', '#3b82f6');
-      arcPath.setAttribute('stroke-width', '5');
-      arcPath.setAttribute('stroke-linecap', 'round');
-      arcPath.setAttribute('marker-start', 'url(#rot-arrow-start)');
-      arcPath.setAttribute('marker-end', 'url(#rot-arrow-end)');
-      arcPath.setAttribute('class', 'cad-rotation-arc');
-      arcPath.setAttribute('data-rotate-knob', 'true');
-
-      rotGroup.appendChild(arcPath);
-      group.appendChild(rotGroup);
-    }
-
     layer.appendChild(group);
   },
 
