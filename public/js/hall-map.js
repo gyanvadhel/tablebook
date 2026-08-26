@@ -677,6 +677,16 @@ const hallMap = {
       return { el: container, textX: x + w / 2, textY: y + h / 2 };
     }
 
+    if (shape === 'L-Stall-Inverted' || shape === 'L-Inverted' || shape === 'L-Mirrored') {
+      const armW = this.px(2);
+      const armH = this.px(2);
+      const topT = this.createTableUnitRect(x, y, w, armH, ns, status);
+      const sideT = this.createTableUnitRect(x + w - armW, y + armH, armW, h - armH, ns, status);
+      container.appendChild(topT);
+      container.appendChild(sideT);
+      return { el: container, textX: x + w / 2, textY: y + h / 2 };
+    }
+
     if (shape === 'L-Stall' || shape.startsWith('L')) {
       const armW = this.px(2);
       const armH = this.px(2);

@@ -11,11 +11,12 @@
 
 // Stall footprints in feet
 const STALL_DEFAULTS = {
-  single:     { width: 4, height: 2, label: 'Single Table (-)', size: 'small', shape: 'rect' },
-  double:     { width: 8, height: 2, label: 'Double Table (--)', size: 'medium', shape: 'rect' },
-  'L-Stall':  { width: 6, height: 4, label: 'L-Stall (L)', size: 'large', shape: 'L-Stall' },
-  'T-Stall':  { width: 6, height: 4, label: 'T-Stall (T)', size: 'large', shape: 'T-Stall' },
-  'Pod':      { width: 8, height: 4, label: 'Pod Cluster (4-Pack)', size: 'xlarge', shape: 'Pod' }
+  single:             { width: 4, height: 2, label: 'Single Table (-)', size: 'small', shape: 'rect' },
+  double:             { width: 8, height: 2, label: 'Double Table (--)', size: 'medium', shape: 'rect' },
+  'L-Stall':          { width: 6, height: 4, label: 'L-Stall (L)', size: 'large', shape: 'L-Stall' },
+  'L-Stall-Inverted': { width: 6, height: 4, label: 'L-Inverted (⅃)', size: 'large', shape: 'L-Stall-Inverted' },
+  'T-Stall':          { width: 6, height: 4, label: 'T-Stall (T)', size: 'large', shape: 'T-Stall' },
+  'Pod':              { width: 8, height: 4, label: 'Pod Cluster (4-Pack)', size: 'xlarge', shape: 'Pod' }
 };
 
 const SNAP_GRID_FT = { '1': '1 ft', '0.5': '6 in', '0.25': '3 in', '0': 'Off' };
@@ -605,6 +606,16 @@ const layoutEditor = {
       const stemT = this.createTableUnitRect(x + halfW, y + h / 2, halfW, h / 2, ns, isSelected, isBooked);
       container.appendChild(topT);
       container.appendChild(stemT);
+      return { el: container, textX: x + w / 2, textY: y + h / 2 };
+    }
+
+    if (shape === 'L-Stall-Inverted' || shape === 'L-Inverted' || shape === 'L-Mirrored') {
+      const armW = this.px(2);
+      const armH = this.px(2);
+      const topT = this.createTableUnitRect(x, y, w, armH, ns, isSelected, isBooked);
+      const sideT = this.createTableUnitRect(x + w - armW, y + armH, armW, h - armH, ns, isSelected, isBooked);
+      container.appendChild(topT);
+      container.appendChild(sideT);
       return { el: container, textX: x + w / 2, textY: y + h / 2 };
     }
 
@@ -1344,6 +1355,15 @@ const layoutEditor = {
           <label class="form-label">Label / Category</label>
           <input type="text" class="form-input" value="${table.label || ''}" onchange="layoutEditor.updateItemProp('label', this.value)" id="prop-label">
         </div>
+        ${table.shape && table.shape.startsWith('L') ? `
+        <div class="form-group">
+          <label class="form-label">L-Shape Arm Orientation</label>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.toggleInvertL()" style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 6px 10px;">
+            <span>${(table.shape === 'L-Stall-Inverted' || table.shape === 'L-Inverted') ? 'Right-Hand (Inverted ⅃)' : 'Left-Hand (Standard L)'}</span>
+            <span style="font-weight: 700; color: var(--accent-primary);">⇄ Invert Shape</span>
+          </button>
+        </div>
+        ` : ''}
         <div class="form-group">
           <label class="form-label">Rotation</label>
           <div style="display: flex; gap: var(--space-xs); align-items: center;">
@@ -1456,6 +1476,25 @@ const layoutEditor = {
     this.renderAllObjects();
     this.showProperties(this.selectedItem);
     this.updateDirectoryList();
+  },
+
+  toggleInvertL() {
+    if (!this.selectedItem || this.selectedItem.type !== 'table') return;
+    const table = this.selectedItem.obj;
+    const isCurrentlyInverted = table.shape === 'L-Stall-Inverted' || table.shape === 'L-Inverted';
+
+    if (isCurrentlyInverted) {
+      table.shape = 'L-Stall';
+      if (table.label.includes('Inverted') || table.label.includes('⅃')) table.label = 'L-Stall (L)';
+    } else {
+      table.shape = 'L-Stall-Inverted';
+      if (table.label.includes('L-Stall') || table.label === '') table.label = 'L-Inverted (⅃)';
+    }
+
+    this.renderAllObjects();
+    this.showProperties(this.selectedItem);
+    this.updateDirectoryList();
+    showToast(`L-Shape inverted to ${isCurrentlyInverted ? 'Left-Hand L' : 'Right-Hand Inverted ⅃'}`, 'info');
   },
 
   duplicateSelected() {
