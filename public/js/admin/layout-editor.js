@@ -543,23 +543,29 @@ const layoutEditor = {
     }
     group.appendChild(label);
 
-    // Stall dimensions & optional price label
-    const dimY = shapeInfo.textY + 8;
+    // Stall dimensions & optional price label (or BOOKED if reserved)
+    const isBooked = table.status === 'booked';
+    const dimY = isBooked ? shapeInfo.textY + 6 : shapeInfo.textY + 8;
     const dimLabel = document.createElementNS(ns, 'text');
     dimLabel.setAttribute('x', shapeInfo.textX);
     dimLabel.setAttribute('y', dimY);
     dimLabel.setAttribute('class', 'table-dimensions');
-    dimLabel.setAttribute('font-size', '8.5');
-    dimLabel.setAttribute('font-weight', '600');
+    dimLabel.setAttribute('font-size', isBooked ? '7.5' : '8.5');
+    dimLabel.setAttribute('font-weight', isBooked ? '700' : '600');
+    dimLabel.setAttribute('letter-spacing', isBooked ? '0.04em' : 'normal');
     dimLabel.setAttribute('text-anchor', 'middle');
     dimLabel.setAttribute('dominant-baseline', 'central');
-    dimLabel.setAttribute('fill', table.status === 'booked' ? '#ffe4e6' : '#475569');
+    dimLabel.setAttribute('fill', isBooked ? '#ffe4e6' : '#475569');
     dimLabel.setAttribute('font-family', 'Inter, sans-serif');
     dimLabel.setAttribute('pointer-events', 'none');
 
-    const priceVal = parseFloat(table.price) || 0;
-    const priceStr = priceVal > 0 ? ` · ₹${priceVal.toLocaleString('en-IN')}` : '';
-    dimLabel.textContent = `${Units.formatFeetShort(table.width)} × ${Units.formatFeetShort(table.height)}${priceStr}`;
+    if (isBooked) {
+      dimLabel.textContent = 'BOOKED';
+    } else {
+      const priceVal = parseFloat(table.price) || 0;
+      const priceStr = priceVal > 0 ? ` · ₹${priceVal.toLocaleString('en-IN')}` : '';
+      dimLabel.textContent = `${Units.formatFeetShort(table.width)} × ${Units.formatFeetShort(table.height)}${priceStr}`;
+    }
 
     if (table.rotation) {
       dimLabel.setAttribute('transform', `rotate(${-table.rotation}, ${shapeInfo.textX}, ${dimY})`);

@@ -346,12 +346,13 @@ const hallMap = {
       group.appendChild(shapeInfo.el);
 
       // Table number label (white for booked/selected, dark for available)
-      const numY = shapeInfo.textY - 5;
+      const numY = isBooked ? shapeInfo.textY - 3 : shapeInfo.textY - 5;
       const label = document.createElementNS(ns, 'text');
       label.setAttribute('x', shapeInfo.textX);
       label.setAttribute('y', numY);
       label.setAttribute('class', 'table-number');
       label.setAttribute('fill', isBooked || isSelected ? '#ffffff' : '#1e293b');
+      label.setAttribute('font-weight', '700');
       label.textContent = table.table_number;
 
       if (table.rotation) {
@@ -359,20 +360,21 @@ const hallMap = {
       }
       group.appendChild(label);
 
-      // Stall dimensions in FEET
-      const dimY = shapeInfo.textY + 8;
+      // Sub-label (BOOKED for reserved tables, dimensions for available)
+      const dimY = isBooked ? shapeInfo.textY + 6 : shapeInfo.textY + 8;
       const dimLabel = document.createElementNS(ns, 'text');
       dimLabel.setAttribute('x', shapeInfo.textX);
       dimLabel.setAttribute('y', dimY);
       dimLabel.setAttribute('class', 'table-dimensions');
-      dimLabel.setAttribute('font-size', '8.5');
-      dimLabel.setAttribute('font-weight', '600');
+      dimLabel.setAttribute('font-size', isBooked ? '7.5' : '8.5');
+      dimLabel.setAttribute('font-weight', '700');
+      dimLabel.setAttribute('letter-spacing', isBooked ? '0.04em' : 'normal');
       dimLabel.setAttribute('text-anchor', 'middle');
       dimLabel.setAttribute('dominant-baseline', 'central');
       dimLabel.setAttribute('fill', isBooked ? '#ffe4e6' : (isSelected ? '#dbeafe' : '#475569'));
       dimLabel.setAttribute('font-family', 'Inter, sans-serif');
       dimLabel.setAttribute('pointer-events', 'none');
-      dimLabel.textContent = `${Units.formatFeetShort(table.width)} × ${Units.formatFeetShort(table.height)}`;
+      dimLabel.textContent = isBooked ? 'BOOKED' : `${Units.formatFeetShort(table.width)} × ${Units.formatFeetShort(table.height)}`;
 
       if (table.rotation) {
         dimLabel.setAttribute('transform', `rotate(${-table.rotation}, ${shapeInfo.textX}, ${dimY})`);
@@ -759,15 +761,18 @@ const hallMap = {
       const table = this.tables.find(t => String(t.id) === String(tableId));
       if (!table) return;
 
-      const dims = Units.formatDims(table.width, table.height);
-      tooltipTitle.textContent = `Stall ${table.table_number} — ${dims}`;
-
       if (table.status === 'booked') {
-        tooltipDetail.innerHTML = `<span style="color: var(--status-booked);">Reserved</span>${table.booked_business ? ` &middot; ${this.escapeHtml(table.booked_business)}` : ''}`;
+        tooltipTitle.textContent = `Stall ${table.table_number}`;
+        tooltipDetail.innerHTML = '<span style="color: var(--status-booked); font-weight: 700;">Reserved</span>';
       } else if (table.status === 'blocked') {
+        tooltipTitle.textContent = `Stall ${table.table_number}`;
         tooltipDetail.innerHTML = '<span style="color: var(--text-muted);">Unavailable</span>';
       } else {
-        tooltipDetail.innerHTML = `${table.label || 'Stall'} &middot; ${Units.formatArea(table.width, table.height)} &middot; Click to book`;
+        const dims = Units.formatDims(table.width, table.height);
+        const priceVal = parseFloat(table.price) || 0;
+        const priceStr = priceVal > 0 ? ` &middot; <strong>₹${priceVal.toLocaleString('en-IN')}</strong>` : '';
+        tooltipTitle.textContent = `Stall ${table.table_number} — ${dims}`;
+        tooltipDetail.innerHTML = `${table.label || 'Stall'}${priceStr} &middot; Click to book`;
       }
 
       const rect = this.container.getBoundingClientRect();
