@@ -73,7 +73,8 @@ app.use((req, res) => {
 
 app.use((err, req, res, next) => {
   console.error('Server error:', err.stack || err);
-  res.status(500).json({ error: 'Something went wrong!' });
+  const errorMessage = err.message || 'Something went wrong!';
+  res.status(500).json({ error: errorMessage });
 });
 
 module.exports = app;
