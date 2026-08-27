@@ -16,59 +16,61 @@ interface VisitorHallMapProps {
 }
 
 export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
-  hallWidth,
-  hallHeight,
+  hallWidth: rawHallW,
+  hallHeight: rawHallH,
   tables,
   elements,
   selectedTable,
   onSelectTable,
   eventName,
 }) => {
+  const hallWidth = Units.toFeet(rawHallW, 30) || 30;
+  const hallHeight = Units.toFeet(rawHallH, 20) || 20;
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewBox, setViewBox] = useState<{ x: number; y: number; w: number; h: number }>({
-    x: 0,
-    y: 0,
-    w: 1200,
-    h: 800,
+    x: -Units.ftToPx(4),
+    y: -Units.ftToPx(4),
+    w: Units.ftToPx(38),
+    h: Units.ftToPx(28),
   });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
 
   const px = (ft: number) => Units.ftToPx(ft);
 
-  // Auto-fit viewBox
+  // Auto-fit viewBox perfectly to the hall and all secondary halls/tables
   useEffect(() => {
-    let minX = -10;
-    let minY = -10;
-    let maxX = hallWidth + 10;
-    let maxY = hallHeight + 10;
+    let minX = 0;
+    let minY = 0;
+    let maxX = hallWidth;
+    let maxY = hallHeight;
 
     tables.forEach((t) => {
       const rX = (t.x || 0) + (t.width || 4);
       const bY = (t.y || 0) + (t.height || 2);
-      if (t.x < minX) minX = t.x - 5;
-      if (t.y < minY) minY = t.y - 5;
-      if (rX > maxX) maxX = rX + 5;
-      if (bY > maxY) maxY = bY + 5;
+      if (t.x < minX) minX = t.x;
+      if (t.y < minY) minY = t.y;
+      if (rX > maxX) maxX = rX;
+      if (bY > maxY) maxY = bY;
     });
 
     elements.forEach((el) => {
       const rX = (el.x || 0) + (el.width || 4);
       const bY = (el.y || 0) + (el.height || 2);
-      if (el.x < minX) minX = el.x - 5;
-      if (el.y < minY) minY = el.y - 5;
-      if (rX > maxX) maxX = rX + 5;
-      if (bY > maxY) maxY = bY + 5;
+      if (el.x < minX) minX = el.x;
+      if (el.y < minY) minY = el.y;
+      if (rX > maxX) maxX = rX;
+      if (bY > maxY) maxY = bY;
     });
 
-    const padX = 12;
-    const padY = 12;
-    const xPx = Units.ftToPx(minX - padX);
-    const yPx = Units.ftToPx(minY - padY);
-    const wPx = Units.ftToPx(maxX - minX + padX * 2);
-    const hPx = Units.ftToPx(maxY - minY + padY * 2);
+    const padFt = 3.5;
+    const xPx = Units.ftToPx(minX - padFt);
+    const yPx = Units.ftToPx(minY - padFt);
+    const wPx = Units.ftToPx(maxX - minX + padFt * 2);
+    const hPx = Units.ftToPx(maxY - minY + padFt * 2);
 
-    setViewBox({ x: xPx, y: yPx, w: Math.max(wPx, 700), h: Math.max(hPx, 500) });
+    setViewBox({ x: xPx, y: yPx, w: wPx, h: hPx });
   }, [hallWidth, hallHeight, tables, elements]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
