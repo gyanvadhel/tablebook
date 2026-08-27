@@ -188,6 +188,9 @@
             <div id="table-floating-actions" class="cad-floating-bar hidden">
               <div class="cad-bar-tag">Edit</div>
               <div class="cad-bar-items">
+                <button type="button" class="cad-btn" onclick="layoutEditor.flipSelected()" title="Flip / Mirror (F)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 2 3 6 7 10"></polyline><polyline points="17 14 21 18 17 22"></polyline><line x1="3" y1="6" x2="21" y2="6"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>
+                </button>
                 <button type="button" class="cad-btn" onclick="layoutEditor.rotateSelected()" title="Rotate 90° (R)">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
                 </button>
@@ -236,7 +239,7 @@
           <div class="editor-panel" style="padding: 8px 12px; background: var(--bg-card);">
             <div style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Shortcuts</div>
             <div style="font-size: 0.75rem; color: var(--text-secondary); display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
-              <span><strong style="color: var(--text-primary);">G</strong> Move item</span>
+              <span><strong style="color: var(--text-primary);">F</strong> Flip / Invert</span>
               <span><strong style="color: var(--text-primary);">R</strong> Rotate 90°</span>
               <span><strong style="color: var(--text-primary);">Shift+D</strong> Duplicate</span>
               <span><strong style="color: var(--text-primary);">Del / X</strong> Delete</span>

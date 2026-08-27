@@ -1365,10 +1365,19 @@ const layoutEditor = {
         </div>
         ` : ''}
         <div class="form-group">
-          <label class="form-label">Rotation</label>
+          <label class="form-label">Orientation &amp; Rotation</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.flipSelected()" title="Flip Orientation (F)" style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 2 3 6 7 10"></polyline><polyline points="17 14 21 18 17 22"></polyline><line x1="3" y1="6" x2="21" y2="6"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>
+              <span>Flip (F)</span>
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.rotateSelected()" title="Rotate +90° (R)" style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+              <span>Rotate +90°</span>
+            </button>
+          </div>
           <div style="display: flex; gap: var(--space-xs); align-items: center;">
             <input type="number" class="form-input" value="${table.rotation || 0}" step="90" oninput="layoutEditor.updateItemProp('rotation', (parseFloat(this.value)||0)%360, true)" id="prop-rotation">
-            <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.rotateSelected()" title="Rotate +90°">+90°</button>
+            <span class="text-muted" style="font-size: 0.78rem;">deg</span>
           </div>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
@@ -1435,10 +1444,19 @@ const layoutEditor = {
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Rotation</label>
+          <label class="form-label">Orientation &amp; Rotation</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.flipSelected()" title="Flip Orientation (F)" style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 2 3 6 7 10"></polyline><polyline points="17 14 21 18 17 22"></polyline><line x1="3" y1="6" x2="21" y2="6"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>
+              <span>Flip (F)</span>
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.rotateSelected()" title="Rotate +90° (R)" style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+              <span>Rotate +90°</span>
+            </button>
+          </div>
           <div style="display: flex; gap: var(--space-xs); align-items: center;">
             <input type="number" class="form-input" value="${elem.rotation || 0}" step="90" oninput="layoutEditor.updateItemProp('rotation', (parseFloat(this.value)||0)%360, true)">
-            <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.rotateSelected()">+90°</button>
+            <span class="text-muted" style="font-size: 0.78rem;">deg</span>
           </div>
         </div>
       `;
@@ -1488,6 +1506,56 @@ const layoutEditor = {
     this.renderAllObjects();
     this.showProperties(this.selectedItem);
     this.updateDirectoryList();
+  },
+
+  flipSelected() {
+    if (!this.selectedItem) return;
+    const { type, obj } = this.selectedItem;
+
+    if (type === 'table') {
+      if (obj.shape && obj.shape.startsWith('L')) {
+        this.toggleInvertL();
+        return;
+      }
+      // For rectangular tables / single / double / Pod / T-Stall:
+      // Flip by swapping width & depth (or 180° rotation if square)
+      const oldW = obj.width;
+      const oldH = obj.height;
+      obj.width = oldH;
+      obj.height = oldW;
+      this.clampToBounds(obj, 'table');
+      this.renderAllObjects();
+      this.showProperties(this.selectedItem);
+      this.updateDirectoryList();
+      showToast(`Stall ${obj.table_number} flipped (${obj.width}' × ${obj.height}')`, 'info');
+      return;
+    }
+
+    if (type === 'element') {
+      if (obj.type === 'door') {
+        obj.flip = !obj.flip;
+        obj.rotation = ((obj.rotation || 0) + 180) % 360;
+        this.clampToBounds(obj, 'element');
+        this.renderAllObjects();
+        this.showProperties(this.selectedItem);
+        this.updateDirectoryList();
+        showToast('Door orientation flipped', 'info');
+        return;
+      }
+
+      if (obj.width && obj.height && obj.width !== obj.height) {
+        const oldW = obj.width;
+        obj.width = obj.height;
+        obj.height = oldW;
+      } else {
+        obj.rotation = ((obj.rotation || 0) + 180) % 360;
+      }
+      this.clampToBounds(obj, 'element');
+      this.renderAllObjects();
+      this.showProperties(this.selectedItem);
+      this.updateDirectoryList();
+      showToast('Component flipped', 'info');
+    }
   },
 
   toggleInvertL() {
@@ -2071,6 +2139,8 @@ const layoutEditor = {
         }
       } else if (e.key === 'r' || e.key === 'R') {
         this.rotateSelected();
+      } else if (e.key === 'f' || e.key === 'F') {
+        this.flipSelected();
       } else if (e.key === 'Escape') {
         this.deselect();
       }
