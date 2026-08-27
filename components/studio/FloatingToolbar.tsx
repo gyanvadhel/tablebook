@@ -25,16 +25,24 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
 
   return (
     <div
-      className="absolute z-50 flex flex-col items-center pointer-events-auto transition-transform -translate-x-1/2 -translate-y-full -mt-3"
+      data-floating-toolbar="true"
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      className="absolute z-50 flex flex-col items-center pointer-events-auto select-none transition-transform -translate-x-1/2 -translate-y-full -mt-3"
       style={{ left: `${position.left}px`, top: `${position.top}px` }}
     >
-      <div className="bg-zinc-700 text-zinc-100 text-[10px] font-bold px-2 py-0.5 rounded-t tracking-wide uppercase">
+      <div className="bg-zinc-800 text-zinc-300 text-[9px] font-bold px-2 py-0.5 rounded-t tracking-wider uppercase">
         Edit
       </div>
-      <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-700 rounded-md p-1 shadow-2xl">
+      <div className="flex items-center gap-0.5 bg-zinc-900 border border-zinc-700 rounded-md p-1 shadow-2xl">
         <button
           type="button"
-          onClick={onFlip}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onFlip();
+          }}
           title="Flip / Invert (F)"
           className="p-1.5 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 transition"
         >
@@ -42,7 +50,11 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
         </button>
         <button
           type="button"
-          onClick={onRotate}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRotate();
+          }}
           title="Rotate 90° (R)"
           className="p-1.5 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 transition"
         >
@@ -50,7 +62,11 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
         </button>
         <button
           type="button"
-          onClick={onDuplicate}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDuplicate();
+          }}
           title="Duplicate (Shift+D)"
           className="p-1.5 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 transition"
         >
@@ -58,9 +74,13 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
         </button>
         <button
           type="button"
-          onClick={onDelete}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
           title="Delete (Del)"
-          className="p-1.5 rounded text-red-400 hover:text-red-300 hover:bg-red-950/50 transition"
+          className="p-1.5 rounded text-rose-400 hover:text-rose-300 hover:bg-rose-950/50 transition"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>

@@ -132,7 +132,12 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
 
-    const target = e.target as SVGElement;
+    const target = e.target as HTMLElement | SVGElement;
+
+    // If clicking a button or floating toolbar, do not deselect or pan
+    if (target.closest('button') || target.closest('[data-floating-toolbar]')) {
+      return;
+    }
 
     // Check if clicked a table
     const tableGroup = target.closest('[data-table-id]') as SVGElement | null;
@@ -475,30 +480,32 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                   />
                 )}
 
-                {/* Stall Number Badge */}
-                <rect
-                  x={x + w / 2 - 14}
-                  y={y + h / 2 - 9}
-                  width="28"
-                  height="18"
-                  rx="3"
-                  fill="#ffffff"
-                  stroke="#d4d4d8"
-                  strokeWidth="1"
-                  filter="drop-shadow(0 1px 2px rgba(0,0,0,0.06))"
-                  pointerEvents="none"
-                />
-                <text
-                  x={x + w / 2}
-                  y={y + h / 2 + 4}
-                  fill="#18181b"
-                  fontSize="11"
-                  fontWeight="800"
-                  textAnchor="middle"
-                  pointerEvents="none"
-                >
-                  {t.table_number}
-                </text>
+                {/* Stall Number Badge - Always upright and compact */}
+                <g transform={t.rotation ? `rotate(${-t.rotation}, ${cx}, ${cy})` : undefined}>
+                  <rect
+                    x={cx - (String(t.table_number).length > 2 ? 12 : 9)}
+                    y={cy - 7}
+                    width={String(t.table_number).length > 2 ? 24 : 18}
+                    height="14"
+                    rx="2"
+                    fill="#ffffff"
+                    stroke="#d4d4d8"
+                    strokeWidth="0.8"
+                    filter="drop-shadow(0 1px 2px rgba(0,0,0,0.06))"
+                    pointerEvents="none"
+                  />
+                  <text
+                    x={cx}
+                    y={cy + 3.5}
+                    fill={isBooked ? '#be123c' : '#18181b'}
+                    fontSize="9"
+                    fontWeight="800"
+                    textAnchor="middle"
+                    pointerEvents="none"
+                  >
+                    {t.table_number}
+                  </text>
+                </g>
 
                 {/* Selection Outline */}
                 {isSelected && (

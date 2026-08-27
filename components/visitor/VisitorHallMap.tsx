@@ -302,30 +302,32 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
                   <rect x={x} y={y} width={w} height={h} fill={fillPattern} stroke="#18181b" strokeWidth="1.2" rx="2" />
                 )}
 
-                {/* Stall Number Badge */}
-                <rect
-                  x={x + w / 2 - 14}
-                  y={y + h / 2 - 9}
-                  width="28"
-                  height="18"
-                  rx="3"
-                  fill="#ffffff"
-                  stroke="#d4d4d8"
-                  strokeWidth="1"
-                  filter="drop-shadow(0 1px 2px rgba(0,0,0,0.06))"
-                  pointerEvents="none"
-                />
-                <text
-                  x={x + w / 2}
-                  y={y + h / 2 + 4}
-                  fill={isBooked ? '#be123c' : isSelected ? '#18181b' : '#18181b'}
-                  fontSize="11"
-                  fontWeight="800"
-                  textAnchor="middle"
-                  pointerEvents="none"
-                >
-                  {t.table_number}
-                </text>
+                {/* Stall Number Badge - Always upright and compact */}
+                <g transform={t.rotation ? `rotate(${-t.rotation}, ${cx}, ${cy})` : undefined}>
+                  <rect
+                    x={cx - (String(t.table_number).length > 2 ? 12 : 9)}
+                    y={cy - 7}
+                    width={String(t.table_number).length > 2 ? 24 : 18}
+                    height="14"
+                    rx="2"
+                    fill="#ffffff"
+                    stroke="#d4d4d8"
+                    strokeWidth="0.8"
+                    filter="drop-shadow(0 1px 2px rgba(0,0,0,0.06))"
+                    pointerEvents="none"
+                  />
+                  <text
+                    x={cx}
+                    y={cy + 3.5}
+                    fill={isBooked ? '#be123c' : isSelected ? '#18181b' : '#18181b'}
+                    fontSize="9"
+                    fontWeight="800"
+                    textAnchor="middle"
+                    pointerEvents="none"
+                  >
+                    {t.table_number}
+                  </text>
+                </g>
 
                 {/* Selection Ring */}
                 {isSelected && (
