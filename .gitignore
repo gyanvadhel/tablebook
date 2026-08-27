@@ -13,6 +13,8 @@ data/
 reference-letter/
 
 # Build & platform output
+.next/
+out/
 .vercel/
 dist/
 build/

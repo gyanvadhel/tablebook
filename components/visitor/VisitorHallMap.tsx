@@ -288,21 +288,21 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
                 {shape === 'L-Stall' ? (
                   <path
                     d={`M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + px(2)} L ${x + px(2)} ${y + px(2)} L ${x + px(2)} ${y + h} L ${x} ${y + h} Z`}
-                    fill={isBooked ? '#e11d48' : 'url(#honey-oak-table)'}
+                    fill={isBooked ? '#e11d48' : 'url(#visitor-table-avail)'}
                     stroke={isBooked ? '#be123c' : '#1e293b'}
                     strokeWidth="1.2"
                   />
                 ) : shape === 'L-Stall-Inverted' || shape === 'L-Inverted' ? (
                   <path
                     d={`M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x + w - px(2)} ${y + h} L ${x + w - px(2)} ${y + px(2)} L ${x} ${y + px(2)} Z`}
-                    fill={isBooked ? '#e11d48' : 'url(#honey-oak-table)'}
+                    fill={isBooked ? '#e11d48' : 'url(#visitor-table-avail)'}
                     stroke={isBooked ? '#be123c' : '#1e293b'}
                     strokeWidth="1.2"
                   />
                 ) : shape === 'T-Stall' ? (
                   <path
                     d={`M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + px(2)} L ${x + w / 2 + px(1)} ${y + px(2)} L ${x + w / 2 + px(1)} ${y + h} L ${x + w / 2 - px(1)} ${y + h} L ${x + w / 2 - px(1)} ${y + px(2)} L ${x} ${y + px(2)} Z`}
-                    fill={isBooked ? '#e11d48' : 'url(#honey-oak-table)'}
+                    fill={isBooked ? '#e11d48' : 'url(#visitor-table-avail)'}
                     stroke={isBooked ? '#be123c' : '#1e293b'}
                     strokeWidth="1.2"
                   />
@@ -312,12 +312,15 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
                     y={y}
                     width={w}
                     height={h}
-                    fill={isBooked ? '#e11d48' : 'url(#honey-oak-table)'}
+                    fill={isBooked ? '#e11d48' : 'url(#visitor-table-avail)'}
                     stroke={isBooked ? '#be123c' : '#1e293b'}
                     strokeWidth="1.2"
                     rx="2"
                   />
                 )}
+
+                {/* Full-surface invisible hitbox for reliable click detection across the entire stall */}
+                <rect x={x} y={y} width={w} height={h} fill="transparent" pointerEvents="all" />
 
                 {/* Clean Upright Typography: Stall Number & Dimension Subtitle (NO white box) */}
                 <g transform={t.rotation ? `rotate(${-t.rotation}, ${cx}, ${cy})` : undefined} pointerEvents="none">
