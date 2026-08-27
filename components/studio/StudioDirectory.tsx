@@ -79,17 +79,17 @@ export const StudioDirectory: React.FC<StudioDirectoryProps> = ({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white select-none">
-      <div className="flex items-center justify-between px-3.5 py-2 border-b border-slate-200 bg-slate-50">
-        <span className="font-bold text-[11px] uppercase tracking-wider text-slate-600">
+      <div className="flex items-center justify-between px-3.5 py-2 border-b border-zinc-200 bg-zinc-50">
+        <span className="font-bold text-[11px] uppercase tracking-wider text-zinc-600">
           Directory ({totalCount})
         </span>
 
-        <div className="flex items-center gap-1 bg-slate-200 p-0.5 rounded text-[10px] font-bold">
+        <div className="flex items-center gap-1 bg-zinc-200 p-0.5 rounded text-[10px] font-bold">
           <button
             type="button"
             onClick={() => setFilter('all')}
             className={`px-1.5 py-0.5 rounded transition ${
-              filter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              filter === 'all' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-600 hover:text-zinc-900'
             }`}
           >
             All
@@ -98,7 +98,7 @@ export const StudioDirectory: React.FC<StudioDirectoryProps> = ({
             type="button"
             onClick={() => setFilter('stalls')}
             className={`px-1.5 py-0.5 rounded transition ${
-              filter === 'stalls' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              filter === 'stalls' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-600 hover:text-zinc-900'
             }`}
           >
             Stalls
@@ -107,7 +107,7 @@ export const StudioDirectory: React.FC<StudioDirectoryProps> = ({
             type="button"
             onClick={() => setFilter('elements')}
             className={`px-1.5 py-0.5 rounded transition ${
-              filter === 'elements' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              filter === 'elements' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-600 hover:text-zinc-900'
             }`}
           >
             Other
@@ -117,7 +117,7 @@ export const StudioDirectory: React.FC<StudioDirectoryProps> = ({
 
       <div className="flex-1 overflow-y-auto p-1.5 flex flex-col gap-1 text-xs">
         {items.length === 0 ? (
-          <div className="text-center text-slate-400 py-6 text-xs font-medium">No items placed yet</div>
+          <div className="text-center text-zinc-400 py-6 text-xs font-medium">No items placed yet</div>
         ) : (
           items.map((item) => {
             const isSelected = selectedId === item.id;
@@ -128,24 +128,16 @@ export const StudioDirectory: React.FC<StudioDirectoryProps> = ({
                 onClick={() => onSelectItem(item.type, item.obj)}
                 className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-left transition ${
                   isSelected
-                    ? 'bg-blue-50 border border-blue-300 text-blue-900 font-semibold'
-                    : 'hover:bg-slate-100 text-slate-700'
+                    ? 'bg-zinc-100 border border-zinc-400 text-zinc-950 font-semibold'
+                    : 'hover:bg-zinc-50 text-zinc-700'
                 }`}
               >
                 <div className="truncate mr-2">
                   <div className="font-medium truncate">{item.title}</div>
-                  <div className="text-[10px] text-slate-400 truncate">{item.subtitle}</div>
+                  <div className="text-[10px] text-zinc-400 truncate">{item.subtitle}</div>
                 </div>
                 {item.tag && (
-                  <span
-                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
-                      item.tag === 'Stall'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : item.tag === 'Hall'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 bg-zinc-100 text-zinc-600 border border-zinc-200">
                     {item.tag}
                   </span>
                 )}

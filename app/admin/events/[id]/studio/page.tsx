@@ -8,7 +8,7 @@ import { StudioCanvas } from '@/components/studio/StudioCanvas';
 import { StudioInspector } from '@/components/studio/StudioInspector';
 import { StudioDirectory } from '@/components/studio/StudioDirectory';
 import { Units } from '@/lib/units';
-import { STALL_DEFAULTS, ELEMENT_OUTSIDE_MARGIN_FT } from '@/lib/constants';
+import { STALL_DEFAULTS } from '@/lib/constants';
 import type { EventItem, TableItem, HallElement, StudioSelectedItem } from '@/types';
 
 export default function StudioPage() {
@@ -42,46 +42,50 @@ export default function StudioPage() {
   const hallWidth = event ? Number(event.hall_width) || Units.DEFAULT_HALL_WIDTH_FT : Units.DEFAULT_HALL_WIDTH_FT;
   const hallHeight = event ? Number(event.hall_height) || Units.DEFAULT_HALL_HEIGHT_FT : Units.DEFAULT_HALL_HEIGHT_FT;
 
-  // Auto-fit ViewBox to contain all halls and stalls
-  const setupViewBox = useCallback(
-    (currentTables = tables, currentElements = elements, currentW = hallWidth, currentH = hallHeight) => {
-      let minX = -10;
-      let minY = -10;
-      let maxX = currentW + 10;
-      let maxY = currentH + 10;
+  // Auto-fit ViewBox
+  const fitViewBox = (
+    currentTables: TableItem[],
+    currentElements: HallElement[],
+    currentW: number,
+    currentH: number
+  ) => {
+    let minX = -10;
+    let minY = -10;
+    let maxX = currentW + 10;
+    let maxY = currentH + 10;
 
-      currentTables.forEach((t) => {
-        const rX = (t.x || 0) + (t.width || 4);
-        const bY = (t.y || 0) + (t.height || 2);
-        if (t.x < minX) minX = t.x - 5;
-        if (t.y < minY) minY = t.y - 5;
-        if (rX > maxX) maxX = rX + 5;
-        if (bY > maxY) maxY = bY + 5;
-      });
+    currentTables.forEach((t) => {
+      const rX = (t.x || 0) + (t.width || 4);
+      const bY = (t.y || 0) + (t.height || 2);
+      if (t.x < minX) minX = t.x - 5;
+      if (t.y < minY) minY = t.y - 5;
+      if (rX > maxX) maxX = rX + 5;
+      if (bY > maxY) maxY = bY + 5;
+    });
 
-      currentElements.forEach((el) => {
-        const rX = (el.x || 0) + (el.width || 4);
-        const bY = (el.y || 0) + (el.height || 2);
-        if (el.x < minX) minX = el.x - 5;
-        if (el.y < minY) minY = el.y - 5;
-        if (rX > maxX) maxX = rX + 5;
-        if (bY > maxY) maxY = bY + 5;
-      });
+    currentElements.forEach((el) => {
+      const rX = (el.x || 0) + (el.width || 4);
+      const bY = (el.y || 0) + (el.height || 2);
+      if (el.x < minX) minX = el.x - 5;
+      if (el.y < minY) minY = el.y - 5;
+      if (rX > maxX) maxX = rX + 5;
+      if (bY > maxY) maxY = bY + 5;
+    });
 
-      const padX = 14;
-      const padY = 14;
-      const xPx = Units.ftToPx(minX - padX);
-      const yPx = Units.ftToPx(minY - padY);
-      const wPx = Units.ftToPx(maxX - minX + padX * 2);
-      const hPx = Units.ftToPx(maxY - minY + padY * 2);
+    const padX = 14;
+    const padY = 14;
+    const xPx = Units.ftToPx(minX - padX);
+    const yPx = Units.ftToPx(minY - padY);
+    const wPx = Units.ftToPx(maxX - minX + padX * 2);
+    const hPx = Units.ftToPx(maxY - minY + padY * 2);
 
-      setViewBox({ x: xPx, y: yPx, w: Math.max(wPx, 800), h: Math.max(hPx, 600) });
-    },
-    [hallWidth, hallHeight, tables, elements]
-  );
+    setViewBox({ x: xPx, y: yPx, w: Math.max(wPx, 800), h: Math.max(hPx, 600) });
+  };
 
-  // Load Event and Tables
+  // Load Event and Tables (runs only on mount / eventId change)
   useEffect(() => {
+    let isMounted = true;
+
     async function loadData() {
       if (!eventId) return;
       setIsLoading(true);
@@ -100,6 +104,7 @@ export default function StudioPage() {
         if (!eventRes.ok) throw new Error('Failed to load exhibition details');
 
         const eventData: EventItem = await eventRes.json();
+        if (!isMounted) return;
         setEvent(eventData);
 
         let initialElements: HallElement[] = [];
@@ -149,22 +154,27 @@ export default function StudioPage() {
 
         setElements(initialElements);
 
+        let loadedTables: TableItem[] = [];
         if (tablesRes.ok) {
           const tablesData = await tablesRes.json();
-          setTables(Array.isArray(tablesData) ? tablesData : []);
-          setupViewBox(tablesData, initialElements, eventData.hall_width, eventData.hall_height);
-        } else {
-          setupViewBox([], initialElements, eventData.hall_width, eventData.hall_height);
+          loadedTables = Array.isArray(tablesData) ? tablesData : [];
+          setTables(loadedTables);
         }
+
+        fitViewBox(loadedTables, initialElements, eventData.hall_width, eventData.hall_height);
       } catch (err: any) {
-        showToast(err.message || 'Error loading studio', 'error');
+        if (isMounted) showToast(err.message || 'Error loading studio', 'error');
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     }
 
     loadData();
-  }, [eventId, router, setupViewBox]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [eventId, router]);
 
   // Helpers
   const getNextTableNum = () => {
@@ -197,7 +207,7 @@ export default function StudioPage() {
     const nextTables = [...tables, newTable];
     setTables(nextTables);
     setSelectedItem({ type: 'table', obj: newTable });
-    setupViewBox(nextTables, elements);
+    fitViewBox(nextTables, elements, hallWidth, hallHeight);
     showToast(`Added Stall ${tableNum} (${preset.width}' × ${preset.height}')`, 'success');
   };
 
@@ -244,7 +254,7 @@ export default function StudioPage() {
     const nextElements = [...elements, newRoom, newBadge];
     setElements(nextElements);
     setSelectedItem({ type: 'element', obj: newRoom });
-    setupViewBox(tables, nextElements);
+    fitViewBox(tables, nextElements, hallWidth, hallHeight);
     showToast(`Added ${defaultName} (${w}' × ${h}')`, 'success');
   };
 
@@ -288,7 +298,7 @@ export default function StudioPage() {
       text,
       label: text,
       badge: options.badge ?? true,
-      color: options.color || '#2563eb',
+      color: options.color || '#27272a',
       width: Math.max(text.length * 0.9, 6),
       height: 2.2,
       x: Units.roundFt(hallWidth / 2 - 3),
@@ -306,7 +316,7 @@ export default function StudioPage() {
   const handlePromptCustomText = () => {
     const text = prompt('Enter Sign / Label text:', 'VIP LOUNGE');
     if (text && text.trim()) {
-      handleAddText(text.trim(), { badge: true, color: '#2563eb' });
+      handleAddText(text.trim(), { badge: true, color: '#27272a' });
     }
   };
 
@@ -362,7 +372,7 @@ export default function StudioPage() {
     }
 
     setEvent(updated);
-    setupViewBox(tables, elements, updated.hall_width, updated.hall_height);
+    fitViewBox(tables, elements, updated.hall_width, updated.hall_height);
   };
 
   // Update Selected Item Property
@@ -684,14 +694,17 @@ export default function StudioPage() {
 
   if (isLoading) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-slate-100 text-slate-600 font-medium">
-        Loading Floor Plan Studio...
+      <div className="h-screen w-screen flex items-center justify-center bg-zinc-50 text-zinc-600 font-medium text-xs">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin" />
+          <span>Loading Floor Plan Studio...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden bg-slate-100 font-sans">
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-zinc-100 font-sans">
       {/* Studio Header Bar */}
       <StudioHeader
         event={event}
@@ -701,7 +714,7 @@ export default function StudioPage() {
         onSetSnapGrid={setSnapGrid}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
-        onResetView={() => setupViewBox()}
+        onResetView={() => fitViewBox(tables, elements, hallWidth, hallHeight)}
         onRotateFloor={handleRotateEntireFloor}
         onSave={handleSave}
         isSaving={isSaving}
@@ -742,7 +755,7 @@ export default function StudioPage() {
         />
 
         {/* 3. Right Inspector & Directory */}
-        <aside className="w-[280px] bg-white border-l border-slate-200 flex flex-col h-full overflow-y-auto select-none shrink-0">
+        <aside className="w-[280px] bg-white border-l border-zinc-200 flex flex-col h-full overflow-y-auto select-none shrink-0">
           <StudioInspector
             selectedItem={selectedItem}
             event={event}
@@ -770,10 +783,10 @@ export default function StudioPage() {
         <div
           className={`fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-lg text-xs font-semibold shadow-xl transition-all ${
             toastMessage.type === 'success'
-              ? 'bg-emerald-900 text-emerald-100 border border-emerald-700'
+              ? 'bg-zinc-900 text-white border border-zinc-700'
               : toastMessage.type === 'error'
-              ? 'bg-rose-900 text-rose-100 border border-rose-700'
-              : 'bg-zinc-900 text-zinc-100 border border-zinc-700'
+              ? 'bg-rose-900 text-white border border-rose-700'
+              : 'bg-zinc-900 text-white border border-zinc-700'
           }`}
         >
           {toastMessage.text}

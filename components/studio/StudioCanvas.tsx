@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Units } from '@/lib/units';
-import { WALL_THICKNESS_FT, ELEMENT_OUTSIDE_MARGIN_FT } from '@/lib/constants';
+import { WALL_THICKNESS_FT } from '@/lib/constants';
 import { FloatingToolbar } from './FloatingToolbar';
 import type { TableItem, HallElement, StudioSelectedItem } from '@/types';
 
@@ -246,7 +246,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onWheel={handleWheel}
-      className="flex-1 h-full relative overflow-hidden bg-slate-100 cursor-crosshair select-none"
+      className="flex-1 h-full relative overflow-hidden bg-zinc-100 cursor-crosshair select-none"
     >
       <svg
         ref={svgRef}
@@ -254,35 +254,35 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
         className="w-full h-full block"
       >
         <defs>
-          {/* Canvas Background Grid */}
+          {/* Architectural Drawing Grid Pattern */}
           <pattern id="canvas-bg-grid" width={major} height={major} patternUnits="userSpaceOnUse">
-            <rect width={major} height={major} fill="#f8fafc" />
+            <rect width={major} height={major} fill="#fafafa" />
             <path
               d={`M ${minor} 0 L 0 0 0 ${minor} M ${minor * 2} 0 L 0 0 0 ${minor * 2} M ${minor * 3} 0 L 0 0 0 ${minor * 3} M ${minor * 4} 0 L 0 0 0 ${minor * 4}`}
               fill="none"
-              stroke="#e2e8f0"
+              stroke="#f0f0f1"
               strokeWidth="0.8"
             />
-            <path d={`M ${major} 0 L 0 0 0 ${major}`} fill="none" stroke="#cbd5e1" strokeWidth="1.2" />
+            <path d={`M ${major} 0 L 0 0 0 ${major}`} fill="none" stroke="#e4e4e7" strokeWidth="1" />
           </pattern>
 
-          {/* Hardwood Parquet Texture */}
+          {/* Minimalist Warm Wood Parquet Texture */}
           <pattern id="wood-floor-texture" width={px(16)} height={px(4)} patternUnits="userSpaceOnUse">
-            <rect width={px(16)} height={px(4)} fill="#ded4c5" />
-            <line x1="0" y1={px(2)} x2={px(16)} y2={px(2)} stroke="#cfc3b1" strokeWidth="1" />
-            <line x1="0" y1={px(4)} x2={px(16)} y2={px(4)} stroke="#cfc3b1" strokeWidth="1" />
-            <line x1={px(8)} y1="0" x2={px(8)} y2={px(2)} stroke="#cfc3b1" strokeWidth="0.8" />
-            <line x1={px(16)} y1={px(2)} x2={px(16)} y2={px(4)} stroke="#cfc3b1" strokeWidth="0.8" />
-            <line x1="0" y1={px(2)} x2="0" y2={px(4)} stroke="#cfc3b1" strokeWidth="0.8" />
+            <rect width={px(16)} height={px(4)} fill="#ebe4d8" />
+            <line x1="0" y1={px(2)} x2={px(16)} y2={px(2)} stroke="#dfd6c7" strokeWidth="1" />
+            <line x1="0" y1={px(4)} x2={px(16)} y2={px(4)} stroke="#dfd6c7" strokeWidth="1" />
+            <line x1={px(8)} y1="0" x2={px(8)} y2={px(2)} stroke="#dfd6c7" strokeWidth="0.8" />
+            <line x1={px(16)} y1={px(2)} x2={px(16)} y2={px(4)} stroke="#dfd6c7" strokeWidth="0.8" />
+            <line x1="0" y1={px(2)} x2="0" y2={px(4)} stroke="#dfd6c7" strokeWidth="0.8" />
           </pattern>
 
-          {/* Available Table Honey Oak Texture */}
+          {/* Minimalist Available Table Texture */}
           <pattern id="honey-oak-table" width={px(4)} height={px(2)} patternUnits="userSpaceOnUse">
-            <rect width={px(4)} height={px(2)} fill="#c98a46" />
-            <line x1="0" y1={px(1)} x2={px(4)} y2={px(1)} stroke="#b87733" strokeWidth="0.8" strokeDasharray="8 2" />
+            <rect width={px(4)} height={px(2)} fill="#d49b5c" />
+            <line x1="0" y1={px(1)} x2={px(4)} y2={px(1)} stroke="#be8645" strokeWidth="0.8" strokeDasharray="8 2" />
           </pattern>
 
-          {/* Booked Table Crimson Texture */}
+          {/* Booked Table Charcoal-Crimson Texture */}
           <pattern id="table-booked" width={px(4)} height={px(2)} patternUnits="userSpaceOnUse">
             <rect width={px(4)} height={px(2)} fill="#e11d48" />
             <line x1="0" y1={px(1)} x2={px(4)} y2={px(1)} stroke="#be123c" strokeWidth="0.8" strokeDasharray="8 2" />
@@ -298,14 +298,14 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           y={-wallThick}
           width={wPx + wallThick * 2}
           height={hPx + wallThick * 2}
-          fill="#475569"
-          stroke="#1e293b"
+          fill="#3f3f46"
+          stroke="#18181b"
           strokeWidth="1.5"
           rx="2"
         />
 
         {/* Main Hall Parquet Interior */}
-        <rect x="0" y="0" width={wPx} height={hPx} fill="url(#wood-floor-texture)" stroke="#1e293b" strokeWidth="1.5" />
+        <rect x="0" y="0" width={wPx} height={hPx} fill="url(#wood-floor-texture)" stroke="#18181b" strokeWidth="1.5" />
 
         {/* 1. Structures & Secondary Halls Layer */}
         <g id="structures-layer">
@@ -329,7 +329,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                   className="cursor-grab active:cursor-grabbing"
                 >
                   {/* Floor */}
-                  <rect x={x} y={y} width={w} height={h} fill="url(#wood-floor-texture)" stroke="#1e293b" strokeWidth="1.5" />
+                  <rect x={x} y={y} width={w} height={h} fill="url(#wood-floor-texture)" stroke="#18181b" strokeWidth="1.5" />
                   {/* Outer Wall */}
                   <rect
                     x={x - wallThick}
@@ -337,7 +337,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                     width={w + wallThick * 2}
                     height={h + wallThick * 2}
                     fill="none"
-                    stroke="#1e293b"
+                    stroke="#18181b"
                     strokeWidth={wallThick}
                     rx="2"
                   />
@@ -351,7 +351,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                       width={w + 12}
                       height={h + 12}
                       fill="none"
-                      stroke="#2563eb"
+                      stroke="#18181b"
                       strokeWidth="2"
                       strokeDasharray="5 4"
                       rx="6"
@@ -366,9 +366,9 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             if (elem.type === 'pillar_square') {
               return (
                 <g key={elemId} data-element-id={elemId} className="cursor-grab active:cursor-grabbing">
-                  <rect x={x} y={y} width={w} height={h} fill="#475569" stroke="#1e293b" strokeWidth="1.5" rx="2" />
+                  <rect x={x} y={y} width={w} height={h} fill="#3f3f46" stroke="#18181b" strokeWidth="1.5" rx="2" />
                   {isSelected && (
-                    <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} fill="none" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 3" rx="4" />
+                    <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} fill="none" stroke="#18181b" strokeWidth="1.5" strokeDasharray="3 3" rx="4" />
                   )}
                 </g>
               );
@@ -379,9 +379,9 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
               const r = w / 2;
               return (
                 <g key={elemId} data-element-id={elemId} className="cursor-grab active:cursor-grabbing">
-                  <circle cx={x + r} cy={y + r} r={r} fill="#475569" stroke="#1e293b" strokeWidth="1.5" />
+                  <circle cx={x + r} cy={y + r} r={r} fill="#3f3f46" stroke="#18181b" strokeWidth="1.5" />
                   {isSelected && (
-                    <circle cx={x + r} cy={y + r} r={r + 4} fill="none" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 3" />
+                    <circle cx={x + r} cy={y + r} r={r + 4} fill="none" stroke="#18181b" strokeWidth="1.5" strokeDasharray="3 3" />
                   )}
                 </g>
               );
@@ -391,12 +391,12 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             if (elem.type === 'stage') {
               return (
                 <g key={elemId} data-element-id={elemId} className="cursor-grab active:cursor-grabbing">
-                  <rect x={x} y={y} width={w} height={h} fill="#334155" stroke="#0f172a" strokeWidth="2" rx="4" />
-                  <text x={x + w / 2} y={y + h / 2 + 4} fill="#f8fafc" fontSize="11" fontWeight="700" textAnchor="middle" pointerEvents="none">
+                  <rect x={x} y={y} width={w} height={h} fill="#27272a" stroke="#09090b" strokeWidth="2" rx="4" />
+                  <text x={x + w / 2} y={y + h / 2 + 4} fill="#fafafa" fontSize="11" fontWeight="700" textAnchor="middle" pointerEvents="none">
                     {elem.label || 'MAIN STAGE'}
                   </text>
                   {isSelected && (
-                    <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} fill="none" stroke="#2563eb" strokeWidth="2" strokeDasharray="4 4" rx="6" />
+                    <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} fill="none" stroke="#18181b" strokeWidth="2" strokeDasharray="4 4" rx="6" />
                   )}
                 </g>
               );
@@ -406,10 +406,10 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             if (elem.type === 'arrow') {
               return (
                 <g key={elemId} data-element-id={elemId} transform={elem.rotation ? `rotate(${elem.rotation}, ${cx}, ${cy})` : undefined} className="cursor-grab active:cursor-grabbing">
-                  <path d={`M ${x} ${y + h / 2} L ${x + w - 10} ${y + h / 2} M ${x + w - 15} ${y} L ${x + w} ${y + h / 2} L ${x + w - 15} ${y + h}`} fill="none" stroke="#0284c7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={`M ${x} ${y + h / 2} L ${x + w - 10} ${y + h / 2} M ${x + w - 15} ${y} L ${x + w} ${y + h / 2} L ${x + w - 15} ${y + h}`} fill="none" stroke="#52525b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                   <rect x={x} y={y} width={w} height={h} fill="transparent" pointerEvents="all" />
                   {isSelected && (
-                    <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} fill="none" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 3" rx="4" />
+                    <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} fill="none" stroke="#18181b" strokeWidth="1.5" strokeDasharray="3 3" rx="4" />
                   )}
                 </g>
               );
@@ -445,21 +445,21 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                   <path
                     d={`M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + px(2)} L ${x + px(2)} ${y + px(2)} L ${x + px(2)} ${y + h} L ${x} ${y + h} Z`}
                     fill={isBooked ? 'url(#table-booked)' : 'url(#honey-oak-table)'}
-                    stroke="#1e293b"
+                    stroke="#18181b"
                     strokeWidth="1.2"
                   />
                 ) : shape === 'L-Stall-Inverted' || shape === 'L-Inverted' ? (
                   <path
                     d={`M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x + w - px(2)} ${y + h} L ${x + w - px(2)} ${y + px(2)} L ${x} ${y + px(2)} Z`}
                     fill={isBooked ? 'url(#table-booked)' : 'url(#honey-oak-table)'}
-                    stroke="#1e293b"
+                    stroke="#18181b"
                     strokeWidth="1.2"
                   />
                 ) : shape === 'T-Stall' ? (
                   <path
                     d={`M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + px(2)} L ${x + w / 2 + px(1)} ${y + px(2)} L ${x + w / 2 + px(1)} ${y + h} L ${x + w / 2 - px(1)} ${y + h} L ${x + w / 2 - px(1)} ${y + px(2)} L ${x} ${y + px(2)} Z`}
                     fill={isBooked ? 'url(#table-booked)' : 'url(#honey-oak-table)'}
-                    stroke="#1e293b"
+                    stroke="#18181b"
                     strokeWidth="1.2"
                   />
                 ) : (
@@ -469,7 +469,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                     width={w}
                     height={h}
                     fill={isBooked ? 'url(#table-booked)' : 'url(#honey-oak-table)'}
-                    stroke="#1e293b"
+                    stroke="#18181b"
                     strokeWidth="1.2"
                     rx="2"
                   />
@@ -483,15 +483,15 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                   height="18"
                   rx="3"
                   fill="#ffffff"
-                  stroke="#cbd5e1"
+                  stroke="#d4d4d8"
                   strokeWidth="1"
-                  filter="drop-shadow(0 1px 2px rgba(0,0,0,0.1))"
+                  filter="drop-shadow(0 1px 2px rgba(0,0,0,0.06))"
                   pointerEvents="none"
                 />
                 <text
                   x={x + w / 2}
                   y={y + h / 2 + 4}
-                  fill="#0f172a"
+                  fill="#18181b"
                   fontSize="11"
                   fontWeight="800"
                   textAnchor="middle"
@@ -508,7 +508,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                     width={w + 8}
                     height={h + 8}
                     fill="none"
-                    stroke="#2563eb"
+                    stroke="#18181b"
                     strokeWidth="2"
                     strokeDasharray="4 4"
                     rx="4"
@@ -536,7 +536,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             if (elem.type === 'door') {
               const isEntrance = elem.doorType === 'entrance' || !elem.doorType;
               const isExit = elem.doorType === 'exit';
-              const doorColor = isEntrance ? '#16a34a' : isExit ? '#dc2626' : '#2563eb';
+              const doorColor = isEntrance ? '#15803d' : isExit ? '#b91c1c' : '#3f3f46';
 
               return (
                 <g
@@ -553,7 +553,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                     {isExit ? 'EXIT' : 'DOOR'}
                   </text>
                   {isSelected && (
-                    <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} fill="none" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 3" rx="4" />
+                    <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} fill="none" stroke="#18181b" strokeWidth="1.5" strokeDasharray="3 3" rx="4" />
                   )}
                 </g>
               );
@@ -562,16 +562,16 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             // Text Sign
             if (elem.type === 'text') {
               const text = elem.text || elem.label || 'SIGN';
-              const bg = elem.color || '#2563eb';
+              const bg = elem.color || '#27272a';
 
               return (
                 <g key={elemId} data-element-id={elemId} className="cursor-grab active:cursor-grabbing">
-                  <rect x={x} y={y} width={w} height={h} rx="4" fill={bg} filter="drop-shadow(0 2px 4px rgba(0,0,0,0.1))" />
+                  <rect x={x} y={y} width={w} height={h} rx="4" fill={bg} filter="drop-shadow(0 1px 3px rgba(0,0,0,0.08))" />
                   <text x={x + w / 2} y={y + h / 2 + 4} fill="#ffffff" fontSize="10" fontWeight="700" textAnchor="middle" pointerEvents="none">
                     {text}
                   </text>
                   {isSelected && (
-                    <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} fill="none" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 3" rx="6" />
+                    <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} fill="none" stroke="#18181b" strokeWidth="1.5" strokeDasharray="3 3" rx="6" />
                   )}
                 </g>
               );
@@ -597,16 +597,16 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                     width={badgeW}
                     height={badgeH}
                     rx="6"
-                    fill="rgba(255, 255, 255, 0.96)"
-                    stroke="#cbd5e1"
+                    fill="rgba(255, 255, 255, 0.98)"
+                    stroke="#e4e4e7"
                     strokeWidth="1"
-                    filter="drop-shadow(0 2px 4px rgba(0,0,0,0.06))"
+                    filter="drop-shadow(0 2px 4px rgba(0,0,0,0.05))"
                   />
                   <rect x={x} y={y} width={badgeW} height={badgeH} fill="transparent" pointerEvents="all" />
-                  <text x={x + 12} y={y + 16} fill="#0f172a" fontSize="12" fontWeight="700" pointerEvents="none">
+                  <text x={x + 12} y={y + 16} fill="#18181b" fontSize="12" fontWeight="700" pointerEvents="none">
                     {titleText}
                   </text>
-                  <text x={x + 12} y={y + 29} fill="#64748b" fontSize="9.5" fontWeight="600" pointerEvents="none">
+                  <text x={x + 12} y={y + 29} fill="#71717a" fontSize="9.5" fontWeight="600" pointerEvents="none">
                     {`${Units.formatFeetShort(wFt)} × ${Units.formatFeetShort(hFt)} · ${areaFt.toLocaleString('en-IN')} sq ft`}
                   </text>
                   {isSelected && (
@@ -616,7 +616,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                       width={badgeW + 8}
                       height={badgeH + 8}
                       fill="none"
-                      stroke="#2563eb"
+                      stroke="#18181b"
                       strokeWidth="1.5"
                       strokeDasharray="3 3"
                       rx="8"

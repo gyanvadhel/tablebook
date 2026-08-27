@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Lock, User, ArrowLeft, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Lock, User, ArrowLeft, AlertCircle } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -38,56 +38,56 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 font-sans text-white relative">
+    <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-4 font-sans text-zinc-900 relative">
       <Link
         href="/"
-        className="absolute top-6 left-6 flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+        className="absolute top-6 left-6 flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-zinc-900 transition"
       >
         <ArrowLeft className="w-4 h-4" />
         <span>Return to Exhibitions</span>
       </Link>
 
-      <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-blue-600/30">
-            <ShieldCheck className="w-6 h-6 text-white" />
+      <div className="max-w-sm w-full bg-white border border-zinc-200 rounded-xl p-8 shadow-xs">
+        <div className="text-center mb-6">
+          <div className="w-10 h-10 rounded-lg bg-zinc-900 flex items-center justify-center mx-auto mb-3 font-bold text-white text-sm">
+            TB
           </div>
-          <h1 className="text-xl font-bold text-white">TableBook Studio Admin</h1>
-          <p className="text-xs text-slate-400 mt-1">Sign in to manage exhibitions and floor plans</p>
+          <h1 className="text-lg font-bold text-zinc-900">TableBook Admin</h1>
+          <p className="text-xs text-zinc-500 mt-0.5">Sign in to manage exhibitions and floor plans</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs flex items-center gap-2.5">
+          <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="flex flex-col gap-4 text-xs">
+        <form onSubmit={handleLogin} className="flex flex-col gap-3.5 text-xs">
           <div>
-            <label className="block font-semibold text-slate-300 mb-1.5">Username</label>
+            <label className="block font-semibold text-zinc-700 mb-1">Username</label>
             <div className="relative">
-              <User className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <User className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className="w-full pl-9 pr-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition"
               />
             </div>
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-300 mb-1.5">Password</label>
+            <label className="block font-semibold text-zinc-700 mb-1">Password</label>
             <div className="relative">
-              <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Lock className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className="w-full pl-9 pr-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition"
               />
             </div>
           </div>
@@ -95,14 +95,14 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="mt-2 w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl font-bold shadow-lg shadow-blue-600/30 transition text-xs"
+            className="mt-2 w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white rounded-lg font-bold shadow-xs transition text-xs"
           >
-            {isLoading ? 'Signing In...' : 'Sign In to Dashboard'}
+            {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
 
-        <div className="mt-6 text-center text-[11px] text-slate-500">
-          Default Credentials: <code className="text-slate-400">admin</code> / <code className="text-slate-400">admin123</code>
+        <div className="mt-5 text-center text-[11px] text-zinc-400">
+          Default Credentials: <code className="text-zinc-600 font-semibold">admin</code> / <code className="text-zinc-600 font-semibold">admin123</code>
         </div>
       </div>
     </div>

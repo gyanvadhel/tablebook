@@ -122,48 +122,48 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onWheel={handleWheel}
-      className="w-full h-full relative overflow-hidden bg-slate-100 cursor-grab active:cursor-grabbing select-none"
+      className="w-full h-full relative overflow-hidden bg-zinc-100 cursor-grab active:cursor-grabbing select-none"
     >
       <svg viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`} className="w-full h-full block">
         <defs>
-          {/* Canvas Background Grid */}
+          {/* Architectural Drawing Grid Pattern */}
           <pattern id="visitor-grid" width={major} height={major} patternUnits="userSpaceOnUse">
-            <rect width={major} height={major} fill="#f8fafc" />
+            <rect width={major} height={major} fill="#fafafa" />
             <path
               d={`M ${minor} 0 L 0 0 0 ${minor} M ${minor * 2} 0 L 0 0 0 ${minor * 2} M ${minor * 3} 0 L 0 0 0 ${minor * 3} M ${minor * 4} 0 L 0 0 0 ${minor * 4}`}
               fill="none"
-              stroke="#e2e8f0"
+              stroke="#f0f0f1"
               strokeWidth="0.8"
             />
-            <path d={`M ${major} 0 L 0 0 0 ${major}`} fill="none" stroke="#cbd5e1" strokeWidth="1.2" />
+            <path d={`M ${major} 0 L 0 0 0 ${major}`} fill="none" stroke="#e4e4e7" strokeWidth="1" />
           </pattern>
 
-          {/* Hardwood Parquet Texture */}
+          {/* Minimalist Warm Wood Parquet Floor */}
           <pattern id="visitor-wood" width={px(16)} height={px(4)} patternUnits="userSpaceOnUse">
-            <rect width={px(16)} height={px(4)} fill="#ded4c5" />
-            <line x1="0" y1={px(2)} x2={px(16)} y2={px(2)} stroke="#cfc3b1" strokeWidth="1" />
-            <line x1="0" y1={px(4)} x2={px(16)} y2={px(4)} stroke="#cfc3b1" strokeWidth="1" />
-            <line x1={px(8)} y1="0" x2={px(8)} y2={px(2)} stroke="#cfc3b1" strokeWidth="0.8" />
-            <line x1={px(16)} y1={px(2)} x2={px(16)} y2={px(4)} stroke="#cfc3b1" strokeWidth="0.8" />
-            <line x1="0" y1={px(2)} x2="0" y2={px(4)} stroke="#cfc3b1" strokeWidth="0.8" />
+            <rect width={px(16)} height={px(4)} fill="#ebe4d8" />
+            <line x1="0" y1={px(2)} x2={px(16)} y2={px(2)} stroke="#dfd6c7" strokeWidth="1" />
+            <line x1="0" y1={px(4)} x2={px(16)} y2={px(4)} stroke="#dfd6c7" strokeWidth="1" />
+            <line x1={px(8)} y1="0" x2={px(8)} y2={px(2)} stroke="#dfd6c7" strokeWidth="0.8" />
+            <line x1={px(16)} y1={px(2)} x2={px(16)} y2={px(4)} stroke="#dfd6c7" strokeWidth="0.8" />
+            <line x1="0" y1={px(2)} x2="0" y2={px(4)} stroke="#dfd6c7" strokeWidth="0.8" />
           </pattern>
 
-          {/* Available Stall Honey Oak Texture */}
+          {/* Available Stall Warm Oak */}
           <pattern id="visitor-table-avail" width={px(4)} height={px(2)} patternUnits="userSpaceOnUse">
-            <rect width={px(4)} height={px(2)} fill="#c98a46" />
-            <line x1="0" y1={px(1)} x2={px(4)} y2={px(1)} stroke="#b87733" strokeWidth="0.8" strokeDasharray="8 2" />
+            <rect width={px(4)} height={px(2)} fill="#d49b5c" />
+            <line x1="0" y1={px(1)} x2={px(4)} y2={px(1)} stroke="#be8645" strokeWidth="0.8" strokeDasharray="8 2" />
           </pattern>
 
-          {/* Booked Stall Crimson Texture */}
+          {/* Booked Stall Muted Crimson */}
           <pattern id="visitor-table-booked" width={px(4)} height={px(2)} patternUnits="userSpaceOnUse">
             <rect width={px(4)} height={px(2)} fill="#e11d48" />
             <line x1="0" y1={px(1)} x2={px(4)} y2={px(1)} stroke="#be123c" strokeWidth="0.8" strokeDasharray="8 2" />
           </pattern>
 
-          {/* Selected Stall Vibrant Blue Texture */}
+          {/* Selected Stall Neutral Accent */}
           <pattern id="visitor-table-selected" width={px(4)} height={px(2)} patternUnits="userSpaceOnUse">
-            <rect width={px(4)} height={px(2)} fill="#2563eb" />
-            <line x1="0" y1={px(1)} x2={px(4)} y2={px(1)} stroke="#1d4ed8" strokeWidth="0.8" strokeDasharray="8 2" />
+            <rect width={px(4)} height={px(2)} fill="#18181b" />
+            <line x1="0" y1={px(1)} x2={px(4)} y2={px(1)} stroke="#3f3f46" strokeWidth="0.8" strokeDasharray="8 2" />
           </pattern>
         </defs>
 
@@ -176,14 +176,14 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
           y={-wallThick}
           width={wPx + wallThick * 2}
           height={hPx + wallThick * 2}
-          fill="#475569"
-          stroke="#1e293b"
+          fill="#3f3f46"
+          stroke="#18181b"
           strokeWidth="1.5"
           rx="2"
         />
 
         {/* Main Hall Parquet Floor */}
-        <rect x="0" y="0" width={wPx} height={hPx} fill="url(#visitor-wood)" stroke="#1e293b" strokeWidth="1.5" />
+        <rect x="0" y="0" width={wPx} height={hPx} fill="url(#visitor-wood)" stroke="#18181b" strokeWidth="1.5" />
 
         {/* 1. Structures & Secondary Halls */}
         <g id="visitor-structures">
@@ -199,14 +199,14 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
             if (elem.type === 'hall_room') {
               return (
                 <g key={elemId} transform={elem.rotation ? `rotate(${elem.rotation}, ${cx}, ${cy})` : undefined}>
-                  <rect x={x} y={y} width={w} height={h} fill="url(#visitor-wood)" stroke="#1e293b" strokeWidth="1.5" />
+                  <rect x={x} y={y} width={w} height={h} fill="url(#visitor-wood)" stroke="#18181b" strokeWidth="1.5" />
                   <rect
                     x={x - wallThick}
                     y={y - wallThick}
                     width={w + wallThick * 2}
                     height={h + wallThick * 2}
                     fill="none"
-                    stroke="#1e293b"
+                    stroke="#18181b"
                     strokeWidth={wallThick}
                     rx="2"
                   />
@@ -215,19 +215,19 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
             }
 
             if (elem.type === 'pillar_square') {
-              return <rect key={elemId} x={x} y={y} width={w} height={h} fill="#475569" stroke="#1e293b" strokeWidth="1.5" rx="2" />;
+              return <rect key={elemId} x={x} y={y} width={w} height={h} fill="#3f3f46" stroke="#18181b" strokeWidth="1.5" rx="2" />;
             }
 
             if (elem.type === 'pillar_round') {
               const r = w / 2;
-              return <circle key={elemId} cx={x + r} cy={y + r} r={r} fill="#475569" stroke="#1e293b" strokeWidth="1.5" />;
+              return <circle key={elemId} cx={x + r} cy={y + r} r={r} fill="#3f3f46" stroke="#18181b" strokeWidth="1.5" />;
             }
 
             if (elem.type === 'stage') {
               return (
                 <g key={elemId}>
-                  <rect x={x} y={y} width={w} height={h} fill="#334155" stroke="#0f172a" strokeWidth="2" rx="4" />
-                  <text x={x + w / 2} y={y + h / 2 + 4} fill="#f8fafc" fontSize="11" fontWeight="700" textAnchor="middle">
+                  <rect x={x} y={y} width={w} height={h} fill="#27272a" stroke="#09090b" strokeWidth="2" rx="4" />
+                  <text x={x + w / 2} y={y + h / 2 + 4} fill="#fafafa" fontSize="11" fontWeight="700" textAnchor="middle">
                     {elem.label || 'MAIN STAGE'}
                   </text>
                 </g>
@@ -237,7 +237,7 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
             if (elem.type === 'arrow') {
               return (
                 <g key={elemId} transform={elem.rotation ? `rotate(${elem.rotation}, ${cx}, ${cy})` : undefined}>
-                  <path d={`M ${x} ${y + h / 2} L ${x + w - 10} ${y + h / 2} M ${x + w - 15} ${y} L ${x + w} ${y + h / 2} L ${x + w - 15} ${y + h}`} fill="none" stroke="#0284c7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={`M ${x} ${y + h / 2} L ${x + w - 10} ${y + h / 2} M ${x + w - 15} ${y} L ${x + w} ${y + h / 2} L ${x + w - 15} ${y + h}`} fill="none" stroke="#52525b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                 </g>
               );
             }
@@ -281,25 +281,25 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
                   <path
                     d={`M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + px(2)} L ${x + px(2)} ${y + px(2)} L ${x + px(2)} ${y + h} L ${x} ${y + h} Z`}
                     fill={fillPattern}
-                    stroke="#1e293b"
+                    stroke="#18181b"
                     strokeWidth="1.2"
                   />
                 ) : shape === 'L-Stall-Inverted' || shape === 'L-Inverted' ? (
                   <path
                     d={`M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x + w - px(2)} ${y + h} L ${x + w - px(2)} ${y + px(2)} L ${x} ${y + px(2)} Z`}
                     fill={fillPattern}
-                    stroke="#1e293b"
+                    stroke="#18181b"
                     strokeWidth="1.2"
                   />
                 ) : shape === 'T-Stall' ? (
                   <path
                     d={`M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + px(2)} L ${x + w / 2 + px(1)} ${y + px(2)} L ${x + w / 2 + px(1)} ${y + h} L ${x + w / 2 - px(1)} ${y + h} L ${x + w / 2 - px(1)} ${y + px(2)} L ${x} ${y + px(2)} Z`}
                     fill={fillPattern}
-                    stroke="#1e293b"
+                    stroke="#18181b"
                     strokeWidth="1.2"
                   />
                 ) : (
-                  <rect x={x} y={y} width={w} height={h} fill={fillPattern} stroke="#1e293b" strokeWidth="1.2" rx="2" />
+                  <rect x={x} y={y} width={w} height={h} fill={fillPattern} stroke="#18181b" strokeWidth="1.2" rx="2" />
                 )}
 
                 {/* Stall Number Badge */}
@@ -310,15 +310,15 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
                   height="18"
                   rx="3"
                   fill="#ffffff"
-                  stroke="#cbd5e1"
+                  stroke="#d4d4d8"
                   strokeWidth="1"
-                  filter="drop-shadow(0 1px 2px rgba(0,0,0,0.1))"
+                  filter="drop-shadow(0 1px 2px rgba(0,0,0,0.06))"
                   pointerEvents="none"
                 />
                 <text
                   x={x + w / 2}
                   y={y + h / 2 + 4}
-                  fill={isBooked ? '#be123c' : '#0f172a'}
+                  fill={isBooked ? '#be123c' : isSelected ? '#18181b' : '#18181b'}
                   fontSize="11"
                   fontWeight="800"
                   textAnchor="middle"
@@ -335,7 +335,7 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
                     width={w + 8}
                     height={h + 8}
                     fill="none"
-                    stroke="#2563eb"
+                    stroke="#18181b"
                     strokeWidth="2.5"
                     strokeDasharray="4 4"
                     rx="4"
@@ -361,7 +361,7 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
             if (elem.type === 'door') {
               const isEntrance = elem.doorType === 'entrance' || !elem.doorType;
               const isExit = elem.doorType === 'exit';
-              const doorColor = isEntrance ? '#16a34a' : isExit ? '#dc2626' : '#2563eb';
+              const doorColor = isEntrance ? '#15803d' : isExit ? '#b91c1c' : '#3f3f46';
 
               return (
                 <g key={elemId} transform={elem.rotation ? `rotate(${elem.rotation}, ${cx}, ${cy})` : undefined}>
@@ -377,7 +377,7 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
             if (elem.type === 'text') {
               return (
                 <g key={elemId}>
-                  <rect x={x} y={y} width={w} height={h} rx="4" fill={elem.color || '#2563eb'} filter="drop-shadow(0 2px 4px rgba(0,0,0,0.1))" />
+                  <rect x={x} y={y} width={w} height={h} rx="4" fill={elem.color || '#27272a'} filter="drop-shadow(0 1px 3px rgba(0,0,0,0.08))" />
                   <text x={x + w / 2} y={y + h / 2 + 4} fill="#ffffff" fontSize="10" fontWeight="700" textAnchor="middle">
                     {elem.text || elem.label || 'SIGN'}
                   </text>
@@ -404,15 +404,15 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
                     width={badgeW}
                     height={badgeH}
                     rx="6"
-                    fill="rgba(255, 255, 255, 0.96)"
-                    stroke="#cbd5e1"
+                    fill="rgba(255, 255, 255, 0.98)"
+                    stroke="#e4e4e7"
                     strokeWidth="1"
-                    filter="drop-shadow(0 2px 4px rgba(0,0,0,0.06))"
+                    filter="drop-shadow(0 2px 4px rgba(0,0,0,0.05))"
                   />
-                  <text x={x + 12} y={y + 16} fill="#0f172a" fontSize="12" fontWeight="700">
+                  <text x={x + 12} y={y + 16} fill="#18181b" fontSize="12" fontWeight="700">
                     {titleText}
                   </text>
-                  <text x={x + 12} y={y + 29} fill="#64748b" fontSize="9.5" fontWeight="600">
+                  <text x={x + 12} y={y + 29} fill="#71717a" fontSize="9.5" fontWeight="600">
                     {`${Units.formatFeetShort(wFt)} × ${Units.formatFeetShort(hFt)} · ${areaFt.toLocaleString('en-IN')} sq ft`}
                   </text>
                 </g>
