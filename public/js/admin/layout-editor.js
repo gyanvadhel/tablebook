@@ -1690,7 +1690,7 @@ const layoutEditor = {
             </div>
           </div>
         `;
-      if (isRoomBadge) {
+      } else if (isRoomBadge) {
         if (headerTitle) headerTitle.textContent = 'Main Hall Properties';
         if (badge) { badge.textContent = 'Main Hall'; badge.className = 'badge badge-primary'; }
 
