@@ -77,20 +77,40 @@ const layoutEditor = {
   },
 
   ensureRoomBadgeElement() {
-    let badge = this.elements.find(el => el.type === 'room_badge');
-    if (!badge) {
-      badge = {
+    let mainBadge = this.elements.find(el => el.type === 'room_badge' && !el.targetHallId);
+    if (!mainBadge) {
+      mainBadge = {
         id: 'room_badge_main',
         type: 'room_badge',
-        label: this.eventData.name || 'Main Hall',
+        label: (this.eventData && this.eventData.name) || 'Main Hall',
         x: 1.5,
         y: 1.5,
         width: 8,
         height: 3,
         rotation: 0
       };
-      this.elements.unshift(badge);
+      this.elements.unshift(mainBadge);
     }
+
+    // Ensure each secondary hall room has its own movable badge
+    this.elements.filter(el => el.type === 'hall_room').forEach(room => {
+      const roomId = String(room.id || room._tempId);
+      let roomBadge = this.elements.find(el => el.type === 'room_badge' && String(el.targetHallId) === roomId);
+      if (!roomBadge) {
+        roomBadge = {
+          id: 'badge_' + roomId,
+          type: 'room_badge',
+          targetHallId: roomId,
+          label: room.name || room.label || 'Secondary Hall',
+          x: Units.roundFt((room.x || 0) + 1.5),
+          y: Units.roundFt((room.y || 0) + 1.5),
+          width: 8,
+          height: 3,
+          rotation: 0
+        };
+        this.elements.push(roomBadge);
+      }
+    });
   },
 
   async init() {
@@ -873,7 +893,7 @@ const layoutEditor = {
 
     const wallThick = this.px(WALL_THICKNESS_FT);
 
-    // Floor Base with parquet / hardwood pattern
+    // Floor Base with hardwood parquet pattern
     const floor = document.createElementNS(ns, 'rect');
     floor.setAttribute('x', x); floor.setAttribute('y', y);
     floor.setAttribute('width', w); floor.setAttribute('height', h);
@@ -893,45 +913,7 @@ const layoutEditor = {
     wall.setAttribute('rx', '2');
     group.appendChild(wall);
 
-    // Room Title Header inside the room
-    const titleG = document.createElementNS(ns, 'g');
-    titleG.setAttribute('transform', `translate(${x + 14}, ${y + 14})`);
-
-    const titleText = room.name || room.label || 'Secondary Hall';
-    const areaSqFt = Math.round((room.width || 30) * (room.height || 20));
-
-    const badgeBg = document.createElementNS(ns, 'rect');
-    const badgeW = Math.max(titleText.length * 8 + 24, 110);
-    badgeBg.setAttribute('x', '0'); badgeBg.setAttribute('y', '0');
-    badgeBg.setAttribute('width', badgeW); badgeBg.setAttribute('height', '36');
-    badgeBg.setAttribute('rx', '6');
-    badgeBg.setAttribute('fill', 'rgba(255, 255, 255, 0.95)');
-    badgeBg.setAttribute('stroke', '#cbd5e1');
-    badgeBg.setAttribute('stroke-width', '1');
-    badgeBg.setAttribute('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.06))');
-    titleG.appendChild(badgeBg);
-
-    const titleEl = document.createElementNS(ns, 'text');
-    titleEl.setAttribute('x', '12'); titleEl.setAttribute('y', '15');
-    titleEl.setAttribute('fill', '#0f172a');
-    titleEl.setAttribute('font-size', '11.5');
-    titleEl.setAttribute('font-weight', '700');
-    titleEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
-    titleEl.textContent = titleText;
-    titleG.appendChild(titleEl);
-
-    const subEl = document.createElementNS(ns, 'text');
-    subEl.setAttribute('x', '12'); subEl.setAttribute('y', '27');
-    subEl.setAttribute('fill', '#64748b');
-    subEl.setAttribute('font-size', '9');
-    subEl.setAttribute('font-weight', '600');
-    subEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
-    subEl.textContent = `${Units.formatFeetShort(room.width || 30)} × ${Units.formatFeetShort(room.height || 20)} · ${areaSqFt.toLocaleString('en-IN')} sq ft`;
-    titleG.appendChild(subEl);
-
-    group.appendChild(titleG);
-
-    // Hit box for clicking/selecting the room
+    // Hit box for clicking/selecting the room structure
     const hitBox = document.createElementNS(ns, 'rect');
     hitBox.setAttribute('x', x); hitBox.setAttribute('y', y);
     hitBox.setAttribute('width', w); hitBox.setAttribute('height', h);
@@ -976,25 +958,51 @@ const layoutEditor = {
 
     const x = this.px(badge.x);
     const y = this.px(badge.y);
-    const w = this.px(badge.width || 8);
-    const h = this.px(badge.height || 3);
+
+    // Check if this badge belongs to a secondary hall or main hall
+    let titleText = badge.label || (this.eventData && this.eventData.name) || 'Unnamed';
+    let wFt = this.hallWidthFt();
+    let hFt = this.hallHeightFt();
+
+    if (badge.targetHallId) {
+      const targetHall = this.elements.find(el => String(el.id || el._tempId) === String(badge.targetHallId));
+      if (targetHall) {
+        titleText = targetHall.name || targetHall.label || badge.label || 'Secondary Hall';
+        wFt = targetHall.width || 30;
+        hFt = targetHall.height || 20;
+      }
+    }
+
+    const areaFt = Math.round(wFt * hFt);
+    const badgeW = Math.max(titleText.length * 8 + 28, 115);
+    const badgeH = 38;
+
+    // Card background badge
+    const cardBg = document.createElementNS(ns, 'rect');
+    cardBg.setAttribute('x', x);
+    cardBg.setAttribute('y', y);
+    cardBg.setAttribute('width', badgeW);
+    cardBg.setAttribute('height', badgeH);
+    cardBg.setAttribute('rx', '6');
+    cardBg.setAttribute('fill', 'rgba(255, 255, 255, 0.96)');
+    cardBg.setAttribute('stroke', '#cbd5e1');
+    cardBg.setAttribute('stroke-width', '1');
+    cardBg.setAttribute('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.06))');
+    group.appendChild(cardBg);
 
     // Hit box
     const hitBox = document.createElementNS(ns, 'rect');
-    hitBox.setAttribute('x', x - 4); hitBox.setAttribute('y', y - 4);
-    hitBox.setAttribute('width', w + 8); hitBox.setAttribute('height', h + 8);
+    hitBox.setAttribute('x', x); hitBox.setAttribute('y', y);
+    hitBox.setAttribute('width', badgeW); hitBox.setAttribute('height', badgeH);
     hitBox.setAttribute('fill', 'transparent');
     hitBox.setAttribute('pointer-events', 'all');
     group.appendChild(hitBox);
 
-    const titleText = badge.label || this.eventData.name || 'Unnamed';
-    const areaFt = Math.round(this.hallWidthFt() * this.hallHeightFt());
-
     const titleEl = document.createElementNS(ns, 'text');
-    titleEl.setAttribute('x', x);
-    titleEl.setAttribute('y', y + 10);
-    titleEl.setAttribute('fill', '#1e293b');
-    titleEl.setAttribute('font-size', '11');
+    titleEl.setAttribute('x', x + 12);
+    titleEl.setAttribute('y', y + 16);
+    titleEl.setAttribute('fill', '#0f172a');
+    titleEl.setAttribute('font-size', '12');
     titleEl.setAttribute('font-weight', '700');
     titleEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
     titleEl.setAttribute('pointer-events', 'none');
@@ -1002,14 +1010,14 @@ const layoutEditor = {
     group.appendChild(titleEl);
 
     const areaEl = document.createElementNS(ns, 'text');
-    areaEl.setAttribute('x', x);
-    areaEl.setAttribute('y', y + 24);
+    areaEl.setAttribute('x', x + 12);
+    areaEl.setAttribute('y', y + 29);
     areaEl.setAttribute('fill', '#64748b');
     areaEl.setAttribute('font-size', '9.5');
     areaEl.setAttribute('font-weight', '600');
     areaEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
     areaEl.setAttribute('pointer-events', 'none');
-    areaEl.textContent = `${areaFt.toLocaleString('en-IN')} sq ft`;
+    areaEl.textContent = `${Units.formatFeetShort(wFt)} × ${Units.formatFeetShort(hFt)} · ${areaFt.toLocaleString('en-IN')} sq ft`;
     group.appendChild(areaEl);
 
     const isSelected = this.selectedItem && this.selectedItem.type === 'element' &&
@@ -1017,13 +1025,13 @@ const layoutEditor = {
 
     if (isSelected) {
       const selectBox = document.createElementNS(ns, 'rect');
-      selectBox.setAttribute('x', x - 6); selectBox.setAttribute('y', y - 4);
-      selectBox.setAttribute('width', w + 12); selectBox.setAttribute('height', h + 12);
+      selectBox.setAttribute('x', x - 4); selectBox.setAttribute('y', y - 4);
+      selectBox.setAttribute('width', badgeW + 8); selectBox.setAttribute('height', badgeH + 8);
       selectBox.setAttribute('fill', 'none');
       selectBox.setAttribute('stroke', '#2563eb');
       selectBox.setAttribute('stroke-width', '1.5');
       selectBox.setAttribute('stroke-dasharray', '3 3');
-      selectBox.setAttribute('rx', '4');
+      selectBox.setAttribute('rx', '8');
       selectBox.setAttribute('pointer-events', 'none');
       group.appendChild(selectBox);
     }
@@ -1446,8 +1454,9 @@ const layoutEditor = {
       targetX = (lastHall.x || 0) + (lastHall.width || 30) + 6;
     }
 
+    const roomId = 'hall_room_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
     const newRoom = {
-      id: 'hall_room_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      id: roomId,
       type: 'hall_room',
       name: defaultName,
       label: defaultName,
@@ -1458,7 +1467,20 @@ const layoutEditor = {
       rotation: 0
     };
 
+    const newBadge = {
+      id: 'badge_' + roomId,
+      type: 'room_badge',
+      targetHallId: roomId,
+      label: defaultName,
+      x: Units.roundFt(targetX + 1.5),
+      y: 1.5,
+      width: 8,
+      height: 3,
+      rotation: 0
+    };
+
     this.elements.push(newRoom);
+    this.elements.push(newBadge);
     this.setupViewBox();
     this.renderAllObjects();
     this.selectObject('element', newRoom);

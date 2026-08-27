@@ -450,49 +450,13 @@ const hallMap = {
 
     // Outer Perimeter Wall
     const wall = document.createElementNS(ns, 'rect');
-    wall.setAttribute('x', x); wall.setAttribute('y', y);
-    wall.setAttribute('width', w); wall.setAttribute('height', h);
+    wall.setAttribute('x', x - wallThick); wall.setAttribute('y', y - wallThick);
+    wall.setAttribute('width', w + wallThick * 2); wall.setAttribute('height', h + wallThick * 2);
     wall.setAttribute('fill', 'none');
     wall.setAttribute('stroke', '#1e293b');
     wall.setAttribute('stroke-width', wallThick);
+    wall.setAttribute('rx', '2');
     group.appendChild(wall);
-
-    // Room Title Header inside the room
-    const titleG = document.createElementNS(ns, 'g');
-    titleG.setAttribute('transform', `translate(${x + 12}, ${y + 14})`);
-
-    const titleText = room.name || room.label || 'Secondary Hall';
-    const areaSqFt = Math.round((room.width || 30) * (room.height || 20));
-
-    const badgeBg = document.createElementNS(ns, 'rect');
-    const badgeW = Math.max(titleText.length * 7.5 + 20, 100);
-    badgeBg.setAttribute('x', '0'); badgeBg.setAttribute('y', '0');
-    badgeBg.setAttribute('width', badgeW); badgeBg.setAttribute('height', '32');
-    badgeBg.setAttribute('rx', '4');
-    badgeBg.setAttribute('fill', 'rgba(255, 255, 255, 0.95)');
-    badgeBg.setAttribute('stroke', '#cbd5e1');
-    badgeBg.setAttribute('stroke-width', '1');
-    titleG.appendChild(badgeBg);
-
-    const titleEl = document.createElementNS(ns, 'text');
-    titleEl.setAttribute('x', '10'); titleEl.setAttribute('y', '14');
-    titleEl.setAttribute('fill', '#0f172a');
-    titleEl.setAttribute('font-size', '11');
-    titleEl.setAttribute('font-weight', '700');
-    titleEl.setAttribute('font-family', 'Inter, sans-serif');
-    titleEl.textContent = titleText;
-    titleG.appendChild(titleEl);
-
-    const subEl = document.createElementNS(ns, 'text');
-    subEl.setAttribute('x', '10'); subEl.setAttribute('y', '25');
-    subEl.setAttribute('fill', '#64748b');
-    subEl.setAttribute('font-size', '8.5');
-    subEl.setAttribute('font-weight', '600');
-    subEl.setAttribute('font-family', 'Inter, sans-serif');
-    subEl.textContent = `${Units.formatFeetShort(room.width || 30)} × ${Units.formatFeetShort(room.height || 20)} · ${areaSqFt.toLocaleString('en-IN')} sq ft`;
-    titleG.appendChild(subEl);
-
-    group.appendChild(titleG);
 
     layer.appendChild(group);
   },
@@ -511,27 +475,56 @@ const hallMap = {
 
     const x = this.px(badge.x);
     const y = this.px(badge.y);
-    const titleText = badge.label || this.eventData.name || 'Unnamed';
-    const areaFt = Math.round(this.hallWidthFt() * this.hallHeightFt());
+
+    // Check if this badge belongs to a secondary hall or main hall
+    let titleText = badge.label || (this.eventData && this.eventData.name) || 'Unnamed';
+    let wFt = this.hallWidthFt();
+    let hFt = this.hallHeightFt();
+
+    if (badge.targetHallId && this.elements) {
+      const targetHall = this.elements.find(el => String(el.id || el._tempId) === String(badge.targetHallId));
+      if (targetHall) {
+        titleText = targetHall.name || targetHall.label || badge.label || 'Secondary Hall';
+        wFt = targetHall.width || 30;
+        hFt = targetHall.height || 20;
+      }
+    }
+
+    const areaFt = Math.round(wFt * hFt);
+    const badgeW = Math.max(titleText.length * 8 + 28, 115);
+    const badgeH = 38;
+
+    // Card background badge
+    const cardBg = document.createElementNS(ns, 'rect');
+    cardBg.setAttribute('x', x);
+    cardBg.setAttribute('y', y);
+    cardBg.setAttribute('width', badgeW);
+    cardBg.setAttribute('height', badgeH);
+    cardBg.setAttribute('rx', '6');
+    cardBg.setAttribute('fill', 'rgba(255, 255, 255, 0.96)');
+    cardBg.setAttribute('stroke', '#cbd5e1');
+    cardBg.setAttribute('stroke-width', '1');
+    cardBg.setAttribute('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.06))');
+    group.appendChild(cardBg);
 
     const titleEl = document.createElementNS(ns, 'text');
-    titleEl.setAttribute('x', x);
-    titleEl.setAttribute('y', y + 10);
-    titleEl.setAttribute('fill', '#1e293b');
-    titleEl.setAttribute('font-size', '11');
+    titleEl.setAttribute('x', x + 12);
+    titleEl.setAttribute('y', y + 16);
+    titleEl.setAttribute('fill', '#0f172a');
+    titleEl.setAttribute('font-size', '12');
     titleEl.setAttribute('font-weight', '700');
     titleEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
     titleEl.textContent = titleText;
     group.appendChild(titleEl);
 
     const areaEl = document.createElementNS(ns, 'text');
-    areaEl.setAttribute('x', x);
-    areaEl.setAttribute('y', y + 24);
+    areaEl.setAttribute('x', x + 12);
+    areaEl.setAttribute('y', y + 29);
     areaEl.setAttribute('fill', '#64748b');
     areaEl.setAttribute('font-size', '9.5');
     areaEl.setAttribute('font-weight', '600');
     areaEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
-    areaEl.textContent = `${areaFt.toLocaleString('en-IN')} sq ft`;
+    areaEl.textContent = `${Units.formatFeetShort(wFt)} × ${Units.formatFeetShort(hFt)} · ${areaFt.toLocaleString('en-IN')} sq ft`;
     group.appendChild(areaEl);
 
     layer.appendChild(group);
