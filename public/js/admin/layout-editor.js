@@ -1033,7 +1033,7 @@ const layoutEditor = {
       group.setAttribute('transform', `rotate(${elem.rotation}, ${cx}, ${cy})`);
     }
 
-    const textStr = elem.text || 'LABEL';
+    const textStr = elem.text || elem.label || 'LABEL';
     const fontSize = elem.fontSize || 14;
     const color = elem.color || '#0f172a';
     const isBold = elem.fontWeight === 'bold' || elem.fontWeight === '700' || elem.fontWeight === '800';
@@ -1341,19 +1341,19 @@ const layoutEditor = {
       body.innerHTML = `
         <div class="form-group">
           <label class="form-label">Stall Number</label>
-          <input type="text" class="form-input" value="${table.table_number}" onchange="layoutEditor.updateItemProp('table_number', this.value)" id="prop-number">
+          <input type="text" class="form-input" value="${table.table_number}" oninput="layoutEditor.updateItemProp('table_number', this.value, true)" id="prop-number">
         </div>
         <div class="form-group">
           <label class="form-label">Price / Stall Fee (₹)</label>
           <div class="input-with-unit">
-            <input type="number" class="form-input" min="0" step="500" value="${table.price || 0}" onchange="layoutEditor.updateItemProp('price', parseFloat(this.value)||0)" id="prop-price" placeholder="e.g. 5000">
+            <input type="number" class="form-input" min="0" step="500" value="${table.price || 0}" oninput="layoutEditor.updateItemProp('price', parseFloat(this.value)||0, true)" id="prop-price" placeholder="e.g. 5000">
             <span class="input-unit">₹</span>
           </div>
           <p class="form-hint" style="margin-top: 2px;">Fee displayed for visitors to acknowledge during booking</p>
         </div>
         <div class="form-group">
           <label class="form-label">Label / Category</label>
-          <input type="text" class="form-input" value="${table.label || ''}" onchange="layoutEditor.updateItemProp('label', this.value)" id="prop-label">
+          <input type="text" class="form-input" value="${table.label || ''}" oninput="layoutEditor.updateItemProp('label', this.value, true)" id="prop-label">
         </div>
         ${table.shape && table.shape.startsWith('L') ? `
         <div class="form-group">
@@ -1367,7 +1367,7 @@ const layoutEditor = {
         <div class="form-group">
           <label class="form-label">Rotation</label>
           <div style="display: flex; gap: var(--space-xs); align-items: center;">
-            <input type="number" class="form-input" value="${table.rotation || 0}" step="90" onchange="layoutEditor.updateItemProp('rotation', (parseFloat(this.value)||0)%360)" id="prop-rotation">
+            <input type="number" class="form-input" value="${table.rotation || 0}" step="90" oninput="layoutEditor.updateItemProp('rotation', (parseFloat(this.value)||0)%360, true)" id="prop-rotation">
             <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.rotateSelected()" title="Rotate +90°">+90°</button>
           </div>
         </div>
@@ -1375,14 +1375,14 @@ const layoutEditor = {
           <div class="form-group">
             <label class="form-label">Width</label>
             <div class="input-with-unit">
-              <input type="number" class="form-input" step="0.25" min="${Units.STALL_MIN_FT}" max="${Units.STALL_MAX_FT}" value="${table.width}" onchange="layoutEditor.updateItemProp('width', Units.clampStallFt(this.value, ${Units.DEFAULT_STALL_WIDTH_FT}))" id="prop-width">
+              <input type="number" class="form-input" step="0.25" min="${Units.STALL_MIN_FT}" max="${Units.STALL_MAX_FT}" value="${table.width}" oninput="layoutEditor.updateItemProp('width', Units.clampStallFt(this.value, ${Units.DEFAULT_STALL_WIDTH_FT}), true)" id="prop-width">
               <span class="input-unit">ft</span>
             </div>
           </div>
           <div class="form-group">
             <label class="form-label">Depth</label>
             <div class="input-with-unit">
-              <input type="number" class="form-input" step="0.25" min="${Units.STALL_MIN_FT}" max="${Units.STALL_MAX_FT}" value="${table.height}" onchange="layoutEditor.updateItemProp('height', Units.clampStallFt(this.value, ${Units.DEFAULT_STALL_HEIGHT_FT}))" id="prop-height">
+              <input type="number" class="form-input" step="0.25" min="${Units.STALL_MIN_FT}" max="${Units.STALL_MAX_FT}" value="${table.height}" oninput="layoutEditor.updateItemProp('height', Units.clampStallFt(this.value, ${Units.DEFAULT_STALL_HEIGHT_FT}), true)" id="prop-height">
               <span class="input-unit">ft</span>
             </div>
           </div>
@@ -1394,14 +1394,14 @@ const layoutEditor = {
           <div class="form-group">
             <label class="form-label">X Position</label>
             <div class="input-with-unit">
-              <input type="number" class="form-input" step="0.25" value="${Units.roundFt(table.x)}" onchange="layoutEditor.updateItemProp('x', Units.roundFt(Units.toFeet(this.value, 0)))" id="prop-x">
+              <input type="number" class="form-input" step="0.25" value="${Units.roundFt(table.x)}" oninput="layoutEditor.updateItemProp('x', Units.roundFt(Units.toFeet(this.value, 0)), true)" id="prop-x">
               <span class="input-unit">ft</span>
             </div>
           </div>
           <div class="form-group">
             <label class="form-label">Y Position</label>
             <div class="input-with-unit">
-              <input type="number" class="form-input" step="0.25" value="${Units.roundFt(table.y)}" onchange="layoutEditor.updateItemProp('y', Units.roundFt(Units.toFeet(this.value, 0)))" id="prop-y">
+              <input type="number" class="form-input" step="0.25" value="${Units.roundFt(table.y)}" oninput="layoutEditor.updateItemProp('y', Units.roundFt(Units.toFeet(this.value, 0)), true)" id="prop-y">
               <span class="input-unit">ft</span>
             </div>
           </div>
@@ -1416,20 +1416,20 @@ const layoutEditor = {
       body.innerHTML = `
         <div class="form-group">
           <label class="form-label">${isRoomBadge ? 'Project Name' : 'Label / Name'}</label>
-          <input type="text" class="form-input" value="${elem.label || elem.text || ''}" onchange="layoutEditor.updateItemProp(elem.text !== undefined ? 'text' : 'label', this.value)">
+          <input type="text" class="form-input" value="${elem.label || elem.text || ''}" oninput="layoutEditor.updateItemProp('text', this.value, true)" id="prop-element-text">
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
           <div class="form-group">
             <label class="form-label">X Position</label>
             <div class="input-with-unit">
-              <input type="number" class="form-input" step="0.5" value="${Units.roundFt(elem.x)}" onchange="layoutEditor.updateItemProp('x', Units.roundFt(parseFloat(this.value)||0))">
+              <input type="number" class="form-input" step="0.5" value="${Units.roundFt(elem.x)}" oninput="layoutEditor.updateItemProp('x', Units.roundFt(parseFloat(this.value)||0), true)">
               <span class="input-unit">ft</span>
             </div>
           </div>
           <div class="form-group">
             <label class="form-label">Y Position</label>
             <div class="input-with-unit">
-              <input type="number" class="form-input" step="0.5" value="${Units.roundFt(elem.y)}" onchange="layoutEditor.updateItemProp('y', Units.roundFt(parseFloat(this.value)||0))">
+              <input type="number" class="form-input" step="0.5" value="${Units.roundFt(elem.y)}" oninput="layoutEditor.updateItemProp('y', Units.roundFt(parseFloat(this.value)||0), true)">
               <span class="input-unit">ft</span>
             </div>
           </div>
@@ -1437,7 +1437,7 @@ const layoutEditor = {
         <div class="form-group">
           <label class="form-label">Rotation</label>
           <div style="display: flex; gap: var(--space-xs); align-items: center;">
-            <input type="number" class="form-input" value="${elem.rotation || 0}" step="90" onchange="layoutEditor.updateItemProp('rotation', (parseFloat(this.value)||0)%360)">
+            <input type="number" class="form-input" value="${elem.rotation || 0}" step="90" oninput="layoutEditor.updateItemProp('rotation', (parseFloat(this.value)||0)%360, true)">
             <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.rotateSelected()">+90°</button>
           </div>
         </div>
@@ -1458,14 +1458,26 @@ const layoutEditor = {
     `;
   },
 
-  updateItemProp(prop, value) {
+  updateItemProp(prop, value, skipRerenderProperties = false) {
     if (!this.selectedItem) return;
     const obj = this.selectedItem.obj;
     obj[prop] = value;
+
+    if (prop === 'text' || prop === 'label') {
+      obj.text = value;
+      obj.label = value;
+      if (obj.type === 'room_badge') {
+        if (this.eventData) this.eventData.name = value;
+      }
+    }
+
     this.clampToBounds(obj, this.selectedItem.type);
     this.renderAllObjects();
     this.updateDirectoryList();
-    this.showProperties(this.selectedItem);
+
+    if (!skipRerenderProperties) {
+      this.showProperties(this.selectedItem);
+    }
   },
 
   rotateSelected() {

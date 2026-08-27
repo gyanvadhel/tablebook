@@ -53,16 +53,21 @@ const tableController = {
       const currentRotation = Number.isInteger(hall_rotation) ? (hall_rotation % 360) : (event.hall_rotation || 0);
       const elementsJson = Array.isArray(hall_elements) ? JSON.stringify(hall_elements) : (event.hall_elements ? JSON.stringify(event.hall_elements) : '[]');
 
+      // If room_badge is provided with a custom name, sync event name
+      const roomBadge = Array.isArray(hall_elements) ? hall_elements.find(el => el.type === 'room_badge') : null;
+      const eventName = roomBadge && (roomBadge.label || roomBadge.text) ? String(roomBadge.label || roomBadge.text).trim() : event.name;
+
       const updated = await withTransaction(async client => {
-        // Update event hall dimensions, rotation and architectural elements
+        // Update event name, hall dimensions, rotation and architectural elements
         await client.query(`
           UPDATE events SET
-            hall_width = $1,
-            hall_height = $2,
-            hall_rotation = $3,
-            hall_elements = $4::jsonb
-          WHERE id = $5
-        `, [currentHallW, currentHallH, currentRotation, elementsJson, eventId]);
+            name = $1,
+            hall_width = $2,
+            hall_height = $3,
+            hall_rotation = $4,
+            hall_elements = $5::jsonb
+          WHERE id = $6
+        `, [eventName, currentHallW, currentHallH, currentRotation, elementsJson, eventId]);
 
         const keptNumbers = [];
 

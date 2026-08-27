@@ -554,7 +554,7 @@ const hallMap = {
       group.setAttribute('transform', `rotate(${elem.rotation}, ${cx}, ${cy})`);
     }
 
-    const textStr = elem.text || 'LABEL';
+    const textStr = elem.text || elem.label || 'LABEL';
     const fontSize = elem.fontSize || 14;
     const color = elem.color || '#0f172a';
     const isBold = elem.fontWeight === 'bold' || elem.fontWeight === '700' || elem.fontWeight === '800';
