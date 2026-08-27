@@ -48,12 +48,17 @@ export default function AdminBookingsPage() {
     }
   };
 
-  const filteredBookings = bookings.filter((b) => {
+  const filteredBookings = bookings.filter((b: any) => {
+    const name = b.customer_name || b.user_name || '';
+    const phone = b.customer_phone || b.user_phone || '';
+    const code = b.reference_code || b.booking_code || '';
+    const event = b.event_name || '';
+
     const matchesSearch =
-      (b.user_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (b.user_phone || '').includes(searchTerm) ||
-      (b.booking_code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (b.event_name || '').toLowerCase().includes(searchTerm.toLowerCase());
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      phone.includes(searchTerm) ||
+      code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -147,14 +152,14 @@ export default function AdminBookingsPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredBookings.map((b) => (
+                  filteredBookings.map((b: any) => (
                     <tr key={b.id} className="hover:bg-zinc-50 transition">
                       <td className="px-5 py-4 font-mono font-bold text-zinc-900">
-                        {b.booking_code || `TB-${String(b.id).padStart(6, '0')}`}
+                        {b.reference_code || b.booking_code || `TB-${String(b.id).padStart(6, '0')}`}
                       </td>
                       <td className="px-5 py-4">
-                        <div className="font-bold text-zinc-900">{b.user_name}</div>
-                        <div className="text-zinc-500 text-[11px]">{b.user_phone}</div>
+                        <div className="font-bold text-zinc-900">{b.customer_name || b.user_name}</div>
+                        <div className="text-zinc-500 text-[11px]">{b.customer_phone || b.user_phone}</div>
                       </td>
                       <td className="px-5 py-4">
                         <div className="font-semibold text-zinc-800">{b.event_name || 'Exhibition'}</div>
@@ -164,7 +169,7 @@ export default function AdminBookingsPage() {
                         Stall {b.table_number || '1'}
                       </td>
                       <td className="px-5 py-4 font-bold text-zinc-900">
-                        {formatCurrency(b.table_price || 0)}
+                        {formatCurrency(b.table_price || b.price || 0)}
                       </td>
                       <td className="px-5 py-4">
                         <span
