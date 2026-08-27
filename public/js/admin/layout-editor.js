@@ -201,6 +201,17 @@ const layoutEditor = {
       if (ey + eh > maxYFt) maxYFt = ey + eh;
     });
 
+    this.tables.forEach(t => {
+      const tx = t.x || 0;
+      const ty = t.y || 0;
+      const tw = t.width || 4;
+      const th = t.height || 2;
+      if (tx < minXFt) minXFt = tx;
+      if (ty < minYFt) minYFt = ty;
+      if (tx + tw > maxXFt) maxXFt = tx + tw;
+      if (ty + th > maxYFt) maxYFt = ty + th;
+    });
+
     const padding = this.px(HALL_PADDING_FT);
     const minX = this.px(minXFt) - padding;
     const minY = this.px(minYFt) - padding;
@@ -832,10 +843,121 @@ const layoutEditor = {
         if (textLayer) this.renderTextElement(elem, textLayer);
       } else if (elem.type === 'room_badge') {
         if (textLayer) this.renderRoomBadgeElement(elem, textLayer);
+      } else if (elem.type === 'hall_room') {
+        if (structLayer) this.renderHallRoomElement(elem, structLayer);
       } else {
         if (structLayer) this.renderStructureElement(elem, structLayer);
       }
     });
+  },
+
+  renderHallRoomElement(room, layer) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const group = document.createElementNS(ns, 'g');
+    const elemId = String(room.id || room._tempId);
+    group.setAttribute('class', 'arch-element arch-hall-room');
+    group.setAttribute('data-element-id', elemId);
+    group.setAttribute('pointer-events', 'all');
+    group.style.cursor = 'grab';
+
+    const w = this.px(room.width || 30);
+    const h = this.px(room.height || 20);
+    const cx = this.px(room.x + (room.width || 30) / 2);
+    const cy = this.px(room.y + (room.height || 20) / 2);
+    const x = this.px(room.x);
+    const y = this.px(room.y);
+
+    if (room.rotation) {
+      group.setAttribute('transform', `rotate(${room.rotation}, ${cx}, ${cy})`);
+    }
+
+    const wallThick = this.px(WALL_THICKNESS_FT);
+
+    // Floor Base with parquet / oak floor pattern
+    const floor = document.createElementNS(ns, 'rect');
+    floor.setAttribute('x', x); floor.setAttribute('y', y);
+    floor.setAttribute('width', w); floor.setAttribute('height', h);
+    floor.setAttribute('fill', 'url(#honey-oak-pattern)');
+    floor.setAttribute('opacity', '0.9');
+    group.appendChild(floor);
+
+    // Subtle floor plank overlay
+    const gridOverlay = document.createElementNS(ns, 'rect');
+    gridOverlay.setAttribute('x', x); gridOverlay.setAttribute('y', y);
+    gridOverlay.setAttribute('width', w); gridOverlay.setAttribute('height', h);
+    gridOverlay.setAttribute('fill', 'rgba(255, 255, 255, 0.08)');
+    gridOverlay.setAttribute('pointer-events', 'none');
+    group.appendChild(gridOverlay);
+
+    // Outer Architectural Perimeter Wall
+    const wall = document.createElementNS(ns, 'rect');
+    wall.setAttribute('x', x); wall.setAttribute('y', y);
+    wall.setAttribute('width', w); wall.setAttribute('height', h);
+    wall.setAttribute('fill', 'none');
+    wall.setAttribute('stroke', '#1e293b');
+    wall.setAttribute('stroke-width', wallThick);
+    wall.setAttribute('stroke-linejoin', 'miter');
+    group.appendChild(wall);
+
+    // Room Title Header inside the room
+    const titleG = document.createElementNS(ns, 'g');
+    titleG.setAttribute('transform', `translate(${x + 14}, ${y + 14})`);
+
+    const titleText = room.name || room.label || 'Secondary Hall';
+    const areaSqFt = Math.round((room.width || 30) * (room.height || 20));
+
+    const badgeBg = document.createElementNS(ns, 'rect');
+    const badgeW = Math.max(titleText.length * 8 + 24, 110);
+    badgeBg.setAttribute('x', '0'); badgeBg.setAttribute('y', '0');
+    badgeBg.setAttribute('width', badgeW); badgeBg.setAttribute('height', '36');
+    badgeBg.setAttribute('rx', '6');
+    badgeBg.setAttribute('fill', 'rgba(255, 255, 255, 0.95)');
+    badgeBg.setAttribute('stroke', '#cbd5e1');
+    badgeBg.setAttribute('stroke-width', '1');
+    badgeBg.setAttribute('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.06))');
+    titleG.appendChild(badgeBg);
+
+    const titleEl = document.createElementNS(ns, 'text');
+    titleEl.setAttribute('x', '12'); titleEl.setAttribute('y', '15');
+    titleEl.setAttribute('fill', '#0f172a');
+    titleEl.setAttribute('font-size', '11.5');
+    titleEl.setAttribute('font-weight', '700');
+    titleEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
+    titleEl.textContent = titleText;
+    titleG.appendChild(titleEl);
+
+    const subEl = document.createElementNS(ns, 'text');
+    subEl.setAttribute('x', '12'); subEl.setAttribute('y', '27');
+    subEl.setAttribute('fill', '#64748b');
+    subEl.setAttribute('font-size', '9');
+    subEl.setAttribute('font-weight', '600');
+    subEl.setAttribute('font-family', 'Inter, -apple-system, sans-serif');
+    subEl.textContent = `${Units.formatFeetShort(room.width || 30)} × ${Units.formatFeetShort(room.height || 20)} · ${areaSqFt.toLocaleString('en-IN')} sq ft`;
+    titleG.appendChild(subEl);
+
+    group.appendChild(titleG);
+
+    // Dimension lines along secondary hall boundary
+    this.renderDimensionLine(group, x, y - 16, x + w, y - 16, Units.formatDims(room.width || 30), 'top');
+    this.renderDimensionLine(group, x - 16, y, x - 16, y + h, Units.formatDims(room.height || 20), 'left');
+
+    const isSelected = this.selectedItem && this.selectedItem.type === 'element' &&
+      String(this.selectedItem.obj.id || this.selectedItem.obj._tempId) === elemId;
+
+    if (isSelected) {
+      const selectOutline = document.createElementNS(ns, 'rect');
+      selectOutline.setAttribute('x', x - 6); selectOutline.setAttribute('y', y - 6);
+      selectOutline.setAttribute('width', w + 12); selectOutline.setAttribute('height', h + 12);
+      selectOutline.setAttribute('fill', 'none');
+      selectOutline.setAttribute('stroke', '#2563eb');
+      selectOutline.setAttribute('stroke-width', '2');
+      selectOutline.setAttribute('stroke-dasharray', '5 4');
+      selectOutline.setAttribute('rx', '6');
+      selectOutline.setAttribute('pointer-events', 'none');
+      group.appendChild(selectOutline);
+    }
+
+    layer.appendChild(group);
   },
 
   renderRoomBadgeElement(badge, layer) {
@@ -1296,6 +1418,58 @@ const layoutEditor = {
     }
   },
 
+  switchToolbarTab(tab) {
+    const tabs = ['stalls', 'halls', 'doors', 'text', 'structures'];
+    tabs.forEach(t => {
+      const btn = document.getElementById(`tab-btn-${t}`);
+      const subgroup = document.getElementById(`subtools-${t}`);
+      if (btn) btn.classList.toggle('active', t === tab);
+      if (subgroup) subgroup.classList.toggle('hidden', t !== tab);
+    });
+  },
+
+  addHallRoom(preset = {}) {
+    const w = preset.width || 30;
+    const h = preset.height || 20;
+    const hallW = this.hallWidthFt();
+
+    const existingHalls = this.elements.filter(el => el.type === 'hall_room');
+    const nextLetter = String.fromCharCode(66 + existingHalls.length); // 'B', 'C', 'D'
+    const defaultName = preset.name || `Hall ${nextLetter}`;
+
+    let targetX = hallW + 6;
+    if (existingHalls.length > 0) {
+      const lastHall = existingHalls[existingHalls.length - 1];
+      targetX = (lastHall.x || 0) + (lastHall.width || 30) + 6;
+    }
+
+    const newRoom = {
+      id: 'hall_room_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      type: 'hall_room',
+      name: defaultName,
+      label: defaultName,
+      width: w,
+      height: h,
+      x: Units.roundFt(targetX),
+      y: 0,
+      rotation: 0
+    };
+
+    this.elements.push(newRoom);
+    this.setupViewBox();
+    this.renderAllObjects();
+    this.selectObject('element', newRoom);
+    this.updateDirectoryList();
+    showToast(`Added ${defaultName} (${w}' × ${h}')`, 'success');
+  },
+
+  promptCustomHallRoom() {
+    const width = parseFloat(prompt('Enter Hall Width in feet (e.g. 35):', '35')) || 35;
+    const height = parseFloat(prompt('Enter Hall Depth in feet (e.g. 25):', '25')) || 25;
+    const name = prompt('Enter Hall Name / Title:', 'Hall B') || 'Hall B';
+    this.addHallRoom({ width: Math.max(10, width), height: Math.max(10, height), name: name.trim() });
+  },
+
   addStructure(structType = 'pillar_square') {
     const hallW = this.hallWidthFt();
     const hallH = this.hallHeightFt();
@@ -1450,47 +1624,109 @@ const layoutEditor = {
     } else if (item.type === 'element') {
       const elem = item.obj;
       const isRoomBadge = elem.type === 'room_badge';
-      if (headerTitle) headerTitle.textContent = isRoomBadge ? 'Project Header Badge' : (elem.label || elem.text || 'Element');
-      if (badge) { badge.textContent = isRoomBadge ? 'Title' : elem.type; badge.className = 'badge badge-primary'; }
+      const isHallRoom = elem.type === 'hall_room';
 
-      body.innerHTML = `
-        <div class="form-group">
-          <label class="form-label">${isRoomBadge ? 'Project Name' : 'Label / Name'}</label>
-          <input type="text" class="form-input" value="${elem.label || elem.text || ''}" oninput="layoutEditor.updateItemProp('text', this.value, true)" id="prop-element-text">
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
+      if (headerTitle) headerTitle.textContent = isHallRoom ? (elem.name || elem.label || 'Secondary Hall') : (isRoomBadge ? 'Project Header Badge' : (elem.label || elem.text || 'Element'));
+      if (badge) { badge.textContent = isHallRoom ? 'Hall Room' : (isRoomBadge ? 'Title' : elem.type); badge.className = 'badge badge-primary'; }
+
+      if (isHallRoom) {
+        body.innerHTML = `
           <div class="form-group">
-            <label class="form-label">X Position</label>
-            <div class="input-with-unit">
-              <input type="number" class="form-input" step="0.5" value="${Units.roundFt(elem.x)}" oninput="layoutEditor.updateItemProp('x', Units.roundFt(parseFloat(this.value)||0), true)">
-              <span class="input-unit">ft</span>
+            <label class="form-label">Hall Name / Title</label>
+            <input type="text" class="form-input" value="${elem.name || elem.label || ''}" oninput="layoutEditor.updateItemProp('name', this.value, true)" id="prop-hall-name">
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
+            <div class="form-group">
+              <label class="form-label">Width</label>
+              <div class="input-with-unit">
+                <input type="number" class="form-input" step="1" min="10" max="200" value="${elem.width || 30}" oninput="layoutEditor.updateItemProp('width', parseFloat(this.value)||30, true)">
+                <span class="input-unit">ft</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Depth</label>
+              <div class="input-with-unit">
+                <input type="number" class="form-input" step="1" min="10" max="200" value="${elem.height || 20}" oninput="layoutEditor.updateItemProp('height', parseFloat(this.value)||20, true)">
+                <span class="input-unit">ft</span>
+              </div>
+            </div>
+          </div>
+          <p class="form-hint" style="margin-top: -6px; margin-bottom: var(--space-sm);">
+            ${Units.formatDims(elem.width || 30, elem.height || 20)} &middot; ${Math.round((elem.width || 30)*(elem.height || 20)).toLocaleString('en-IN')} sq ft
+          </p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
+            <div class="form-group">
+              <label class="form-label">X Position</label>
+              <div class="input-with-unit">
+                <input type="number" class="form-input" step="1" value="${Units.roundFt(elem.x)}" oninput="layoutEditor.updateItemProp('x', Units.roundFt(parseFloat(this.value)||0), true)">
+                <span class="input-unit">ft</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Y Position</label>
+              <div class="input-with-unit">
+                <input type="number" class="form-input" step="1" value="${Units.roundFt(elem.y)}" oninput="layoutEditor.updateItemProp('y', Units.roundFt(parseFloat(this.value)||0), true)">
+                <span class="input-unit">ft</span>
+              </div>
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Y Position</label>
-            <div class="input-with-unit">
-              <input type="number" class="form-input" step="0.5" value="${Units.roundFt(elem.y)}" oninput="layoutEditor.updateItemProp('y', Units.roundFt(parseFloat(this.value)||0), true)">
-              <span class="input-unit">ft</span>
+            <label class="form-label">Orientation &amp; Rotation</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.flipSelected()" title="Flip Orientation (F)" style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 2 3 6 7 10"></polyline><polyline points="17 14 21 18 17 22"></polyline><line x1="3" y1="6" x2="21" y2="6"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>
+                <span>Flip (F)</span>
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.rotateSelected()" title="Rotate +90° (R)" style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <span>Rotate +90°</span>
+              </button>
+            </div>
+            <div style="display: flex; gap: var(--space-xs); align-items: center;">
+              <input type="number" class="form-input" value="${elem.rotation || 0}" step="90" oninput="layoutEditor.updateItemProp('rotation', (parseFloat(this.value)||0)%360, true)">
+              <span class="text-muted" style="font-size: 0.78rem;">deg</span>
             </div>
           </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Orientation &amp; Rotation</label>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs); margin-bottom: var(--space-xs);">
-            <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.flipSelected()" title="Flip Orientation (F)" style="display: flex; align-items: center; justify-content: center; gap: 4px;">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 2 3 6 7 10"></polyline><polyline points="17 14 21 18 17 22"></polyline><line x1="3" y1="6" x2="21" y2="6"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>
-              <span>Flip (F)</span>
-            </button>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.rotateSelected()" title="Rotate +90° (R)" style="display: flex; align-items: center; justify-content: center; gap: 4px;">
-              <span>Rotate +90°</span>
-            </button>
+        `;
+      } else {
+        body.innerHTML = `
+          <div class="form-group">
+            <label class="form-label">${isRoomBadge ? 'Project Name' : 'Label / Name'}</label>
+            <input type="text" class="form-input" value="${elem.label || elem.text || ''}" oninput="layoutEditor.updateItemProp('text', this.value, true)" id="prop-element-text">
           </div>
-          <div style="display: flex; gap: var(--space-xs); align-items: center;">
-            <input type="number" class="form-input" value="${elem.rotation || 0}" step="90" oninput="layoutEditor.updateItemProp('rotation', (parseFloat(this.value)||0)%360, true)">
-            <span class="text-muted" style="font-size: 0.78rem;">deg</span>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
+            <div class="form-group">
+              <label class="form-label">X Position</label>
+              <div class="input-with-unit">
+                <input type="number" class="form-input" step="0.5" value="${Units.roundFt(elem.x)}" oninput="layoutEditor.updateItemProp('x', Units.roundFt(parseFloat(this.value)||0), true)">
+                <span class="input-unit">ft</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Y Position</label>
+              <div class="input-with-unit">
+                <input type="number" class="form-input" step="0.5" value="${Units.roundFt(elem.y)}" oninput="layoutEditor.updateItemProp('y', Units.roundFt(parseFloat(this.value)||0), true)">
+                <span class="input-unit">ft</span>
+              </div>
+            </div>
           </div>
-        </div>
-      `;
+          <div class="form-group">
+            <label class="form-label">Orientation &amp; Rotation</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs); margin-bottom: var(--space-xs);">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.flipSelected()" title="Flip Orientation (F)" style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 2 3 6 7 10"></polyline><polyline points="17 14 21 18 17 22"></polyline><line x1="3" y1="6" x2="21" y2="6"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>
+                <span>Flip (F)</span>
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="layoutEditor.rotateSelected()" title="Rotate +90° (R)" style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <span>Rotate +90°</span>
+              </button>
+            </div>
+            <div style="display: flex; gap: var(--space-xs); align-items: center;">
+              <input type="number" class="form-input" value="${elem.rotation || 0}" step="90" oninput="layoutEditor.updateItemProp('rotation', (parseFloat(this.value)||0)%360, true)">
+              <span class="text-muted" style="font-size: 0.78rem;">deg</span>
+            </div>
+          </div>
+        `;
+      }
     }
   },
 
@@ -1890,24 +2126,42 @@ const layoutEditor = {
     const hallW = this.hallWidthFt();
     const hallH = this.hallHeightFt();
 
+    let maxCanvasW = hallW;
+    let maxCanvasH = hallH;
+    let minCanvasX = 0;
+    let minCanvasY = 0;
+
+    this.elements.forEach(el => {
+      if (el.type === 'hall_room') {
+        const ex = parseFloat(el.x) || 0;
+        const ey = parseFloat(el.y) || 0;
+        const ew = parseFloat(el.width) || 30;
+        const eh = parseFloat(el.height) || 20;
+        if (ex < minCanvasX) minCanvasX = ex;
+        if (ey < minCanvasY) minCanvasY = ey;
+        if (ex + ew > maxCanvasW) maxCanvasW = ex + ew;
+        if (ey + eh > maxCanvasH) maxCanvasH = ey + eh;
+      }
+    });
+
     const w = obj.width || 4;
     const h = obj.height || 2;
     const rot = ((obj.rotation || 0) % 360 + 360) % 360;
     const isRot90 = rot === 90 || rot === 270;
 
     if (type === 'table') {
-      const minX = isRot90 ? (h - w) / 2 : 0;
-      const maxX = isRot90 ? hallW - (w + h) / 2 : hallW - w;
-      const minY = isRot90 ? (w - h) / 2 : 0;
-      const maxY = isRot90 ? hallH - (w + h) / 2 : hallH - h;
+      const minX = isRot90 ? (h - w) / 2 + minCanvasX - ELEMENT_OUTSIDE_MARGIN_FT : minCanvasX - ELEMENT_OUTSIDE_MARGIN_FT;
+      const maxX = maxCanvasW + ELEMENT_OUTSIDE_MARGIN_FT - (isRot90 ? (w + h) / 2 : w);
+      const minY = isRot90 ? (w - h) / 2 + minCanvasY - ELEMENT_OUTSIDE_MARGIN_FT : minCanvasY - ELEMENT_OUTSIDE_MARGIN_FT;
+      const maxY = maxCanvasH + ELEMENT_OUTSIDE_MARGIN_FT - (isRot90 ? (w + h) / 2 : h);
 
       obj.x = Units.roundFt(Math.max(minX, Math.min(maxX, obj.x)));
       obj.y = Units.roundFt(Math.max(minY, Math.min(maxY, obj.y)));
     } else {
       const minX = -ELEMENT_OUTSIDE_MARGIN_FT;
-      const maxX = hallW + ELEMENT_OUTSIDE_MARGIN_FT - (isRot90 ? h : w);
+      const maxX = maxCanvasW + ELEMENT_OUTSIDE_MARGIN_FT - (isRot90 ? h : w);
       const minY = -ELEMENT_OUTSIDE_MARGIN_FT;
-      const maxY = hallH + ELEMENT_OUTSIDE_MARGIN_FT - (isRot90 ? w : h);
+      const maxY = maxCanvasH + ELEMENT_OUTSIDE_MARGIN_FT - (isRot90 ? w : h);
 
       obj.x = Units.roundFt(Math.max(minX, Math.min(maxX, obj.x)));
       obj.y = Units.roundFt(Math.max(minY, Math.min(maxY, obj.y)));

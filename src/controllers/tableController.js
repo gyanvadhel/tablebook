@@ -70,21 +70,40 @@ const tableController = {
         `, [eventName, currentHallW, currentHallH, currentRotation, elementsJson, eventId]);
 
         const keptNumbers = [];
+        let maxCanvasW = currentHallW;
+        let maxCanvasH = currentHallH;
+        let minCanvasX = 0;
+        let minCanvasY = 0;
+
+        if (Array.isArray(hall_elements)) {
+          hall_elements.forEach(el => {
+            if (el.type === 'hall_room') {
+              const ex = parseFloat(el.x) || 0;
+              const ey = parseFloat(el.y) || 0;
+              const ew = parseFloat(el.width) || 30;
+              const eh = parseFloat(el.height) || 20;
+              if (ex < minCanvasX) minCanvasX = ex;
+              if (ey < minCanvasY) minCanvasY = ey;
+              if (ex + ew > maxCanvasW) maxCanvasW = ex + ew;
+              if (ey + eh > maxCanvasH) maxCanvasH = ey + eh;
+            }
+          });
+        }
 
         for (const t of tables) {
           const tableNumber = String(t.table_number);
           keptNumbers.push(tableNumber);
 
-          // Clamp to the hall so a stall can never be saved outside its walls
+          // Clamp to the hall canvas so stalls can be placed inside any hall
           const widthFt = Units.clampStallFt(t.width, Units.DEFAULT_STALL_WIDTH_FT);
           const heightFt = Units.clampStallFt(t.height, Units.DEFAULT_STALL_HEIGHT_FT);
           const rot = ((parseInt(t.rotation, 10) || 0) % 360 + 360) % 360;
           const isRot90 = rot === 90 || rot === 270;
 
-          const minX = isRot90 ? (heightFt - widthFt) / 2 : 0;
-          const maxX = isRot90 ? currentHallW - (widthFt + heightFt) / 2 : currentHallW - widthFt;
-          const minY = isRot90 ? (widthFt - heightFt) / 2 : 0;
-          const maxY = isRot90 ? currentHallH - (widthFt + heightFt) / 2 : currentHallH - heightFt;
+          const minX = isRot90 ? (heightFt - widthFt) / 2 + minCanvasX - 30 : minCanvasX - 30;
+          const maxX = maxCanvasW + 30 - (isRot90 ? (widthFt + heightFt) / 2 : widthFt);
+          const minY = isRot90 ? (widthFt - heightFt) / 2 + minCanvasY - 30 : minCanvasY - 30;
+          const maxY = maxCanvasH + 30 - (isRot90 ? (widthFt + heightFt) / 2 : heightFt);
 
           const xFt = Units.roundFt(Units.clamp(Units.toFeet(t.x, 0), minX, maxX));
           const yFt = Units.roundFt(Units.clamp(Units.toFeet(t.y, 0), minY, maxY));

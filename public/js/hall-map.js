@@ -139,6 +139,19 @@ const hallMap = {
       });
     }
 
+    if (this.tables && this.tables.length) {
+      this.tables.forEach(t => {
+        const tx = t.x || 0;
+        const ty = t.y || 0;
+        const tw = t.width || 4;
+        const th = t.height || 2;
+        if (tx < minXFt) minXFt = tx;
+        if (ty < minYFt) minYFt = ty;
+        if (tx + tw > maxXFt) maxXFt = tx + tw;
+        if (ty + th > maxYFt) maxYFt = ty + th;
+      });
+    }
+
     const padding = this.px(8);
     const minX = this.px(minXFt) - padding;
     const minY = this.px(minYFt) - padding;
@@ -400,12 +413,88 @@ const hallMap = {
         this.renderTextElement(elem, elementsGroup, ns);
       } else if (elem.type === 'room_badge') {
         this.renderRoomBadgeElement(elem, elementsGroup, ns);
+      } else if (elem.type === 'hall_room') {
+        this.renderHallRoomElement(elem, elementsGroup, ns);
       } else {
         this.renderStructureElement(elem, elementsGroup, ns);
       }
     });
 
     this.svg.appendChild(elementsGroup);
+  },
+
+  renderHallRoomElement(room, layer, ns) {
+    const group = document.createElementNS(ns, 'g');
+    const elemId = String(room.id || room._tempId);
+    group.setAttribute('class', 'arch-element arch-hall-room');
+
+    const w = this.px(room.width || 30);
+    const h = this.px(room.height || 20);
+    const cx = this.px(room.x + (room.width || 30) / 2);
+    const cy = this.px(room.y + (room.height || 20) / 2);
+    const x = this.px(room.x);
+    const y = this.px(room.y);
+
+    if (room.rotation) {
+      group.setAttribute('transform', `rotate(${room.rotation}, ${cx}, ${cy})`);
+    }
+
+    const wallThick = this.px(0.8);
+
+    // Hardwood Floor Plan
+    const floor = document.createElementNS(ns, 'rect');
+    floor.setAttribute('x', x); floor.setAttribute('y', y);
+    floor.setAttribute('width', w); floor.setAttribute('height', h);
+    floor.setAttribute('fill', 'url(#wood-floor-texture-public)');
+    group.appendChild(floor);
+
+    // Outer Perimeter Wall
+    const wall = document.createElementNS(ns, 'rect');
+    wall.setAttribute('x', x); wall.setAttribute('y', y);
+    wall.setAttribute('width', w); wall.setAttribute('height', h);
+    wall.setAttribute('fill', 'none');
+    wall.setAttribute('stroke', '#1e293b');
+    wall.setAttribute('stroke-width', wallThick);
+    group.appendChild(wall);
+
+    // Room Title Header inside the room
+    const titleG = document.createElementNS(ns, 'g');
+    titleG.setAttribute('transform', `translate(${x + 12}, ${y + 14})`);
+
+    const titleText = room.name || room.label || 'Secondary Hall';
+    const areaSqFt = Math.round((room.width || 30) * (room.height || 20));
+
+    const badgeBg = document.createElementNS(ns, 'rect');
+    const badgeW = Math.max(titleText.length * 7.5 + 20, 100);
+    badgeBg.setAttribute('x', '0'); badgeBg.setAttribute('y', '0');
+    badgeBg.setAttribute('width', badgeW); badgeBg.setAttribute('height', '32');
+    badgeBg.setAttribute('rx', '4');
+    badgeBg.setAttribute('fill', 'rgba(255, 255, 255, 0.95)');
+    badgeBg.setAttribute('stroke', '#cbd5e1');
+    badgeBg.setAttribute('stroke-width', '1');
+    titleG.appendChild(badgeBg);
+
+    const titleEl = document.createElementNS(ns, 'text');
+    titleEl.setAttribute('x', '10'); titleEl.setAttribute('y', '14');
+    titleEl.setAttribute('fill', '#0f172a');
+    titleEl.setAttribute('font-size', '11');
+    titleEl.setAttribute('font-weight', '700');
+    titleEl.setAttribute('font-family', 'Inter, sans-serif');
+    titleEl.textContent = titleText;
+    titleG.appendChild(titleEl);
+
+    const subEl = document.createElementNS(ns, 'text');
+    subEl.setAttribute('x', '10'); subEl.setAttribute('y', '25');
+    subEl.setAttribute('fill', '#64748b');
+    subEl.setAttribute('font-size', '8.5');
+    subEl.setAttribute('font-weight', '600');
+    subEl.setAttribute('font-family', 'Inter, sans-serif');
+    subEl.textContent = `${Units.formatFeetShort(room.width || 30)} × ${Units.formatFeetShort(room.height || 20)} · ${areaSqFt.toLocaleString('en-IN')} sq ft`;
+    titleG.appendChild(subEl);
+
+    group.appendChild(titleG);
+
+    layer.appendChild(group);
   },
 
   renderRoomBadgeElement(badge, layer, ns) {

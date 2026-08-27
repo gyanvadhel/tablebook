@@ -79,6 +79,7 @@
               <span class="toolbar-label">Palette:</span>
               <div class="segmented-control">
                 <button type="button" class="segment-btn active" id="tab-btn-stalls" onclick="layoutEditor.switchToolbarTab('stalls')">Stalls</button>
+                <button type="button" class="segment-btn" id="tab-btn-halls" onclick="layoutEditor.switchToolbarTab('halls')">Halls / Rooms</button>
                 <button type="button" class="segment-btn" id="tab-btn-doors" onclick="layoutEditor.switchToolbarTab('doors')">Doors &amp; Openings</button>
                 <button type="button" class="segment-btn" id="tab-btn-text" onclick="layoutEditor.switchToolbarTab('text')">Text &amp; Signs</button>
                 <button type="button" class="segment-btn" id="tab-btn-structures" onclick="layoutEditor.switchToolbarTab('structures')">Structures</button>
@@ -104,6 +105,22 @@
               </button>
               <button class="tool-btn pill" onclick="layoutEditor.addTable('Pod')" title="Pod Cluster — 8 ft × 4 ft (4 Tables back-to-back)">
                 <strong>Pod (4-Pack)</strong> &middot; 8'×4'
+              </button>
+            </div>
+
+            <!-- Dynamic Sub-tools: Halls / Rooms -->
+            <div class="toolbar-subgroup hidden" id="subtools-halls">
+              <button class="tool-btn pill" onclick="layoutEditor.addHallRoom({ width: 30, height: 20 })" title="Standard Secondary Hall — 30 ft × 20 ft">
+                <strong>+ Standard Hall</strong> &middot; 30'×20'
+              </button>
+              <button class="tool-btn pill" onclick="layoutEditor.addHallRoom({ width: 50, height: 30 })" title="Large Exhibition Hall — 50 ft × 30 ft">
+                <strong>+ Large Hall</strong> &middot; 50'×30'
+              </button>
+              <button class="tool-btn pill" onclick="layoutEditor.addHallRoom({ width: 20, height: 15 })" title="Compact Room / Gallery — 20 ft × 15 ft">
+                <strong>+ Gallery Room</strong> &middot; 20'×15'
+              </button>
+              <button class="tool-btn pill" onclick="layoutEditor.promptCustomHallRoom()" title="Add Custom Size Hall">
+                + Custom Hall...
               </button>
             </div>
 
