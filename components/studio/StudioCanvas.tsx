@@ -480,44 +480,45 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                   />
                 )}
 
-                {/* Stall Number Badge - Always upright and compact */}
-                <g transform={t.rotation ? `rotate(${-t.rotation}, ${cx}, ${cy})` : undefined}>
-                  <rect
-                    x={cx - (String(t.table_number).length > 2 ? 10 : String(t.table_number).length > 1 ? 8 : 6.5)}
-                    y={cy - 5.5}
-                    width={String(t.table_number).length > 2 ? 20 : String(t.table_number).length > 1 ? 16 : 13}
-                    height="11"
-                    rx="1.5"
-                    fill="#ffffff"
-                    stroke="#d4d4d8"
-                    strokeWidth="0.6"
-                    pointerEvents="none"
-                  />
+                {/* Clean Upright Typography: Stall Number & Dimension Subtitle (NO white box) */}
+                <g transform={t.rotation ? `rotate(${-t.rotation}, ${cx}, ${cy})` : undefined} pointerEvents="none">
+                  {/* Bold Stall Number */}
                   <text
                     x={cx}
-                    y={cy + 2.5}
-                    fill={isBooked ? '#be123c' : '#18181b'}
-                    fontSize="7.5"
+                    y={isBooked ? cy - 2 : cy - 3}
+                    fill={isBooked ? '#ffffff' : '#1e293b'}
+                    fontSize="11"
                     fontWeight="800"
                     textAnchor="middle"
-                    pointerEvents="none"
                   >
                     {t.table_number}
+                  </text>
+                  {/* Subtle Dimensions / Status Subtitle */}
+                  <text
+                    x={cx}
+                    y={isBooked ? cy + 7 : cy + 7.5}
+                    fill={isBooked ? '#ffe4e6' : '#475569'}
+                    fontSize={isBooked ? '7' : '7.5'}
+                    fontWeight="700"
+                    letterSpacing={isBooked ? '0.04em' : 'normal'}
+                    textAnchor="middle"
+                  >
+                    {isBooked ? 'RESERVED' : `${Units.formatFeetShort(t.width)} × ${Units.formatFeetShort(t.height)}`}
                   </text>
                 </g>
 
                 {/* Selection Outline */}
                 {isSelected && (
                   <rect
-                    x={x - 4}
-                    y={y - 4}
-                    width={w + 8}
-                    height={h + 8}
+                    x={x - 3.5}
+                    y={y - 3.5}
+                    width={w + 7}
+                    height={h + 7}
                     fill="none"
-                    stroke="#18181b"
-                    strokeWidth="2"
-                    strokeDasharray="4 4"
+                    stroke="#2563eb"
+                    strokeWidth="2.5"
                     rx="4"
+                    filter="drop-shadow(0 0 4px rgba(37,99,235,0.4))"
                     pointerEvents="none"
                   />
                 )}

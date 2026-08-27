@@ -185,6 +185,14 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
         {/* Main Hall Parquet Floor */}
         <rect x="0" y="0" width={wPx} height={hPx} fill="url(#visitor-wood)" stroke="#18181b" strokeWidth="1.5" />
 
+        {/* Hall Dimensions */}
+        <text x={wPx / 2} y="-10" fill="#475569" fontSize="11" fontWeight="700" textAnchor="middle" pointerEvents="none">
+          {Units.formatFeet(hallWidth)}
+        </text>
+        <text x="-12" y={hPx / 2} fill="#475569" fontSize="11" fontWeight="700" textAnchor="middle" transform={`rotate(-90, -12, ${hPx / 2})`} pointerEvents="none">
+          {Units.formatFeet(hallHeight)}
+        </text>
+
         {/* 1. Structures & Secondary Halls */}
         <g id="visitor-structures">
           {elements.map((elem) => {
@@ -274,72 +282,82 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
                   e.stopPropagation();
                   if (!isBooked) onSelectTable(t);
                 }}
-                className={isBooked ? 'cursor-not-allowed opacity-90' : 'cursor-pointer hover:opacity-95 transition'}
+                className={isBooked ? 'cursor-not-allowed opacity-95' : 'cursor-pointer hover:opacity-90 transition'}
               >
                 {/* Stall Geometry */}
                 {shape === 'L-Stall' ? (
                   <path
                     d={`M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + px(2)} L ${x + px(2)} ${y + px(2)} L ${x + px(2)} ${y + h} L ${x} ${y + h} Z`}
-                    fill={fillPattern}
-                    stroke="#18181b"
+                    fill={isBooked ? '#e11d48' : 'url(#honey-oak-table)'}
+                    stroke={isBooked ? '#be123c' : '#1e293b'}
                     strokeWidth="1.2"
                   />
                 ) : shape === 'L-Stall-Inverted' || shape === 'L-Inverted' ? (
                   <path
                     d={`M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x + w - px(2)} ${y + h} L ${x + w - px(2)} ${y + px(2)} L ${x} ${y + px(2)} Z`}
-                    fill={fillPattern}
-                    stroke="#18181b"
+                    fill={isBooked ? '#e11d48' : 'url(#honey-oak-table)'}
+                    stroke={isBooked ? '#be123c' : '#1e293b'}
                     strokeWidth="1.2"
                   />
                 ) : shape === 'T-Stall' ? (
                   <path
                     d={`M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + px(2)} L ${x + w / 2 + px(1)} ${y + px(2)} L ${x + w / 2 + px(1)} ${y + h} L ${x + w / 2 - px(1)} ${y + h} L ${x + w / 2 - px(1)} ${y + px(2)} L ${x} ${y + px(2)} Z`}
-                    fill={fillPattern}
-                    stroke="#18181b"
+                    fill={isBooked ? '#e11d48' : 'url(#honey-oak-table)'}
+                    stroke={isBooked ? '#be123c' : '#1e293b'}
                     strokeWidth="1.2"
                   />
                 ) : (
-                  <rect x={x} y={y} width={w} height={h} fill={fillPattern} stroke="#18181b" strokeWidth="1.2" rx="2" />
+                  <rect
+                    x={x}
+                    y={y}
+                    width={w}
+                    height={h}
+                    fill={isBooked ? '#e11d48' : 'url(#honey-oak-table)'}
+                    stroke={isBooked ? '#be123c' : '#1e293b'}
+                    strokeWidth="1.2"
+                    rx="2"
+                  />
                 )}
 
-                {/* Stall Number Badge - Always upright and compact */}
-                <g transform={t.rotation ? `rotate(${-t.rotation}, ${cx}, ${cy})` : undefined}>
-                  <rect
-                    x={cx - (String(t.table_number).length > 2 ? 10 : String(t.table_number).length > 1 ? 8 : 6.5)}
-                    y={cy - 5.5}
-                    width={String(t.table_number).length > 2 ? 20 : String(t.table_number).length > 1 ? 16 : 13}
-                    height="11"
-                    rx="1.5"
-                    fill="#ffffff"
-                    stroke="#d4d4d8"
-                    strokeWidth="0.6"
-                    pointerEvents="none"
-                  />
+                {/* Clean Upright Typography: Stall Number & Dimension Subtitle (NO white box) */}
+                <g transform={t.rotation ? `rotate(${-t.rotation}, ${cx}, ${cy})` : undefined} pointerEvents="none">
+                  {/* Bold Stall Number */}
                   <text
                     x={cx}
-                    y={cy + 2.5}
-                    fill={isBooked ? '#be123c' : isSelected ? '#18181b' : '#18181b'}
-                    fontSize="7.5"
+                    y={isBooked ? cy - 2 : cy - 3}
+                    fill={isBooked ? '#ffffff' : '#1e293b'}
+                    fontSize="11"
                     fontWeight="800"
                     textAnchor="middle"
-                    pointerEvents="none"
                   >
                     {t.table_number}
                   </text>
+                  {/* Subtle Dimensions / Status Subtitle */}
+                  <text
+                    x={cx}
+                    y={isBooked ? cy + 7 : cy + 7.5}
+                    fill={isBooked ? '#ffe4e6' : '#475569'}
+                    fontSize={isBooked ? '7' : '7.5'}
+                    fontWeight="700"
+                    letterSpacing={isBooked ? '0.04em' : 'normal'}
+                    textAnchor="middle"
+                  >
+                    {isBooked ? 'RESERVED' : `${Units.formatFeetShort(t.width)} × ${Units.formatFeetShort(t.height)}`}
+                  </text>
                 </g>
 
-                {/* Selection Ring */}
+                {/* Smooth Glowing Selection Ring */}
                 {isSelected && (
                   <rect
-                    x={x - 4}
-                    y={y - 4}
-                    width={w + 8}
-                    height={h + 8}
+                    x={x - 3.5}
+                    y={y - 3.5}
+                    width={w + 7}
+                    height={h + 7}
                     fill="none"
-                    stroke="#18181b"
+                    stroke="#2563eb"
                     strokeWidth="2.5"
-                    strokeDasharray="4 4"
                     rx="4"
+                    filter="drop-shadow(0 0 4px rgba(37,99,235,0.4))"
                     pointerEvents="none"
                   />
                 )}
