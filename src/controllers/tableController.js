@@ -53,21 +53,23 @@ const tableController = {
       const currentRotation = Number.isInteger(hall_rotation) ? (hall_rotation % 360) : (event.hall_rotation || 0);
       const elementsJson = Array.isArray(hall_elements) ? JSON.stringify(hall_elements) : (event.hall_elements ? JSON.stringify(event.hall_elements) : '[]');
 
-      // If room_badge is provided with a custom name, sync event name
+      // If room_badge or name is provided with a custom name, sync event name
       const roomBadge = Array.isArray(hall_elements) ? hall_elements.find(el => el.type === 'room_badge') : null;
-      const eventName = roomBadge && (roomBadge.label || roomBadge.text) ? String(roomBadge.label || roomBadge.text).trim() : event.name;
+      const eventName = (req.body.name && req.body.name.trim()) || (roomBadge && (roomBadge.label || roomBadge.text) ? String(roomBadge.label || roomBadge.text).trim() : event.name);
+      const venue = req.body.venue !== undefined ? req.body.venue : event.venue;
 
       const updated = await withTransaction(async client => {
-        // Update event name, hall dimensions, rotation and architectural elements
+        // Update event name, venue, hall dimensions, rotation and architectural elements
         await client.query(`
           UPDATE events SET
             name = $1,
-            hall_width = $2,
-            hall_height = $3,
-            hall_rotation = $4,
-            hall_elements = $5::jsonb
-          WHERE id = $6
-        `, [eventName, currentHallW, currentHallH, currentRotation, elementsJson, eventId]);
+            venue = $2,
+            hall_width = $3,
+            hall_height = $4,
+            hall_rotation = $5,
+            hall_elements = $6::jsonb
+          WHERE id = $7
+        `, [eventName, venue, currentHallW, currentHallH, currentRotation, elementsJson, eventId]);
 
         const keptNumbers = [];
         let maxCanvasW = currentHallW;

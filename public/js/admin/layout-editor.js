@@ -873,30 +873,24 @@ const layoutEditor = {
 
     const wallThick = this.px(WALL_THICKNESS_FT);
 
-    // Floor Base with parquet / oak floor pattern
+    // Floor Base with parquet / hardwood pattern
     const floor = document.createElementNS(ns, 'rect');
     floor.setAttribute('x', x); floor.setAttribute('y', y);
     floor.setAttribute('width', w); floor.setAttribute('height', h);
-    floor.setAttribute('fill', 'url(#honey-oak-pattern)');
-    floor.setAttribute('opacity', '0.9');
+    floor.setAttribute('fill', 'url(#wood-floor-texture)');
+    floor.setAttribute('stroke', '#1e293b');
+    floor.setAttribute('stroke-width', '1.5');
     group.appendChild(floor);
-
-    // Subtle floor plank overlay
-    const gridOverlay = document.createElementNS(ns, 'rect');
-    gridOverlay.setAttribute('x', x); gridOverlay.setAttribute('y', y);
-    gridOverlay.setAttribute('width', w); gridOverlay.setAttribute('height', h);
-    gridOverlay.setAttribute('fill', 'rgba(255, 255, 255, 0.08)');
-    gridOverlay.setAttribute('pointer-events', 'none');
-    group.appendChild(gridOverlay);
 
     // Outer Architectural Perimeter Wall
     const wall = document.createElementNS(ns, 'rect');
-    wall.setAttribute('x', x); wall.setAttribute('y', y);
-    wall.setAttribute('width', w); wall.setAttribute('height', h);
+    wall.setAttribute('x', x - wallThick); wall.setAttribute('y', y - wallThick);
+    wall.setAttribute('width', w + wallThick * 2); wall.setAttribute('height', h + wallThick * 2);
     wall.setAttribute('fill', 'none');
     wall.setAttribute('stroke', '#1e293b');
     wall.setAttribute('stroke-width', wallThick);
     wall.setAttribute('stroke-linejoin', 'miter');
+    wall.setAttribute('rx', '2');
     group.appendChild(wall);
 
     // Room Title Header inside the room
@@ -937,9 +931,13 @@ const layoutEditor = {
 
     group.appendChild(titleG);
 
-    // Dimension lines along secondary hall boundary
-    this.renderDimensionLine(group, x, y - 16, x + w, y - 16, Units.formatDims(room.width || 30), 'top');
-    this.renderDimensionLine(group, x - 16, y, x - 16, y + h, Units.formatDims(room.height || 20), 'left');
+    // Hit box for clicking/selecting the room
+    const hitBox = document.createElementNS(ns, 'rect');
+    hitBox.setAttribute('x', x); hitBox.setAttribute('y', y);
+    hitBox.setAttribute('width', w); hitBox.setAttribute('height', h);
+    hitBox.setAttribute('fill', 'transparent');
+    hitBox.setAttribute('pointer-events', 'all');
+    group.appendChild(hitBox);
 
     const isSelected = this.selectedItem && this.selectedItem.type === 'element' &&
       String(this.selectedItem.obj.id || this.selectedItem.obj._tempId) === elemId;
@@ -1692,10 +1690,63 @@ const layoutEditor = {
             </div>
           </div>
         `;
+      if (isRoomBadge) {
+        if (headerTitle) headerTitle.textContent = 'Main Hall Properties';
+        if (badge) { badge.textContent = 'Main Hall'; badge.className = 'badge badge-primary'; }
+
+        const widthFt = this.hallWidthFt();
+        const heightFt = this.hallHeightFt();
+        const areaFt = Math.round(widthFt * heightFt);
+
+        body.innerHTML = `
+          <div class="form-group">
+            <label class="form-label">Main Hall / Exhibition Name</label>
+            <input type="text" class="form-input" value="${this.eventData ? (this.eventData.name || '') : ''}" oninput="layoutEditor.updateMainHallProp('name', this.value)" id="prop-main-hall-name">
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
+            <div class="form-group">
+              <label class="form-label">Hall Width</label>
+              <div class="input-with-unit">
+                <input type="number" class="form-input" step="1" min="10" max="500" value="${widthFt}" oninput="layoutEditor.updateMainHallProp('hall_width', this.value)" id="prop-main-hall-w">
+                <span class="input-unit">ft</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Hall Depth</label>
+              <div class="input-with-unit">
+                <input type="number" class="form-input" step="1" min="10" max="500" value="${heightFt}" oninput="layoutEditor.updateMainHallProp('hall_height', this.value)" id="prop-main-hall-h">
+                <span class="input-unit">ft</span>
+              </div>
+            </div>
+          </div>
+          <p class="form-hint" style="margin-top: -6px; margin-bottom: var(--space-sm);">
+            ${Units.formatDims(widthFt, heightFt)} &middot; ${areaFt.toLocaleString('en-IN')} sq ft
+          </p>
+          <div class="form-group">
+            <label class="form-label">Venue Location</label>
+            <input type="text" class="form-input" value="${this.eventData ? (this.eventData.venue || '') : ''}" oninput="layoutEditor.updateMainHallProp('venue', this.value)" placeholder="e.g. Grand Expo Center">
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
+            <div class="form-group">
+              <label class="form-label">Badge X</label>
+              <div class="input-with-unit">
+                <input type="number" class="form-input" step="0.5" value="${Units.roundFt(elem.x)}" oninput="layoutEditor.updateItemProp('x', Units.roundFt(parseFloat(this.value)||0), true)">
+                <span class="input-unit">ft</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Badge Y</label>
+              <div class="input-with-unit">
+                <input type="number" class="form-input" step="0.5" value="${Units.roundFt(elem.y)}" oninput="layoutEditor.updateItemProp('y', Units.roundFt(parseFloat(this.value)||0), true)">
+                <span class="input-unit">ft</span>
+              </div>
+            </div>
+          </div>
+        `;
       } else {
         body.innerHTML = `
           <div class="form-group">
-            <label class="form-label">${isRoomBadge ? 'Project Name' : 'Label / Name'}</label>
+            <label class="form-label">Label / Name</label>
             <input type="text" class="form-input" value="${elem.label || elem.text || ''}" oninput="layoutEditor.updateItemProp('text', this.value, true)" id="prop-element-text">
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
@@ -1738,14 +1789,66 @@ const layoutEditor = {
   showEmptyProperties() {
     const badge = document.getElementById('inspector-badge');
     const headerTitle = document.getElementById('inspector-header-title');
-    if (badge) badge.style.display = 'none';
-    if (headerTitle) headerTitle.textContent = 'Inspector';
+    if (badge) { badge.textContent = 'Main Hall'; badge.className = 'badge badge-primary'; badge.style.display = 'inline-block'; }
+    if (headerTitle) headerTitle.textContent = this.eventData ? (this.eventData.name || 'Main Hall') : 'Main Hall';
+
+    const widthFt = this.hallWidthFt();
+    const heightFt = this.hallHeightFt();
+    const areaFt = Math.round(widthFt * heightFt);
 
     document.getElementById('properties-body').innerHTML = `
-      <p class="text-muted" style="font-size: 0.85rem; text-align: center; padding: var(--space-md) 0;">
-        Select a stall, door, or label on the floor plan to edit its properties.
+      <div class="form-group">
+        <label class="form-label">Main Hall / Exhibition Name</label>
+        <input type="text" class="form-input" value="${this.eventData ? (this.eventData.name || '') : ''}" oninput="layoutEditor.updateMainHallProp('name', this.value)" id="prop-main-hall-name">
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
+        <div class="form-group">
+          <label class="form-label">Hall Width</label>
+          <div class="input-with-unit">
+            <input type="number" class="form-input" step="1" min="10" max="500" value="${widthFt}" oninput="layoutEditor.updateMainHallProp('hall_width', this.value)" id="prop-main-hall-w">
+            <span class="input-unit">ft</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hall Depth</label>
+          <div class="input-with-unit">
+            <input type="number" class="form-input" step="1" min="10" max="500" value="${heightFt}" oninput="layoutEditor.updateMainHallProp('hall_height', this.value)" id="prop-main-hall-h">
+            <span class="input-unit">ft</span>
+          </div>
+        </div>
+      </div>
+      <p class="form-hint" style="margin-top: -6px; margin-bottom: var(--space-sm);">
+        ${Units.formatDims(widthFt, heightFt)} &middot; ${areaFt.toLocaleString('en-IN')} sq ft
+      </p>
+      <div class="form-group">
+        <label class="form-label">Venue Location</label>
+        <input type="text" class="form-input" value="${this.eventData ? (this.eventData.venue || '') : ''}" oninput="layoutEditor.updateMainHallProp('venue', this.value)" placeholder="e.g. Grand Expo Center">
+      </div>
+      <p class="text-muted" style="font-size: 0.76rem; margin-top: var(--space-md); border-top: 1px solid var(--border-subtle); padding-top: var(--space-xs);">
+        Click any stall, door, sign, or secondary hall room to edit its specific properties.
       </p>
     `;
+  },
+
+  updateMainHallProp(prop, value) {
+    if (!this.eventData) return;
+    if (prop === 'name') {
+      this.eventData.name = value;
+      const badge = this.elements.find(el => el.type === 'room_badge');
+      if (badge) { badge.label = value; badge.text = value; }
+    } else if (prop === 'hall_width') {
+      this.eventData.hall_width = Math.max(10, parseFloat(value) || Units.DEFAULT_HALL_WIDTH_FT);
+    } else if (prop === 'hall_height') {
+      this.eventData.hall_height = Math.max(10, parseFloat(value) || Units.DEFAULT_HALL_HEIGHT_FT);
+    } else if (prop === 'venue') {
+      this.eventData.venue = value;
+    }
+
+    this.updateHeaderInfo();
+    this.setupViewBox();
+    this.renderHall();
+    this.renderAllObjects();
+    this.updateDirectoryList();
   },
 
   updateItemProp(prop, value, skipRerenderProperties = false) {
@@ -2264,13 +2367,14 @@ const layoutEditor = {
         id: el.id || undefined,
         _tempId: el._tempId,
         type: el.type,
+        name: el.name || el.label,
         doorType: el.doorType,
         text: el.text,
         fontSize: el.fontSize,
         fontWeight: el.fontWeight,
         color: el.color,
         badge: el.badge,
-        label: el.label,
+        label: el.label || el.name,
         width: el.width,
         height: el.height,
         x: Units.roundFt(el.x),
@@ -2282,6 +2386,8 @@ const layoutEditor = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          name: this.eventData.name,
+          venue: this.eventData.venue,
           tables: tablesPayload,
           hall_elements: elementsPayload,
           hall_width: this.hallWidthFt(),
