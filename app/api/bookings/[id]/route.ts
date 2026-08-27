@@ -2,14 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withTransaction } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: any }) {
   try {
     const session = await getSession(req);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const bookingId = parseInt(params.id);
+    const rawParams = params && typeof params.then === 'function' ? await params : params;
+    const bookingId = parseInt(rawParams?.id);
+    if (isNaN(bookingId)) {
+      return NextResponse.json({ error: 'Invalid booking ID' }, { status: 400 });
+    }
     const { status } = await req.json();
 
     if (!['pending', 'confirmed', 'cancelled'].includes(status)) {

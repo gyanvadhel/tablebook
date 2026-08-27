@@ -3,9 +3,10 @@ import { dbGet, dbRun, withTransaction } from '@/lib/db';
 import { Units } from '@/lib/units';
 import { getSession } from '@/lib/auth';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: any }) {
   try {
-    const eventId = parseInt(params.id);
+    const rawParams = params && typeof params.then === 'function' ? await params : params;
+    const eventId = parseInt(rawParams?.id);
     if (isNaN(eventId)) {
       return NextResponse.json({ error: 'Invalid event ID' }, { status: 400 });
     }
@@ -21,14 +22,19 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: any }) {
   try {
     const session = await getSession(req);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const eventId = parseInt(params.id);
+    const rawParams = params && typeof params.then === 'function' ? await params : params;
+    const eventId = parseInt(rawParams?.id);
+    if (isNaN(eventId)) {
+      return NextResponse.json({ error: 'Invalid event ID' }, { status: 400 });
+    }
+
     const body = await req.json();
     const { name, description, venue, start_date, end_date, status, hall_width, hall_height } = body;
 
@@ -63,14 +69,15 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: any }) {
   try {
     const session = await getSession(req);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const eventId = parseInt(params.id);
+    const rawParams = params && typeof params.then === 'function' ? await params : params;
+    const eventId = parseInt(rawParams?.id);
     if (isNaN(eventId)) {
       return NextResponse.json({ error: 'Invalid event ID' }, { status: 400 });
     }

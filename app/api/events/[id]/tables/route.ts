@@ -4,9 +4,10 @@ import { Units } from '@/lib/units';
 import { ELEMENT_OUTSIDE_MARGIN_FT } from '@/lib/constants';
 import { getSession } from '@/lib/auth';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: any }) {
   try {
-    const eventId = parseInt(params.id);
+    const rawParams = params && typeof params.then === 'function' ? await params : params;
+    const eventId = parseInt(rawParams?.id);
     if (isNaN(eventId)) {
       return NextResponse.json({ error: 'Invalid event ID' }, { status: 400 });
     }
@@ -18,14 +19,19 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: any }) {
   try {
     const session = await getSession(req);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const eventId = parseInt(params.id);
+    const rawParams = params && typeof params.then === 'function' ? await params : params;
+    const eventId = parseInt(rawParams?.id);
+    if (isNaN(eventId)) {
+      return NextResponse.json({ error: 'Invalid event ID' }, { status: 400 });
+    }
+
     const body = await req.json();
     const { tables, hall_elements, hall_width, hall_height, hall_rotation, name, venue } = body;
 
