@@ -339,7 +339,7 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
                   <text
                     x={cx}
                     y={isBooked ? cy + 7 : cy + 7.5}
-                    fill={isBooked ? '#ffe4e6' : '#475569'}
+                    fill={isBooked ? '#ffffff' : '#475569'}
                     fontSize={isBooked ? '7' : '7.5'}
                     fontWeight="700"
                     letterSpacing={isBooked ? '0.04em' : 'normal'}

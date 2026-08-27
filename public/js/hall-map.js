@@ -384,7 +384,7 @@ const hallMap = {
       dimLabel.setAttribute('letter-spacing', isBooked ? '0.04em' : 'normal');
       dimLabel.setAttribute('text-anchor', 'middle');
       dimLabel.setAttribute('dominant-baseline', 'central');
-      dimLabel.setAttribute('fill', isBooked ? '#ffe4e6' : (isSelected ? '#dbeafe' : '#475569'));
+      dimLabel.setAttribute('fill', isBooked ? '#ffffff' : (isSelected ? '#dbeafe' : '#475569'));
       dimLabel.setAttribute('font-family', 'Inter, sans-serif');
       dimLabel.setAttribute('pointer-events', 'none');
       dimLabel.textContent = isBooked ? 'BOOKED' : `${Units.formatFeetShort(table.width)} × ${Units.formatFeetShort(table.height)}`;
