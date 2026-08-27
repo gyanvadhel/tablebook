@@ -7,8 +7,8 @@ import { Lock, User, ArrowLeft, AlertCircle } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -73,6 +73,7 @@ export default function AdminLoginPage() {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter username"
                 className="w-full pl-9 pr-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition"
               />
             </div>
@@ -87,6 +88,7 @@ export default function AdminLoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
                 className="w-full pl-9 pr-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition"
               />
             </div>
@@ -100,10 +102,6 @@ export default function AdminLoginPage() {
             {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
-
-        <div className="mt-5 text-center text-[11px] text-zinc-400">
-          Default Credentials: <code className="text-zinc-600 font-semibold">admin</code> / <code className="text-zinc-600 font-semibold">admin123</code>
-        </div>
       </div>
     </div>
   );
