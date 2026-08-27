@@ -654,7 +654,12 @@ export default function StudioPage() {
       });
 
       if (!res.ok) {
-        const err = await res.json();
+        if (res.status === 401) {
+          showToast('Session expired. Redirecting to login...', 'error');
+          setTimeout(() => router.push('/admin/login'), 1200);
+          return;
+        }
+        const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to save layout');
       }
 

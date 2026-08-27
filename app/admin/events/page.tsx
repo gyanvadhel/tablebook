@@ -42,9 +42,17 @@ export default function AdminEventsPage() {
       const res = await fetch(`/api/events/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setEvents((prev) => prev.filter((e) => e.id !== id));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        if (res.status === 401) {
+          alert('Session expired. Please log in again.');
+          router.push('/admin/login');
+          return;
+        }
+        alert(err.error || 'Failed to delete exhibition');
       }
-    } catch (e) {
-      alert('Failed to delete exhibition');
+    } catch (e: any) {
+      alert(e.message || 'Failed to delete exhibition');
     }
   };
 
