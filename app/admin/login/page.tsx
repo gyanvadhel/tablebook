@@ -49,8 +49,8 @@ export default function AdminLoginPage() {
 
       <div className="max-w-sm w-full bg-white border border-zinc-200 rounded-xl p-8 shadow-xs">
         <div className="text-center mb-6">
-          <div className="w-10 h-10 rounded-lg bg-zinc-900 flex items-center justify-center mx-auto mb-3 font-bold text-white text-sm">
-            TB
+          <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center mx-auto mb-3 font-black text-white text-base shadow-xs">
+            T
           </div>
           <h1 className="text-lg font-bold text-zinc-900">TableBook Admin</h1>
           <p className="text-xs text-zinc-500 mt-0.5">Sign in to manage exhibitions and floor plans</p>

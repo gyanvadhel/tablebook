@@ -26,10 +26,10 @@ export const AdminSidebar: React.FC = () => {
     <aside className="w-60 bg-white border-r border-zinc-200 text-zinc-900 flex flex-col shrink-0 h-screen select-none font-sans">
       {/* Brand Header */}
       <div className="h-14 px-5 flex items-center gap-3 border-b border-zinc-200">
-        <div className="w-7 h-7 rounded-md bg-zinc-900 flex items-center justify-center font-black text-white text-xs">
-          TB
+        <div className="w-7 h-7 rounded-lg bg-zinc-900 flex items-center justify-center font-black text-white text-sm shadow-xs">
+          T
         </div>
-        <span className="font-bold text-sm tracking-tight text-zinc-900">TableBook Admin</span>
+        <span className="font-bold text-sm tracking-tight text-zinc-900">TableBook</span>
       </div>
 
       {/* Nav Links */}

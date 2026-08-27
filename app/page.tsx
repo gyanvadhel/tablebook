@@ -39,8 +39,8 @@ export default function HomePage() {
       {/* Navbar */}
       <nav className="h-14 border-b border-zinc-200 bg-white px-6 max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-md bg-zinc-900 flex items-center justify-center font-bold text-white text-xs">
-            TB
+          <div className="w-7 h-7 rounded-lg bg-zinc-900 flex items-center justify-center font-black text-white text-sm shadow-xs">
+            T
           </div>
           <span className="font-bold text-sm text-zinc-900 tracking-tight">TableBook</span>
         </div>
