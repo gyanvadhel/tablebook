@@ -488,27 +488,67 @@ const hallMap = {
     } else {
       const swingR = w;
       const isExit = door.doorType === 'exit';
-      const color = isExit ? '#dc2626' : '#059669';
+      const wallThick = this.px(0.8);
+      const isFlipped = !!door.flip;
 
+      // Clean wall opening cutout
+      const cutout = document.createElementNS(ns, 'rect');
+      cutout.setAttribute('x', x); cutout.setAttribute('y', y - wallThick / 2);
+      cutout.setAttribute('width', w); cutout.setAttribute('height', wallThick);
+      cutout.setAttribute('fill', '#ffffff');
+      group.appendChild(cutout);
+
+      // Threshold lines
+      const threshTop = document.createElementNS(ns, 'line');
+      threshTop.setAttribute('x1', x); threshTop.setAttribute('y1', y - wallThick / 2);
+      threshTop.setAttribute('x2', x + w); threshTop.setAttribute('y2', y - wallThick / 2);
+      threshTop.setAttribute('stroke', '#cbd5e1'); threshTop.setAttribute('stroke-width', '1');
+      group.appendChild(threshTop);
+
+      const threshBot = document.createElementNS(ns, 'line');
+      threshBot.setAttribute('x1', x); threshBot.setAttribute('y1', y + wallThick / 2);
+      threshBot.setAttribute('x2', x + w); threshBot.setAttribute('y2', y + wallThick / 2);
+      threshBot.setAttribute('stroke', '#94a3b8'); threshBot.setAttribute('stroke-width', '1');
+      group.appendChild(threshBot);
+
+      // 90° Swing Arc
       const arc = document.createElementNS(ns, 'path');
-      arc.setAttribute('d', `M ${x} ${y} A ${swingR} ${swingR} 0 0 1 ${x + swingR} ${y + swingR} L ${x} ${y + swingR} Z`);
-      arc.setAttribute('fill', isExit ? 'rgba(220, 38, 38, 0.1)' : 'rgba(5, 150, 105, 0.1)');
-      arc.setAttribute('stroke', color);
-      arc.setAttribute('stroke-width', '1.2');
-      arc.setAttribute('stroke-dasharray', '3 2');
+      if (isFlipped) {
+        arc.setAttribute('d', `M ${x + swingR} ${y + wallThick / 2} A ${swingR} ${swingR} 0 0 1 ${x} ${y + wallThick / 2 + swingR}`);
+      } else {
+        arc.setAttribute('d', `M ${x} ${y + wallThick / 2} A ${swingR} ${swingR} 0 0 0 ${x + swingR} ${y + wallThick / 2 + swingR}`);
+      }
+      arc.setAttribute('fill', 'none');
+      arc.setAttribute('stroke', isExit ? '#f87171' : '#94a3b8');
+      arc.setAttribute('stroke-width', '1');
       group.appendChild(arc);
 
-      const leaf = document.createElementNS(ns, 'line');
-      leaf.setAttribute('x1', x); leaf.setAttribute('y1', y);
-      leaf.setAttribute('x2', x); leaf.setAttribute('y2', y + swingR);
-      leaf.setAttribute('stroke', color); leaf.setAttribute('stroke-width', '2.5');
+      // Door Leaf (Panel)
+      const leaf = document.createElementNS(ns, 'rect');
+      const leafX = isFlipped ? x : x + swingR - 3.5;
+      const leafY = y + wallThick / 2;
+      leaf.setAttribute('x', leafX);
+      leaf.setAttribute('y', leafY);
+      leaf.setAttribute('width', 3.5);
+      leaf.setAttribute('height', swingR);
+      leaf.setAttribute('fill', '#ffffff');
+      leaf.setAttribute('stroke', isExit ? '#dc2626' : '#1e293b');
+      leaf.setAttribute('stroke-width', '1.2');
+      leaf.setAttribute('rx', '1');
       group.appendChild(leaf);
 
-      const threshold = document.createElementNS(ns, 'line');
-      threshold.setAttribute('x1', x); threshold.setAttribute('y1', y);
-      threshold.setAttribute('x2', x + w); threshold.setAttribute('y2', y);
-      threshold.setAttribute('stroke', '#0f172a'); threshold.setAttribute('stroke-width', '3');
-      group.appendChild(threshold);
+      // Wall Jambs
+      const jambL = document.createElementNS(ns, 'rect');
+      jambL.setAttribute('x', x - 2); jambL.setAttribute('y', y - wallThick / 2);
+      jambL.setAttribute('width', 2.5); jambL.setAttribute('height', wallThick);
+      jambL.setAttribute('fill', '#1e293b');
+      group.appendChild(jambL);
+
+      const jambR = document.createElementNS(ns, 'rect');
+      jambR.setAttribute('x', x + w - 0.5); jambR.setAttribute('y', y - wallThick / 2);
+      jambR.setAttribute('width', 2.5); jambR.setAttribute('height', wallThick);
+      jambR.setAttribute('fill', '#1e293b');
+      group.appendChild(jambR);
     }
 
     const badgeG = document.createElementNS(ns, 'g');

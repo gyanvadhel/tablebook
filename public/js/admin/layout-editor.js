@@ -963,37 +963,68 @@ const layoutEditor = {
     } else {
       const swingR = w;
       const isExit = door.doorType === 'exit';
+      const wallThick = this.px(WALL_THICKNESS_FT);
+      const isFlipped = !!door.flip;
 
+      // Clean wall opening cutout
       const cutout = document.createElementNS(ns, 'rect');
-      cutout.setAttribute('x', x); cutout.setAttribute('y', y - 4);
-      cutout.setAttribute('width', w); cutout.setAttribute('height', 8);
+      cutout.setAttribute('x', x); cutout.setAttribute('y', y - wallThick / 2);
+      cutout.setAttribute('width', w); cutout.setAttribute('height', wallThick);
       cutout.setAttribute('fill', '#ffffff');
       group.appendChild(cutout);
 
+      // Threshold lines
+      const threshTop = document.createElementNS(ns, 'line');
+      threshTop.setAttribute('x1', x); threshTop.setAttribute('y1', y - wallThick / 2);
+      threshTop.setAttribute('x2', x + w); threshTop.setAttribute('y2', y - wallThick / 2);
+      threshTop.setAttribute('stroke', '#cbd5e1'); threshTop.setAttribute('stroke-width', '1');
+      group.appendChild(threshTop);
+
+      const threshBot = document.createElementNS(ns, 'line');
+      threshBot.setAttribute('x1', x); threshBot.setAttribute('y1', y + wallThick / 2);
+      threshBot.setAttribute('x2', x + w); threshBot.setAttribute('y2', y + wallThick / 2);
+      threshBot.setAttribute('stroke', '#94a3b8'); threshBot.setAttribute('stroke-width', '1');
+      group.appendChild(threshBot);
+
+      // 90° Swing Arc
       const arc = document.createElementNS(ns, 'path');
-      arc.setAttribute('d', `M ${x} ${y} A ${swingR} ${swingR} 0 0 1 ${x + swingR} ${y + swingR}`);
+      if (isFlipped) {
+        // Hinged on Left, swings down from right
+        arc.setAttribute('d', `M ${x + swingR} ${y + wallThick / 2} A ${swingR} ${swingR} 0 0 1 ${x} ${y + wallThick / 2 + swingR}`);
+      } else {
+        // Hinged on Right, swings down from left
+        arc.setAttribute('d', `M ${x} ${y + wallThick / 2} A ${swingR} ${swingR} 0 0 0 ${x + swingR} ${y + wallThick / 2 + swingR}`);
+      }
       arc.setAttribute('fill', 'none');
-      arc.setAttribute('stroke', isExit ? '#f87171' : '#cbd5e1');
-      arc.setAttribute('stroke-width', '1.2');
+      arc.setAttribute('stroke', isExit ? '#f87171' : '#94a3b8');
+      arc.setAttribute('stroke-width', '1');
+      arc.setAttribute('stroke-dasharray', 'none');
       group.appendChild(arc);
 
+      // Door Leaf (Panel)
       const leaf = document.createElementNS(ns, 'rect');
-      leaf.setAttribute('x', x + swingR - 2); leaf.setAttribute('y', y);
-      leaf.setAttribute('width', 4); leaf.setAttribute('height', swingR);
+      const leafX = isFlipped ? x : x + swingR - 3.5;
+      const leafY = y + wallThick / 2;
+      leaf.setAttribute('x', leafX);
+      leaf.setAttribute('y', leafY);
+      leaf.setAttribute('width', 3.5);
+      leaf.setAttribute('height', swingR);
       leaf.setAttribute('fill', '#ffffff');
-      leaf.setAttribute('stroke', '#1e293b');
+      leaf.setAttribute('stroke', isExit ? '#dc2626' : '#1e293b');
       leaf.setAttribute('stroke-width', '1.2');
+      leaf.setAttribute('rx', '1');
       group.appendChild(leaf);
 
+      // Wall Jambs
       const jambL = document.createElementNS(ns, 'rect');
-      jambL.setAttribute('x', x - 2); jambL.setAttribute('y', y - 4);
-      jambL.setAttribute('width', 3); jambL.setAttribute('height', 8);
+      jambL.setAttribute('x', x - 2); jambL.setAttribute('y', y - wallThick / 2);
+      jambL.setAttribute('width', 2.5); jambL.setAttribute('height', wallThick);
       jambL.setAttribute('fill', '#1e293b');
       group.appendChild(jambL);
 
       const jambR = document.createElementNS(ns, 'rect');
-      jambR.setAttribute('x', x + w - 1); jambR.setAttribute('y', y - 4);
-      jambR.setAttribute('width', 3); jambR.setAttribute('height', 8);
+      jambR.setAttribute('x', x + w - 0.5); jambR.setAttribute('y', y - wallThick / 2);
+      jambR.setAttribute('width', 2.5); jambR.setAttribute('height', wallThick);
       jambR.setAttribute('fill', '#1e293b');
       group.appendChild(jambR);
     }
