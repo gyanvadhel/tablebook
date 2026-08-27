@@ -9,262 +9,263 @@
   <link rel="stylesheet" href="/css/hall-map.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2318181b'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='%23f4f4f5' font-family='sans-serif' font-weight='bold'>T</text></svg>">
 </head>
-<body>
-  <div class="admin-layout">
-    <!-- Sidebar -->
-    <aside class="admin-sidebar" id="admin-sidebar">
-      <a href="/admin/dashboard.html" class="sidebar-brand">
-        TableBook
-      </a>
-      <ul class="sidebar-nav">
-        <li><a href="/admin/dashboard.html">Dashboard</a></li>
-        <li><a href="/admin/events.html" class="active">Exhibitions</a></li>
-        <li><a href="/admin/bookings.html">Reservations</a></li>
-      </ul>
-      <div class="sidebar-footer">
-        <div class="sidebar-user">
-          <div class="user-avatar" id="user-avatar">A</div>
-          <div class="user-info">
-            <div class="user-name" id="user-name">Admin</div>
-            <div class="user-role">Administrator</div>
-          </div>
+<body class="studio-body">
+
+  <!-- ============ STUDIO TOP BAR ============ -->
+  <header class="studio-topbar">
+    <div class="studio-topbar-left">
+      <a href="/admin/events.html" class="studio-back-btn" title="Back to Exhibitions">&larr;</a>
+      <div class="studio-title-group">
+        <h1 id="editor-title">Floor Plan Studio</h1>
+        <span class="badge studio-dim-badge" id="hall-dimension-badge">Loading...</span>
+      </div>
+    </div>
+    <div class="studio-topbar-center" id="editor-subtitle">Loading layout...</div>
+    <div class="studio-topbar-right">
+      <div class="studio-zoom-group">
+        <button class="studio-icon-btn" onclick="layoutEditor.zoomOut()" title="Zoom Out (-)">&#8722;</button>
+        <button class="studio-icon-btn" onclick="layoutEditor.resetView()" title="Fit to Screen">Fit</button>
+        <button class="studio-icon-btn" onclick="layoutEditor.zoomIn()" title="Zoom In (+)">+</button>
+      </div>
+      <select class="studio-select" id="snap-grid-select" onchange="layoutEditor.setSnapGrid(this.value)" title="Snap Grid">
+        <option value="1" selected>Snap: 1 ft</option>
+        <option value="0.5">Snap: 6 in</option>
+        <option value="0.25">Snap: 3 in</option>
+        <option value="0">Snap: Off</option>
+      </select>
+      <div class="studio-separator"></div>
+      <div class="dropdown-wrapper" style="position: relative; display: inline-block;">
+        <button class="studio-text-btn" onclick="layoutEditor.toggleFloorRotateMenu()" id="rotate-floor-btn" title="Rotate Entire Hall Orientation">
+          Rotate Floor
+        </button>
+        <div id="floor-rotate-menu" class="cad-menu hidden" style="position: absolute; right: 0; top: 110%; z-index: 1050; min-width: 210px;">
+          <button type="button" class="menu-item" onclick="layoutEditor.rotateEntireFloor('cw')">
+            <span>Rotate 90 Clockwise</span>
+            <span class="menu-shortcut">CW</span>
+          </button>
+          <button type="button" class="menu-item" onclick="layoutEditor.rotateEntireFloor('ccw')">
+            <span>Rotate 90 Counter-CW</span>
+            <span class="menu-shortcut">CCW</span>
+          </button>
+          <button type="button" class="menu-item" onclick="layoutEditor.rotateEntireFloor('180')">
+            <span>Rotate 180 Inverted</span>
+            <span class="menu-shortcut">180</span>
+          </button>
         </div>
-        <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="logout()">Log Out</button>
+      </div>
+      <button class="studio-save-btn" onclick="layoutEditor.saveLayout()" id="save-layout-btn">Save Floor Plan</button>
+    </div>
+  </header>
+
+  <!-- ============ 3-COLUMN STUDIO LAYOUT ============ -->
+  <div class="studio-layout">
+
+    <!-- ===== LEFT PANEL: PALETTE / TOOLBOX ===== -->
+    <aside class="studio-palette" id="studio-palette">
+
+      <!-- Stalls -->
+      <div class="palette-section" id="palette-stalls">
+        <button class="palette-header" onclick="layoutEditor.togglePaletteSection('stalls')">
+          <span class="palette-header-label">Stalls</span>
+          <span class="palette-chevron" id="chevron-stalls">&#9662;</span>
+        </button>
+        <div class="palette-items" id="palette-items-stalls">
+          <button class="palette-item" onclick="layoutEditor.addTable('single')" title="Single Table - 4 ft x 2 ft">
+            <span class="palette-item-icon">&#9644;</span>
+            <span class="palette-item-text">Single <small>4x2</small></span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addTable('double')" title="Double Table - 8 ft x 2 ft">
+            <span class="palette-item-icon">&#9644;&#9644;</span>
+            <span class="palette-item-text">Double <small>8x2</small></span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addTable('L-Stall')" title="L-Stall Corner - 6 ft x 4 ft">
+            <span class="palette-item-icon">&#9494;</span>
+            <span class="palette-item-text">L-Stall <small>6x4</small></span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addTable('L-Stall-Inverted')" title="L-Inverted - 6 ft x 4 ft">
+            <span class="palette-item-icon">&#9496;</span>
+            <span class="palette-item-text">L-Inverted <small>6x4</small></span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addTable('T-Stall')" title="T-Stall - 6 ft x 4 ft">
+            <span class="palette-item-icon">&#9524;</span>
+            <span class="palette-item-text">T-Stall <small>6x4</small></span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addTable('Pod')" title="Pod Cluster - 8 ft x 4 ft">
+            <span class="palette-item-icon">&#9638;</span>
+            <span class="palette-item-text">Pod (4-Pack) <small>8x4</small></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Halls / Rooms -->
+      <div class="palette-section" id="palette-halls">
+        <button class="palette-header" onclick="layoutEditor.togglePaletteSection('halls')">
+          <span class="palette-header-label">Halls / Rooms</span>
+          <span class="palette-chevron" id="chevron-halls">&#9662;</span>
+        </button>
+        <div class="palette-items" id="palette-items-halls">
+          <button class="palette-item" onclick="layoutEditor.addHallRoom({ width: 30, height: 20 })" title="Standard Hall - 30 x 20">
+            <span class="palette-item-icon">&#9633;</span>
+            <span class="palette-item-text">Standard <small>30x20</small></span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addHallRoom({ width: 50, height: 30 })" title="Large Hall - 50 x 30">
+            <span class="palette-item-icon">&#9633;</span>
+            <span class="palette-item-text">Large Hall <small>50x30</small></span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addHallRoom({ width: 20, height: 15 })" title="Gallery - 20 x 15">
+            <span class="palette-item-icon">&#9633;</span>
+            <span class="palette-item-text">Gallery <small>20x15</small></span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.promptCustomHallRoom()" title="Custom Size Hall">
+            <span class="palette-item-icon">+</span>
+            <span class="palette-item-text">Custom Hall...</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Doors -->
+      <div class="palette-section" id="palette-doors">
+        <button class="palette-header" onclick="layoutEditor.togglePaletteSection('doors')">
+          <span class="palette-header-label">Doors / Openings</span>
+          <span class="palette-chevron" id="chevron-doors">&#9662;</span>
+        </button>
+        <div class="palette-items" id="palette-items-doors">
+          <button class="palette-item palette-item-entrance" onclick="layoutEditor.addDoor('entrance')" title="Main Entrance">
+            <span class="palette-item-text">Main Entrance</span>
+          </button>
+          <button class="palette-item palette-item-exit" onclick="layoutEditor.addDoor('exit')" title="Emergency Exit">
+            <span class="palette-item-text">Emergency Exit</span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addDoor('double')" title="Double Door (6 ft)">
+            <span class="palette-item-text">Double Door</span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addDoor('window')" title="Wall Window (6 ft)">
+            <span class="palette-item-text">Wall Window</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Text / Signs -->
+      <div class="palette-section" id="palette-text">
+        <button class="palette-header" onclick="layoutEditor.togglePaletteSection('text')">
+          <span class="palette-header-label">Text / Signs</span>
+          <span class="palette-chevron" id="chevron-text">&#9662;</span>
+        </button>
+        <div class="palette-items" id="palette-items-text">
+          <button class="palette-item" onclick="layoutEditor.addTextElement('MAIN ENTRANCE', { badge: true, color: '#059669' })">
+            <span class="palette-item-text">Entrance Sign</span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addTextElement('EMERGENCY EXIT', { badge: true, color: '#dc2626' })">
+            <span class="palette-item-text">Exit Sign</span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addTextElement('REGISTRATION DESK', { badge: true, color: '#2563eb' })">
+            <span class="palette-item-text">Registration</span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addTextElement('FOOD COURT', { badge: true, color: '#d97706' })">
+            <span class="palette-item-text">Food Court</span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addTextElement('RESTROOMS', { badge: true, color: '#7c3aed' })">
+            <span class="palette-item-text">Restrooms</span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addCustomTextPrompt()" title="Custom Label">
+            <span class="palette-item-icon">+</span>
+            <span class="palette-item-text">Custom Label...</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Structures -->
+      <div class="palette-section" id="palette-structures">
+        <button class="palette-header" onclick="layoutEditor.togglePaletteSection('structures')">
+          <span class="palette-header-label">Structures</span>
+          <span class="palette-chevron" id="chevron-structures">&#9662;</span>
+        </button>
+        <div class="palette-items" id="palette-items-structures">
+          <button class="palette-item" onclick="layoutEditor.addStructure('pillar_square')" title="Pillar (2x2)">
+            <span class="palette-item-icon">&#9632;</span>
+            <span class="palette-item-text">Pillar <small>2x2</small></span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addStructure('pillar_round')" title="Column (2 dia)">
+            <span class="palette-item-icon">&#9679;</span>
+            <span class="palette-item-text">Column <small>2 dia</small></span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addStructure('stage')" title="Stage (16x8)">
+            <span class="palette-item-icon">&#9644;</span>
+            <span class="palette-item-text">Stage <small>16x8</small></span>
+          </button>
+          <button class="palette-item" onclick="layoutEditor.addStructure('arrow')" title="Flow Arrow">
+            <span class="palette-item-icon">&#10132;</span>
+            <span class="palette-item-text">Flow Arrow</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Shortcuts Footer -->
+      <div class="palette-shortcuts">
+        <div class="palette-shortcuts-title">Shortcuts</div>
+        <div class="palette-shortcuts-grid">
+          <span><strong>F</strong> Flip</span>
+          <span><strong>R</strong> Rotate</span>
+          <span><strong>Shift+D</strong> Clone</span>
+          <span><strong>Del</strong> Delete</span>
+        </div>
       </div>
     </aside>
 
-    <!-- Main Content -->
-    <main class="admin-main">
-      <div class="admin-page-header">
-        <div>
-          <div style="display: flex; align-items: center; gap: var(--space-sm);">
-            <h1 id="editor-title" style="margin-bottom: 0;">Floor Plan Studio</h1>
-            <span class="badge" id="hall-dimension-badge" style="background: var(--bg-secondary); border: 1px solid var(--border-medium); font-size: 0.78rem;">Loading...</span>
-          </div>
-          <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;" id="editor-subtitle">Loading layout and floor elements...</p>
-        </div>
-        <div class="header-actions">
-          <div class="dropdown-wrapper" style="position: relative; display: inline-block;">
-            <button class="btn btn-secondary" onclick="layoutEditor.toggleFloorRotateMenu()" id="rotate-floor-btn" title="Rotate Entire Hall Orientation">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-              Rotate Floor ↻
+    <!-- ===== CENTER: CANVAS ===== -->
+    <main class="studio-canvas-area">
+      <div class="editor-canvas" id="editor-canvas">
+        <svg id="editor-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+
+        <!-- Floating Action Bar -->
+        <div id="table-floating-actions" class="cad-floating-bar hidden">
+          <div class="cad-bar-tag">Edit</div>
+          <div class="cad-bar-items">
+            <button type="button" class="cad-btn" onclick="layoutEditor.flipSelected()" title="Flip / Mirror (F)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 2 3 6 7 10"></polyline><polyline points="17 14 21 18 17 22"></polyline><line x1="3" y1="6" x2="21" y2="6"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>
             </button>
-            <div id="floor-rotate-menu" class="cad-menu hidden" style="position: absolute; right: 0; top: 110%; z-index: 1050; min-width: 210px;">
-              <button type="button" class="menu-item" onclick="layoutEditor.rotateEntireFloor('cw')">
-                <span>Rotate 90° Clockwise</span>
-                <span class="menu-shortcut">CW</span>
-              </button>
-              <button type="button" class="menu-item" onclick="layoutEditor.rotateEntireFloor('ccw')">
-                <span>Rotate 90° Counter-CW</span>
-                <span class="menu-shortcut">CCW</span>
-              </button>
-              <button type="button" class="menu-item" onclick="layoutEditor.rotateEntireFloor('180')">
-                <span>Rotate 180° Inverted</span>
-                <span class="menu-shortcut">180°</span>
-              </button>
-            </div>
-          </div>
-          <a href="/admin/events.html" class="btn btn-secondary">&larr; Exhibitions</a>
-          <button class="btn btn-primary" onclick="layoutEditor.saveLayout()" id="save-layout-btn">Save Floor Plan</button>
-        </div>
-      </div>
-
-      <div class="editor-layout">
-        <!-- Canvas wrapper -->
-        <div class="editor-canvas-wrapper">
-          <!-- CAD Studio Toolbar -->
-          <div class="editor-toolbar cad-toolbar">
-            <!-- Palette Mode Selector -->
-            <div class="toolbar-section">
-              <span class="toolbar-label">Palette:</span>
-              <div class="segmented-control">
-                <button type="button" class="segment-btn active" id="tab-btn-stalls" onclick="layoutEditor.switchToolbarTab('stalls')">Stalls</button>
-                <button type="button" class="segment-btn" id="tab-btn-halls" onclick="layoutEditor.switchToolbarTab('halls')">Halls / Rooms</button>
-                <button type="button" class="segment-btn" id="tab-btn-doors" onclick="layoutEditor.switchToolbarTab('doors')">Doors &amp; Openings</button>
-                <button type="button" class="segment-btn" id="tab-btn-text" onclick="layoutEditor.switchToolbarTab('text')">Text &amp; Signs</button>
-                <button type="button" class="segment-btn" id="tab-btn-structures" onclick="layoutEditor.switchToolbarTab('structures')">Structures</button>
-              </div>
-            </div>
-
-            <!-- Dynamic Sub-tools: Stalls -->
-            <div class="toolbar-subgroup" id="subtools-stalls">
-              <button class="tool-btn pill" onclick="layoutEditor.addTable('single')" title="Single Table — 4 ft × 2 ft (1 Table)">
-                <strong>Single (-)</strong> &middot; 4'×2'
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addTable('double')" title="Double Table — 8 ft × 2 ft (2 Tables)">
-                <strong>Double (--)</strong> &middot; 8'×2'
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addTable('L-Stall')" title="L-Stall (Left Corner ┌) — 6 ft × 4 ft">
-                <strong>L-Stall (L)</strong> &middot; 2 Tables
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addTable('L-Stall-Inverted')" title="L-Stall (Right Corner ┐) — 6 ft × 4 ft">
-                <strong>L-Inverted (⅃)</strong> &middot; 2 Tables
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addTable('T-Stall')" title="T-Stall — 6 ft × 4 ft (2 Tables in T-shape)">
-                <strong>T-Stall (T)</strong> &middot; 2 Tables
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addTable('Pod')" title="Pod Cluster — 8 ft × 4 ft (4 Tables back-to-back)">
-                <strong>Pod (4-Pack)</strong> &middot; 8'×4'
-              </button>
-            </div>
-
-            <!-- Dynamic Sub-tools: Halls / Rooms -->
-            <div class="toolbar-subgroup hidden" id="subtools-halls">
-              <button class="tool-btn pill" onclick="layoutEditor.addHallRoom({ width: 30, height: 20 })" title="Standard Secondary Hall — 30 ft × 20 ft">
-                <strong>+ Standard Hall</strong> &middot; 30'×20'
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addHallRoom({ width: 50, height: 30 })" title="Large Exhibition Hall — 50 ft × 30 ft">
-                <strong>+ Large Hall</strong> &middot; 50'×30'
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addHallRoom({ width: 20, height: 15 })" title="Compact Room / Gallery — 20 ft × 15 ft">
-                <strong>+ Gallery Room</strong> &middot; 20'×15'
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.promptCustomHallRoom()" title="Add Custom Size Hall">
-                + Custom Hall...
-              </button>
-            </div>
-
-            <!-- Dynamic Sub-tools: Doors & Openings -->
-            <div class="toolbar-subgroup hidden" id="subtools-doors">
-              <button class="tool-btn pill btn-entrance" onclick="layoutEditor.addDoor('entrance')" title="Main Entrance with Swing Arc">
-                <strong>Main Entrance</strong>
-              </button>
-              <button class="tool-btn pill btn-exit" onclick="layoutEditor.addDoor('exit')" title="Emergency Exit Door">
-                <strong>Emergency Exit</strong>
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addDoor('double')" title="Double Swing Entrance Door (6 ft)">
-                <strong>Double Door</strong>
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addDoor('window')" title="Glass Window Opening (6 ft)">
-                <strong>Wall Window</strong>
-              </button>
-            </div>
-
-            <!-- Dynamic Sub-tools: Text -->
-            <div class="toolbar-subgroup hidden" id="subtools-text">
-              <button class="tool-btn pill" onclick="layoutEditor.addTextElement('MAIN ENTRANCE', { badge: true, color: '#059669' })">
-                + Entrance Sign
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addTextElement('EMERGENCY EXIT', { badge: true, color: '#dc2626' })">
-                + Exit Sign
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addTextElement('REGISTRATION DESK', { badge: true, color: '#2563eb' })">
-                + Registration
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addTextElement('FOOD COURT', { badge: true, color: '#d97706' })">
-                + Food Court
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addTextElement('RESTROOMS', { badge: true, color: '#7c3aed' })">
-                + Restrooms
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addCustomTextPrompt()" title="Add Custom Text">
-                + Custom Label...
-              </button>
-            </div>
-
-            <!-- Dynamic Sub-tools: Structures -->
-            <div class="toolbar-subgroup hidden" id="subtools-structures">
-              <button class="tool-btn pill" onclick="layoutEditor.addStructure('pillar_square')" title="Square Concrete Pillar (2'×2')">
-                Pillar (2'×2')
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addStructure('pillar_round')" title="Round Column (2' dia)">
-                Column (2' dia)
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addStructure('stage')" title="Main Stage (16'×8')">
-                Stage (16'×8')
-              </button>
-              <button class="tool-btn pill" onclick="layoutEditor.addStructure('arrow')" title="Directional Flow Arrow">
-                Flow Arrow
-              </button>
-            </div>
-
-            <!-- Precision Controls -->
-            <div class="toolbar-section toolbar-right">
-              <div class="tool-group">
-                <span class="toolbar-label">Snap:</span>
-                <select class="form-select" id="snap-grid-select" onchange="layoutEditor.setSnapGrid(this.value)" style="padding: 2px 6px; font-size: 0.8rem; width: 72px;">
-                  <option value="1" selected>1 ft</option>
-                  <option value="0.5">6 in</option>
-                  <option value="0.25">3 in</option>
-                  <option value="0">Off</option>
-                </select>
-              </div>
-              <div class="tool-group">
-                <button class="tool-btn" onclick="layoutEditor.zoomIn()" title="Zoom In (+)">+</button>
-                <button class="tool-btn" onclick="layoutEditor.zoomOut()" title="Zoom Out (-)">−</button>
-                <button class="tool-btn" onclick="layoutEditor.resetView()" title="Fit View to Screen">Fit</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- SVG Canvas Area -->
-          <div class="editor-canvas" id="editor-canvas">
-            <svg id="editor-svg" xmlns="http://www.w3.org/2000/svg"></svg>
-
-            <!-- CAD Floating Action Bar above Selected Item -->
-            <div id="table-floating-actions" class="cad-floating-bar hidden">
-              <div class="cad-bar-tag">Edit</div>
-              <div class="cad-bar-items">
-                <button type="button" class="cad-btn" onclick="layoutEditor.flipSelected()" title="Flip / Mirror (F)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 2 3 6 7 10"></polyline><polyline points="17 14 21 18 17 22"></polyline><line x1="3" y1="6" x2="21" y2="6"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>
-                </button>
-                <button type="button" class="cad-btn" onclick="layoutEditor.rotateSelected()" title="Rotate 90° (R)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                </button>
-                <button type="button" class="cad-btn" onclick="layoutEditor.duplicateSelected()" title="Duplicate (Shift+D)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path><line x1="12" y1="15" x2="18" y2="15"></line><line x1="15" y1="12" x2="15" y2="18"></line></svg>
-                </button>
-                <button type="button" class="cad-btn btn-trash" onclick="layoutEditor.deleteSelected()" title="Delete (Del)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Sidebar Inspector & Explorer -->
-        <div class="editor-sidebar">
-          <!-- Dynamic Inspector Panel -->
-          <div class="editor-panel" id="properties-panel">
-            <div class="editor-panel-header" style="display: flex; justify-content: space-between; align-items: center;">
-              <span id="inspector-header-title">Inspector</span>
-              <span class="badge" id="inspector-badge" style="font-size: 0.68rem; display: none;">Stall</span>
-            </div>
-            <div class="editor-panel-body" id="properties-body">
-              <p class="text-muted" style="font-size: 0.85rem; text-align: center; padding: var(--space-md) 0;">
-                Select a stall, door, or label on the floor plan to edit its properties.
-              </p>
-            </div>
-          </div>
-
-          <!-- Floor Directory (Stalls & Elements List) -->
-          <div class="editor-panel" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
-            <div class="editor-panel-header" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px;">
-              <span>Directory (<span id="total-items-count">0</span>)</span>
-              <div class="directory-filter-tabs">
-                <button type="button" class="dir-tab active" onclick="layoutEditor.filterDirectory('all')">All</button>
-                <button type="button" class="dir-tab" onclick="layoutEditor.filterDirectory('stalls')">Stalls</button>
-                <button type="button" class="dir-tab" onclick="layoutEditor.filterDirectory('elements')">Signs &amp; Doors</button>
-              </div>
-            </div>
-            <div class="editor-panel-body" style="flex: 1; overflow-y: auto; max-height: 250px; padding: 6px;" id="table-list">
-              <p class="text-muted" style="font-size: 0.85rem; text-align: center;">No items placed yet</p>
-            </div>
-          </div>
-
-          <!-- Hotkeys Box -->
-          <div class="editor-panel" style="padding: 8px 12px; background: var(--bg-card);">
-            <div style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Shortcuts</div>
-            <div style="font-size: 0.75rem; color: var(--text-secondary); display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
-              <span><strong style="color: var(--text-primary);">F</strong> Flip / Invert</span>
-              <span><strong style="color: var(--text-primary);">R</strong> Rotate 90°</span>
-              <span><strong style="color: var(--text-primary);">Shift+D</strong> Duplicate</span>
-              <span><strong style="color: var(--text-primary);">Del / X</strong> Delete</span>
-            </div>
+            <button type="button" class="cad-btn" onclick="layoutEditor.rotateSelected()" title="Rotate 90 (R)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            </button>
+            <button type="button" class="cad-btn" onclick="layoutEditor.duplicateSelected()" title="Duplicate (Shift+D)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path><line x1="12" y1="15" x2="18" y2="15"></line><line x1="15" y1="12" x2="15" y2="18"></line></svg>
+            </button>
+            <button type="button" class="cad-btn btn-trash" onclick="layoutEditor.deleteSelected()" title="Delete (Del)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
           </div>
         </div>
       </div>
     </main>
+
+    <!-- ===== RIGHT PANEL: INSPECTOR + DIRECTORY ===== -->
+    <aside class="studio-inspector" id="studio-inspector">
+      <div class="inspector-panel" id="properties-panel">
+        <div class="inspector-panel-header">
+          <span id="inspector-header-title">Inspector</span>
+          <span class="badge" id="inspector-badge" style="font-size: 0.68rem; display: none;">Stall</span>
+        </div>
+        <div class="inspector-panel-body" id="properties-body">
+          <p class="text-muted" style="font-size: 0.85rem; text-align: center; padding: var(--space-md) 0;">
+            Select a stall, door, or label on the floor plan to edit its properties.
+          </p>
+        </div>
+      </div>
+
+      <div class="inspector-panel" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+        <div class="inspector-panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <span>Directory (<span id="total-items-count">0</span>)</span>
+          <div class="directory-filter-tabs">
+            <button type="button" class="dir-tab active" onclick="layoutEditor.filterDirectory('all')">All</button>
+            <button type="button" class="dir-tab" onclick="layoutEditor.filterDirectory('stalls')">Stalls</button>
+            <button type="button" class="dir-tab" onclick="layoutEditor.filterDirectory('elements')">Other</button>
+          </div>
+        </div>
+        <div class="inspector-panel-body" style="flex: 1; overflow-y: auto; padding: 6px;" id="table-list">
+          <p class="text-muted" style="font-size: 0.85rem; text-align: center;">No items placed yet</p>
+        </div>
+      </div>
+    </aside>
   </div>
 
   <div class="toast-container" id="toast-container"></div>

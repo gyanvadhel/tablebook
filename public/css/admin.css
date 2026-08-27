@@ -732,4 +732,838 @@
 }
 
 
+/* ============================================
+   Floor Plan Studio — Full-Screen 3-Column Layout
+   ============================================ */
+
+.studio-body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #f0f1f3;
+  height: 100vh;
+}
+
+/* ---- Top Bar ---- */
+.studio-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 16px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--border-medium);
+  z-index: 200;
+  flex-shrink: 0;
+}
+
+.studio-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.studio-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.studio-back-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--border-medium);
+}
+
+.studio-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.studio-title-group h1 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.studio-dim-badge {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-medium);
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.studio-topbar-center {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.studio-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.studio-zoom-group {
+  display: flex;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.studio-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: var(--bg-card);
+  border: none;
+  border-right: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.studio-icon-btn:last-child { border-right: none; }
+
+.studio-icon-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.studio-select {
+  padding: 4px 8px;
+  font-size: 0.78rem;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+
+.studio-separator {
+  width: 1px;
+  height: 24px;
+  background: var(--border-medium);
+}
+
+.studio-text-btn {
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-body);
+}
+
+.studio-text-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.studio-save-btn {
+  padding: 6px 16px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--accent-primary, #18181b);
+  color: #ffffff;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-body);
+}
+
+.studio-save-btn:hover {
+  opacity: 0.88;
+}
+
+/* ---- 3 Column Grid ---- */
+.studio-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr 280px;
+  height: calc(100vh - 48px);
+  overflow: hidden;
+}
+
+/* ---- LEFT PALETTE ---- */
+.studio-palette {
+  background: #ffffff;
+  border-right: 1px solid var(--border-medium);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.palette-section {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.palette-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: background var(--transition-fast);
+}
+
+.palette-header:hover {
+  background: var(--bg-secondary);
+}
+
+.palette-header-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.palette-chevron {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.palette-section.collapsed .palette-chevron {
+  transform: rotate(-90deg);
+}
+
+.palette-section.collapsed .palette-items {
+  display: none;
+}
+
+.palette-items {
+  display: flex;
+  flex-direction: column;
+  padding: 0 6px 8px 6px;
+  gap: 2px;
+}
+
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  text-align: left;
+  width: 100%;
+}
+
+.palette-item:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.palette-item-icon {
+  width: 20px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.palette-item-text {
+  flex: 1;
+  font-weight: 500;
+}
+
+.palette-item-text small {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 0.72rem;
+  margin-left: 4px;
+}
+
+.palette-item-entrance {
+  color: #166534;
+}
+
+.palette-item-entrance:hover {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.palette-item-exit {
+  color: #991b1b;
+}
+
+.palette-item-exit:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.palette-shortcuts {
+  margin-top: auto;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+}
+
+.palette-shortcuts-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.palette-shortcuts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.palette-shortcuts-grid strong {
+  color: var(--text-primary);
+}
+
+/* ---- CENTER CANVAS ---- */
+.studio-canvas-area {
+  background: #eceef1;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+}
+
+.studio-canvas-area .editor-canvas {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  cursor: crosshair;
+  position: relative;
+}
+
+.studio-canvas-area .editor-canvas svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ---- RIGHT INSPECTOR ---- */
+.studio-inspector {
+  background: #ffffff;
+  border-left: 1px solid var(--border-medium);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.inspector-panel {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.inspector-panel-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--bg-primary);
+}
+
+.inspector-panel-body {
+  padding: var(--space-md);
+}
+
+
+.editor-canvas-wrapper {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-toolbar {
+  display: flex;
+  gap: var(--space-xs);
+  padding: 8px var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+}
+
+.editor-toolbar .tool-group {
+  display: flex;
+  gap: 4px;
+  padding-right: var(--space-md);
+  border-right: 1px solid var(--border-subtle);
+}
+
+.editor-toolbar .tool-group:last-child {
+  border-right: none;
+}
+
+.tool-btn {
+  padding: 4px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+
+.tool-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.editor-canvas {
+  flex: 1;
+  overflow: hidden;
+  cursor: crosshair;
+  position: relative;
+}
+
+.editor-canvas svg {
+  width: 100%;
+  height: 100%;
+}
+
+.editor-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.editor-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+
+.editor-panel-header {
+  padding: 10px var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--bg-primary);
+}
+
+.editor-panel-body {
+  padding: var(--space-md);
+}
+
+.table-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.table-list-item:hover {
+  background: var(--bg-secondary);
+}
+
+.table-list-item.selected {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 600;
+  border: 1px solid var(--border-medium);
+}
+
+/* CAD Floating Dark Action Bar (Matches Reference Image) */
+.cad-floating-bar {
+  position: absolute;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -100%);
+  pointer-events: auto;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  margin-top: -12px;
+}
+
+.cad-floating-bar.hidden {
+  display: none;
+}
+
+.cad-bar-tag {
+  background: #3f3f46;
+  color: #f4f4f5;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px 4px 0 0;
+  letter-spacing: 0.03em;
+  margin-bottom: -1px;
+  box-shadow: 0 -1px 3px rgba(0,0,0,0.1);
+}
+
+.cad-bar-items {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  border-radius: var(--radius-md);
+  padding: 4px 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.cad-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #e4e4e7;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.cad-btn:hover {
+  background: #3f3f46;
+  color: #ffffff;
+}
+
+.cad-btn.btn-trash {
+  color: #f87171;
+}
+
+.cad-btn.btn-trash:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+/* CAD Rotation Arc Handle */
+.cad-rotation-arc {
+  cursor: pointer;
+  transition: stroke 0.15s ease, opacity 0.15s ease;
+  opacity: 0.75;
+}
+
+.cad-rotation-arc:hover {
+  opacity: 1;
+  stroke: #2563eb;
+}
+
+/* CAD Distance Measurement Leader Lines */
+.cad-dimension-line {
+  stroke: #0f172a;
+  stroke-width: 1.2;
+  pointer-events: none;
+}
+
+.cad-dimension-badge-bg {
+  fill: #ffffff;
+  stroke: #cbd5e1;
+  stroke-width: 1;
+  rx: 3px;
+  ry: 3px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.08));
+}
+
+.cad-dimension-badge-text {
+  fill: #0f172a;
+  font-family: Inter, -apple-system, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+/* Smart Guide Lines */
+.smart-guide-line {
+  stroke: #2563eb;
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+
+.smart-guide-badge {
+  fill: #ec4899;
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.grid-axis-x {
+  stroke: #ef4444;
+  stroke-width: 1.5;
+}
+
+.grid-axis-y {
+  stroke: #22c55e;
+  stroke-width: 1.5;
+}
+
+.grid-minor-line {
+  stroke: rgba(0, 0, 0, 0.03);
+  stroke-width: 1;
+}
+
+.grid-major-line {
+  stroke: rgba(0, 0, 0, 0.08);
+  stroke-width: 1.2;
+}
+
+.tool-btn.active {
+  background: var(--accent-primary);
+  color: var(--text-inverse);
+  border-color: var(--accent-primary);
+}
+
+/* ============================================
+   Floor Plan Studio Toolbar & Menus
+   ============================================ */
+
+.cad-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-medium);
+}
+
+.toolbar-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* Segmented Control */
+.segmented-control {
+  display: inline-flex;
+  background: var(--bg-secondary);
+  padding: 2px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.segment-btn {
+  padding: 4px 10px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.segment-btn:hover {
+  color: var(--text-primary);
+}
+
+.segment-btn.active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Subgroup Tool Pills */
+.toolbar-subgroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tool-btn.pill {
+  border-radius: var(--radius-full);
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tool-btn.pill.btn-entrance {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.tool-btn.pill.btn-entrance:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+}
+
+.tool-btn.pill.btn-exit {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.tool-btn.pill.btn-exit:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+/* Dropdown Menu */
+.cad-menu {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cad-menu.hidden {
+  display: none;
+}
+
+.cad-menu .menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+}
+
+.cad-menu .menu-item:hover {
+  background: var(--bg-secondary);
+}
+
+.menu-shortcut {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  background: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Directory Filter Tabs */
+.directory-filter-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-secondary);
+  padding: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.dir-tab {
+  border: none;
+  background: transparent;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.dir-tab:hover {
+  color: var(--text-primary);
+}
+
+.dir-tab.active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+/* Architectural Element Hover & Selection */
+.editor-canvas .arch-element,
+.editor-canvas .table-group {
+  cursor: grab !important;
+  pointer-events: all !important;
+  user-select: none;
+}
+
+.editor-canvas .arch-element:active,
+.editor-canvas .table-group:active {
+  cursor: grabbing !important;
+}
+
+.editor-canvas .arch-element * {
+  pointer-events: all !important;
+}
+
+.editor-canvas .arch-element:hover,
+.editor-canvas .table-group:hover {
+  opacity: 0.92;
+}
+
+
 

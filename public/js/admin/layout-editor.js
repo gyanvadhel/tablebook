@@ -1428,6 +1428,11 @@ const layoutEditor = {
     });
   },
 
+  togglePaletteSection(sectionId) {
+    const section = document.getElementById(`palette-${sectionId}`);
+    if (section) section.classList.toggle('collapsed');
+  },
+
   addHallRoom(preset = {}) {
     const w = preset.width || 30;
     const h = preset.height || 20;
@@ -1756,6 +1761,15 @@ const layoutEditor = {
       }
     }
 
+    if (prop === 'name') {
+      obj.label = value;
+    }
+
+    // Recalculate canvas bounds when hall room dimensions or position change
+    if (obj.type === 'hall_room' && (prop === 'width' || prop === 'height' || prop === 'x' || prop === 'y')) {
+      this.setupViewBox();
+    }
+
     this.clampToBounds(obj, this.selectedItem.type);
     this.renderAllObjects();
     this.updateDirectoryList();
@@ -1954,8 +1968,9 @@ const layoutEditor = {
     if (this.directoryFilter === 'all' || this.directoryFilter === 'elements') {
       this.elements.forEach(el => {
         let tag = '[Sign]';
-        let title = el.label || el.text || el.type;
+        let title = el.label || el.text || el.name || el.type;
         if (el.type === 'room_badge') tag = '[Title]';
+        else if (el.type === 'hall_room') { tag = '[Hall]'; title = el.name || el.label || 'Secondary Hall'; }
         else if (el.type === 'door') tag = el.doorType === 'exit' ? '[Exit]' : (el.doorType === 'window' ? '[Window]' : '[Entrance]');
         else if (el.type === 'pillar_square' || el.type === 'pillar_round') tag = '[Column]';
         else if (el.type === 'stage') tag = '[Stage]';
