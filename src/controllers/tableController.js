@@ -78,8 +78,16 @@ const tableController = {
           // Clamp to the hall so a stall can never be saved outside its walls
           const widthFt = Units.clampStallFt(t.width, Units.DEFAULT_STALL_WIDTH_FT);
           const heightFt = Units.clampStallFt(t.height, Units.DEFAULT_STALL_HEIGHT_FT);
-          const xFt = Units.roundFt(Units.clamp(Units.toFeet(t.x, 0), 0, currentHallW));
-          const yFt = Units.roundFt(Units.clamp(Units.toFeet(t.y, 0), 0, currentHallH));
+          const rot = ((parseInt(t.rotation, 10) || 0) % 360 + 360) % 360;
+          const isRot90 = rot === 90 || rot === 270;
+
+          const minX = isRot90 ? (heightFt - widthFt) / 2 : 0;
+          const maxX = isRot90 ? currentHallW - (widthFt + heightFt) / 2 : currentHallW - widthFt;
+          const minY = isRot90 ? (widthFt - heightFt) / 2 : 0;
+          const maxY = isRot90 ? currentHallH - (widthFt + heightFt) / 2 : currentHallH - heightFt;
+
+          const xFt = Units.roundFt(Units.clamp(Units.toFeet(t.x, 0), minX, maxX));
+          const yFt = Units.roundFt(Units.clamp(Units.toFeet(t.y, 0), minY, maxY));
 
           await client.query(`
             INSERT INTO tables (event_id, table_number, label, size, price, x, y, width, height, rotation, shape, status)

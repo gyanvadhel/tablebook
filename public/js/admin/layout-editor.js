@@ -1786,17 +1786,23 @@ const layoutEditor = {
 
     const targetW = targetObj.width || 4;
     const targetH = targetObj.height || 2;
+    const targetRot = ((targetObj.rotation || 0) % 360 + 360) % 360;
+    const targetIsRot90 = targetRot === 90 || targetRot === 270;
+    const targetVisW = targetIsRot90 ? targetH : targetW;
+    const targetVisH = targetIsRot90 ? targetW : targetH;
+    const targetCenterX = rawX + targetW / 2;
+    const targetCenterY = rawY + targetH / 2;
 
     const targetPointsX = [
-      { type: 'left', pos: rawX },
-      { type: 'center', pos: rawX + targetW / 2 },
-      { type: 'right', pos: rawX + targetW }
+      { type: 'left', pos: targetCenterX - targetVisW / 2 },
+      { type: 'center', pos: targetCenterX },
+      { type: 'right', pos: targetCenterX + targetVisW / 2 }
     ];
 
     const targetPointsY = [
-      { type: 'top', pos: rawY },
-      { type: 'center', pos: rawY + targetH / 2 },
-      { type: 'bottom', pos: rawY + targetH }
+      { type: 'top', pos: targetCenterY - targetVisH / 2 },
+      { type: 'center', pos: targetCenterY },
+      { type: 'bottom', pos: targetCenterY + targetVisH / 2 }
     ];
 
     let guideX = null;
@@ -1809,18 +1815,28 @@ const layoutEditor = {
     ];
 
     for (const ref of allRefs) {
-      const refW = ref.width || 4;
-      const refH = ref.height || 2;
-      const refPointsX = [ref.x, ref.x + refW / 2, ref.x + refW];
-      const refPointsY = [ref.y, ref.y + refH / 2, ref.y + refH];
+      const rW = ref.width || 4;
+      const rH = ref.height || 2;
+      const refRot = ((ref.rotation || 0) % 360 + 360) % 360;
+      const refIsRot90 = refRot === 90 || refRot === 270;
+      const refVisW = refIsRot90 ? rH : rW;
+      const refVisH = refIsRot90 ? rW : rH;
+      const refCenterX = ref.x + rW / 2;
+      const refCenterY = ref.y + rH / 2;
+
+      const refPointsX = [refCenterX - refVisW / 2, refCenterX, refCenterX + refVisW / 2];
+      const refPointsY = [refCenterY - refVisH / 2, refCenterY, refCenterY + refVisH / 2];
 
       if (guideX === null) {
         for (const tp of targetPointsX) {
           for (const rp of refPointsX) {
             if (Math.abs(tp.pos - rp) <= this.snapThresholdFt) {
-              if (tp.type === 'left') snappedX = rp;
-              else if (tp.type === 'center') snappedX = rp - targetW / 2;
-              else if (tp.type === 'right') snappedX = rp - targetW;
+              let desiredCenterX = rp;
+              if (tp.type === 'left') desiredCenterX = rp + targetVisW / 2;
+              else if (tp.type === 'center') desiredCenterX = rp;
+              else if (tp.type === 'right') desiredCenterX = rp - targetVisW / 2;
+
+              snappedX = desiredCenterX - targetW / 2;
               guideX = rp;
               break;
             }
@@ -1833,9 +1849,12 @@ const layoutEditor = {
         for (const tp of targetPointsY) {
           for (const rp of refPointsY) {
             if (Math.abs(tp.pos - rp) <= this.snapThresholdFt) {
-              if (tp.type === 'top') snappedY = rp;
-              else if (tp.type === 'center') snappedY = rp - targetH / 2;
-              else if (tp.type === 'bottom') snappedY = rp - targetH;
+              let desiredCenterY = rp;
+              if (tp.type === 'top') desiredCenterY = rp + targetVisH / 2;
+              else if (tp.type === 'center') desiredCenterY = rp;
+              else if (tp.type === 'bottom') desiredCenterY = rp - targetVisH / 2;
+
+              snappedY = desiredCenterY - targetH / 2;
               guideY = rp;
               break;
             }
@@ -1873,15 +1892,22 @@ const layoutEditor = {
 
     const w = obj.width || 4;
     const h = obj.height || 2;
+    const rot = ((obj.rotation || 0) % 360 + 360) % 360;
+    const isRot90 = rot === 90 || rot === 270;
 
     if (type === 'table') {
-      obj.x = Units.roundFt(Math.max(0, Math.min(hallW - w, obj.x)));
-      obj.y = Units.roundFt(Math.max(0, Math.min(hallH - h, obj.y)));
+      const minX = isRot90 ? (h - w) / 2 : 0;
+      const maxX = isRot90 ? hallW - (w + h) / 2 : hallW - w;
+      const minY = isRot90 ? (w - h) / 2 : 0;
+      const maxY = isRot90 ? hallH - (w + h) / 2 : hallH - h;
+
+      obj.x = Units.roundFt(Math.max(minX, Math.min(maxX, obj.x)));
+      obj.y = Units.roundFt(Math.max(minY, Math.min(maxY, obj.y)));
     } else {
       const minX = -ELEMENT_OUTSIDE_MARGIN_FT;
-      const maxX = hallW + ELEMENT_OUTSIDE_MARGIN_FT - w;
+      const maxX = hallW + ELEMENT_OUTSIDE_MARGIN_FT - (isRot90 ? h : w);
       const minY = -ELEMENT_OUTSIDE_MARGIN_FT;
-      const maxY = hallH + ELEMENT_OUTSIDE_MARGIN_FT - h;
+      const maxY = hallH + ELEMENT_OUTSIDE_MARGIN_FT - (isRot90 ? w : h);
 
       obj.x = Units.roundFt(Math.max(minX, Math.min(maxX, obj.x)));
       obj.y = Units.roundFt(Math.max(minY, Math.min(maxY, obj.y)));
