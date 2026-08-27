@@ -63,6 +63,7 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
                 max={500}
                 value={hallWidth}
                 onChange={(e) => onUpdateMainHall('hall_width', e.target.value)}
+                onBlur={(e) => onUpdateMainHall('hall_width', Units.clampHallFt(e.target.value))}
                 className="w-full px-2.5 py-1.5 border border-zinc-300 rounded-md focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 focus:outline-none text-zinc-900"
               />
             </div>
@@ -74,6 +75,7 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
                 max={500}
                 value={hallHeight}
                 onChange={(e) => onUpdateMainHall('hall_height', e.target.value)}
+                onBlur={(e) => onUpdateMainHall('hall_height', Units.clampHallFt(e.target.value))}
                 className="w-full px-2.5 py-1.5 border border-zinc-300 rounded-md focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 focus:outline-none text-zinc-900"
               />
             </div>
@@ -203,7 +205,8 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
                 type="number"
                 step={0.25}
                 value={table.width}
-                onChange={(e) => onUpdateItemProp('width', Units.clampStallFt(e.target.value))}
+                onChange={(e) => onUpdateItemProp('width', parseFloat(e.target.value) || e.target.value)}
+                onBlur={(e) => onUpdateItemProp('width', Units.clampStallFt(e.target.value))}
                 className="w-full px-2.5 py-1.5 border border-zinc-300 rounded-md focus:ring-1 focus:ring-zinc-900 focus:outline-none"
               />
             </div>
@@ -213,7 +216,8 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
                 type="number"
                 step={0.25}
                 value={table.height}
-                onChange={(e) => onUpdateItemProp('height', Units.clampStallFt(e.target.value))}
+                onChange={(e) => onUpdateItemProp('height', parseFloat(e.target.value) || e.target.value)}
+                onBlur={(e) => onUpdateItemProp('height', Units.clampStallFt(e.target.value))}
                 className="w-full px-2.5 py-1.5 border border-zinc-300 rounded-md focus:ring-1 focus:ring-zinc-900 focus:outline-none"
               />
             </div>
@@ -225,8 +229,9 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
               <input
                 type="number"
                 step={0.25}
-                value={Units.roundFt(table.x)}
-                onChange={(e) => onUpdateItemProp('x', Units.roundFt(parseFloat(e.target.value) || 0))}
+                value={table.x}
+                onChange={(e) => onUpdateItemProp('x', parseFloat(e.target.value) || (e.target.value === '' ? '' : 0))}
+                onBlur={(e) => onUpdateItemProp('x', Units.roundFt(parseFloat(e.target.value) || 0))}
                 className="w-full px-2.5 py-1.5 border border-zinc-300 rounded-md focus:ring-1 focus:ring-zinc-900 focus:outline-none"
               />
             </div>
@@ -235,8 +240,9 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
               <input
                 type="number"
                 step={0.25}
-                value={Units.roundFt(table.y)}
-                onChange={(e) => onUpdateItemProp('y', Units.roundFt(parseFloat(e.target.value) || 0))}
+                value={table.y}
+                onChange={(e) => onUpdateItemProp('y', parseFloat(e.target.value) || (e.target.value === '' ? '' : 0))}
+                onBlur={(e) => onUpdateItemProp('y', Units.roundFt(parseFloat(e.target.value) || 0))}
                 className="w-full px-2.5 py-1.5 border border-zinc-300 rounded-md focus:ring-1 focus:ring-zinc-900 focus:outline-none"
               />
             </div>

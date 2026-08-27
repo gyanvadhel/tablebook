@@ -364,15 +364,19 @@ export default function StudioPage() {
         prev.map((el) => (el.type === 'room_badge' && !el.targetHallId ? { ...el, label: val } : el))
       );
     } else if (prop === 'hall_width') {
-      updated.hall_width = Units.clampHallFt(val);
+      const parsed = parseFloat(val);
+      updated.hall_width = isNaN(parsed) ? val : parsed;
     } else if (prop === 'hall_height') {
-      updated.hall_height = Units.clampHallFt(val);
+      const parsed = parseFloat(val);
+      updated.hall_height = isNaN(parsed) ? val : parsed;
     } else if (prop === 'venue') {
       updated.venue = val;
     }
 
     setEvent(updated);
-    fitViewBox(tables, elements, updated.hall_width, updated.hall_height);
+    const validW = Units.toFeet(updated.hall_width, 30);
+    const validH = Units.toFeet(updated.hall_height, 20);
+    fitViewBox(tables, elements, validW, validH);
   };
 
   // Update Selected Item Property
