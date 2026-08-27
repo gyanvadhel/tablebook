@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { EventModal } from '@/components/admin/EventModal';
 import { Plus, Edit2, Trash2, LayoutGrid, Eye, MapPin, Calendar } from 'lucide-react';
@@ -10,6 +11,7 @@ import { formatDate } from '@/lib/utils';
 import type { EventItem } from '@/types';
 
 export default function AdminEventsPage() {
+  const router = useRouter();
   const [events, setEvents] = useState<EventItem[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
