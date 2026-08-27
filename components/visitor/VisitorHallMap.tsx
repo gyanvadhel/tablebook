@@ -186,10 +186,10 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
         <rect x="0" y="0" width={wPx} height={hPx} fill="url(#visitor-wood)" stroke="#18181b" strokeWidth="1.5" />
 
         {/* Hall Dimensions */}
-        <text x={wPx / 2} y="-10" fill="#475569" fontSize="11" fontWeight="700" textAnchor="middle" pointerEvents="none">
+        <text x={wPx / 2} y="-10" fill="#000000" fontSize="11" fontWeight="800" textAnchor="middle" pointerEvents="none">
           {Units.formatFeet(hallWidth)}
         </text>
-        <text x="-12" y={hPx / 2} fill="#475569" fontSize="11" fontWeight="700" textAnchor="middle" transform={`rotate(-90, -12, ${hPx / 2})`} pointerEvents="none">
+        <text x="-12" y={hPx / 2} fill="#000000" fontSize="11" fontWeight="800" textAnchor="middle" transform={`rotate(-90, -12, ${hPx / 2})`} pointerEvents="none">
           {Units.formatFeet(hallHeight)}
         </text>
 

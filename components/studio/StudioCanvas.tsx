@@ -712,14 +712,14 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           {/* Main Hall Top Dimension */}
           <path d={`M 0 -12 L ${wPx} -12 M 0 -16 L 0 -8 M ${wPx} -16 L ${wPx} -8`} fill="none" stroke="#71717a" strokeWidth="1" />
           <rect x={wPx / 2 - 28} y="-20" width="56" height="15" rx="3" fill="#ffffff" stroke="#e4e4e7" strokeWidth="0.8" />
-          <text x={wPx / 2} y="-9" fill="#27272a" fontSize="9" fontWeight="700" textAnchor="middle">
+          <text x={wPx / 2} y="-9" fill="#000000" fontSize="9.5" fontWeight="800" textAnchor="middle">
             {Units.formatFeet(hallWidth)}
           </text>
 
           {/* Main Hall Left Dimension */}
           <path d={`M -12 0 L -12 ${hPx} M -16 0 L -8 0 M -16 ${hPx} L -8 ${hPx}`} fill="none" stroke="#71717a" strokeWidth="1" />
           <rect x="-35" y={hPx / 2 - 8} width="46" height="15" rx="3" fill="#ffffff" stroke="#e4e4e7" strokeWidth="0.8" transform={`rotate(-90, -12, ${hPx / 2})`} />
-          <text x="-12" y={hPx / 2 + 3} fill="#27272a" fontSize="9" fontWeight="700" textAnchor="middle" transform={`rotate(-90, -12, ${hPx / 2})`}>
+          <text x="-12" y={hPx / 2 + 3} fill="#000000" fontSize="9.5" fontWeight="800" textAnchor="middle" transform={`rotate(-90, -12, ${hPx / 2})`}>
             {Units.formatFeet(hallHeight)}
           </text>
 
