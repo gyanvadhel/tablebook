@@ -483,22 +483,21 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                 {/* Stall Number Badge - Always upright and compact */}
                 <g transform={t.rotation ? `rotate(${-t.rotation}, ${cx}, ${cy})` : undefined}>
                   <rect
-                    x={cx - (String(t.table_number).length > 2 ? 12 : 9)}
-                    y={cy - 7}
-                    width={String(t.table_number).length > 2 ? 24 : 18}
-                    height="14"
-                    rx="2"
+                    x={cx - (String(t.table_number).length > 2 ? 10 : String(t.table_number).length > 1 ? 8 : 6.5)}
+                    y={cy - 5.5}
+                    width={String(t.table_number).length > 2 ? 20 : String(t.table_number).length > 1 ? 16 : 13}
+                    height="11"
+                    rx="1.5"
                     fill="#ffffff"
                     stroke="#d4d4d8"
-                    strokeWidth="0.8"
-                    filter="drop-shadow(0 1px 2px rgba(0,0,0,0.06))"
+                    strokeWidth="0.6"
                     pointerEvents="none"
                   />
                   <text
                     x={cx}
-                    y={cy + 3.5}
+                    y={cy + 2.5}
                     fill={isBooked ? '#be123c' : '#18181b'}
-                    fontSize="9"
+                    fontSize="7.5"
                     fontWeight="800"
                     textAnchor="middle"
                     pointerEvents="none"
@@ -539,28 +538,97 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             const cx = px(elem.x + (elem.width || 4) / 2);
             const cy = px(elem.y + (elem.height || 2) / 2);
 
-            // Door / Entrance
+            // Authentic Architectural Door / Entrance / Window
             if (elem.type === 'door') {
               const isEntrance = elem.doorType === 'entrance' || !elem.doorType;
               const isExit = elem.doorType === 'exit';
-              const doorColor = isEntrance ? '#15803d' : isExit ? '#b91c1c' : '#3f3f46';
+              const isDouble = elem.doorType === 'double';
+              const isWindow = elem.doorType === 'window';
+              const doorColor = isEntrance ? '#16a34a' : isExit ? '#dc2626' : '#52525b';
+              const labelText = isEntrance ? 'ENTRANCE' : isExit ? 'EXIT' : isDouble ? 'DOUBLE DOOR' : 'WINDOW';
 
               return (
                 <g
                   key={elemId}
                   data-element-id={elemId}
                   transform={elem.rotation ? `rotate(${elem.rotation}, ${cx}, ${cy})` : undefined}
-                  className="cursor-grab active:cursor-grabbing"
+                  className="cursor-grab active:cursor-grabbing select-none"
                 >
-                  {/* Door frame */}
-                  <rect x={x} y={y} width={w} height={h} fill="#ffffff" stroke={doorColor} strokeWidth="1.5" rx="1" />
-                  {/* Swing arc */}
-                  <path d={`M ${x} ${y + h} A ${w} ${w} 0 0 1 ${x + w} ${y}`} fill="none" stroke={doorColor} strokeWidth="1" strokeDasharray="3 2" />
-                  <text x={x + w / 2} y={y + h / 2 + 3} fill={doorColor} fontSize="8.5" fontWeight="700" textAnchor="middle" pointerEvents="none">
-                    {isExit ? 'EXIT' : 'DOOR'}
-                  </text>
+                  {isWindow ? (
+                    /* Architectural Window */
+                    <g>
+                      {/* Window Opening Glass */}
+                      <rect x={x} y={y} width={w} height={h} fill="#f0f9ff" stroke="#38bdf8" strokeWidth="1" />
+                      {/* Glass Panes */}
+                      <line x1={x} y1={y + h * 0.35} x2={x + w} y2={y + h * 0.35} stroke="#0284c7" strokeWidth="0.8" />
+                      <line x1={x} y1={y + h * 0.65} x2={x + w} y2={y + h * 0.65} stroke="#0284c7" strokeWidth="0.8" />
+                      {/* Left and Right End Jambs */}
+                      <rect x={x} y={y - 1} width="3" height={h + 2} fill="#27272a" />
+                      <rect x={x + w - 3} y={y - 1} width="3" height={h + 2} fill="#27272a" />
+                    </g>
+                  ) : isDouble ? (
+                    /* Architectural Double Door (Dual Leaf & Dual 90° Swing Arcs) */
+                    <g>
+                      {/* Floor passage */}
+                      <rect x={x + 3} y={y} width={w - 6} height={h} fill="#ebe4d8" />
+                      {/* Left & Right Jambs */}
+                      <rect x={x} y={y - 1} width="3.5" height={h + 2} fill="#27272a" />
+                      <rect x={x + w - 3.5} y={y - 1} width="3.5" height={h + 2} fill="#27272a" />
+                      {/* Left Door Leaf (swung 90°) */}
+                      <line x1={x + 3} y1={y + h / 2} x2={x + 3} y2={y + h / 2 + w / 2 - 3} stroke={doorColor} strokeWidth="2.2" strokeLinecap="round" />
+                      {/* Left Swing Arc */}
+                      <path d={`M ${x + 3} ${y + h / 2 + w / 2 - 3} A ${w / 2 - 3} ${w / 2 - 3} 0 0 0 ${x + w / 2} ${y + h / 2}`} fill="none" stroke={doorColor} strokeWidth="1" strokeDasharray="3 2" />
+                      {/* Right Door Leaf (swung 90°) */}
+                      <line x1={x + w - 3} y1={y + h / 2} x2={x + w - 3} y2={y + h / 2 + w / 2 - 3} stroke={doorColor} strokeWidth="2.2" strokeLinecap="round" />
+                      {/* Right Swing Arc */}
+                      <path d={`M ${x + w - 3} ${y + h / 2 + w / 2 - 3} A ${w / 2 - 3} ${w / 2 - 3} 0 0 1 ${x + w / 2} ${y + h / 2}`} fill="none" stroke={doorColor} strokeWidth="1" strokeDasharray="3 2" />
+                    </g>
+                  ) : (
+                    /* Architectural Single Door / Main Entrance / Emergency Exit */
+                    <g>
+                      {/* Floor passage */}
+                      <rect x={x + 3} y={y} width={w - 6} height={h} fill="#ebe4d8" />
+                      {/* Left & Right Jambs */}
+                      <rect x={x} y={y - 1} width="3.5" height={h + 2} fill="#27272a" />
+                      <rect x={x + w - 3.5} y={y - 1} width="3.5" height={h + 2} fill="#27272a" />
+                      {/* Door Leaf (swung open 90° from left hinge) */}
+                      <line x1={x + 3} y1={y + h / 2} x2={x + 3} y2={y + h / 2 + w - 4} stroke={doorColor} strokeWidth="2.5" strokeLinecap="round" />
+                      {/* Quarter-circle 90° Swing Arc */}
+                      <path d={`M ${x + 3} ${y + h / 2 + w - 4} A ${w - 4} ${w - 4} 0 0 0 ${x + w - 3} ${y + h / 2}`} fill="none" stroke={doorColor} strokeWidth="1" strokeDasharray="3 2" />
+                    </g>
+                  )}
+
+                  {/* Clean Entrance / Exit Tag Badge Above Door (never crossing swing arc) */}
+                  {(isEntrance || isExit) && (
+                    <g pointerEvents="none">
+                      <rect
+                        x={x + w / 2 - 18}
+                        y={y - 11}
+                        width="36"
+                        height="9.5"
+                        rx="2"
+                        fill="#ffffff"
+                        stroke={doorColor}
+                        strokeWidth="0.8"
+                        filter="drop-shadow(0 1px 2px rgba(0,0,0,0.06))"
+                      />
+                      <text
+                        x={x + w / 2}
+                        y={y - 4}
+                        fill={doorColor}
+                        fontSize="6.5"
+                        fontWeight="800"
+                        letterSpacing="0.4"
+                        textAnchor="middle"
+                      >
+                        {labelText}
+                      </text>
+                    </g>
+                  )}
+
+                  {/* Selection Outline */}
                   {isSelected && (
-                    <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} fill="none" stroke="#18181b" strokeWidth="1.5" strokeDasharray="3 3" rx="4" />
+                    <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} fill="none" stroke="#18181b" strokeWidth="1.5" strokeDasharray="3 3" rx="4" pointerEvents="none" />
                   )}
                 </g>
               );
@@ -636,6 +704,89 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
 
             return null;
           })}
+        </g>
+
+        {/* 4. Architectural Dimension Lines & Guides Layer */}
+        <g id="dimension-lines-layer" pointerEvents="none">
+          {/* Main Hall Top Dimension */}
+          <path d={`M 0 -12 L ${wPx} -12 M 0 -16 L 0 -8 M ${wPx} -16 L ${wPx} -8`} fill="none" stroke="#71717a" strokeWidth="1" />
+          <rect x={wPx / 2 - 28} y="-20" width="56" height="15" rx="3" fill="#ffffff" stroke="#e4e4e7" strokeWidth="0.8" />
+          <text x={wPx / 2} y="-9" fill="#27272a" fontSize="9" fontWeight="700" textAnchor="middle">
+            {Units.formatFeet(hallWidth)}
+          </text>
+
+          {/* Main Hall Left Dimension */}
+          <path d={`M -12 0 L -12 ${hPx} M -16 0 L -8 0 M -16 ${hPx} L -8 ${hPx}`} fill="none" stroke="#71717a" strokeWidth="1" />
+          <rect x="-35" y={hPx / 2 - 8} width="46" height="15" rx="3" fill="#ffffff" stroke="#e4e4e7" strokeWidth="0.8" transform={`rotate(-90, -12, ${hPx / 2})`} />
+          <text x="-12" y={hPx / 2 + 3} fill="#27272a" fontSize="9" fontWeight="700" textAnchor="middle" transform={`rotate(-90, -12, ${hPx / 2})`}>
+            {Units.formatFeet(hallHeight)}
+          </text>
+
+
+
+          {/* Active / Selected Object Measurement Leader Lines */}
+          {selectedItem && (() => {
+            const obj = selectedItem.obj;
+            const ox = px(obj.x);
+            const oy = px(obj.y);
+            const ow = px(obj.width || 4);
+            const oh = px(obj.height || 2);
+            const rot = obj.rotation || 0;
+            const wFt = obj.width || 4;
+            const hFt = obj.height || 2;
+            const cx = ox + ow / 2;
+            const cy = oy + oh / 2;
+
+            return (
+              <g id="selected-measurements">
+                {/* Distance Guides to Left & Top Walls */}
+                {obj.x > 0 && (
+                  <g>
+                    <line x1="0" y1={cy} x2={ox} y2={cy} stroke="#a1a1aa" strokeWidth="1" strokeDasharray="3 3" />
+                    {ox > 35 && (
+                      <g>
+                        <rect x={ox / 2 - 18} y={cy - 7} width="36" height="13" rx="2" fill="#ffffff" stroke="#d4d4d8" strokeWidth="0.8" />
+                        <text x={ox / 2} y={cy + 3} fill="#52525b" fontSize="8" fontWeight="600" textAnchor="middle">
+                          {Units.formatFeetShort(obj.x)}
+                        </text>
+                      </g>
+                    )}
+                  </g>
+                )}
+
+                {obj.y > 0 && (
+                  <g>
+                    <line x1={cx} y1="0" x2={cx} y2={oy} stroke="#a1a1aa" strokeWidth="1" strokeDasharray="3 3" />
+                    {oy > 25 && (
+                      <g>
+                        <rect x={cx - 18} y={oy / 2 - 7} width="36" height="13" rx="2" fill="#ffffff" stroke="#d4d4d8" strokeWidth="0.8" />
+                        <text x={cx} y={oy / 2 + 3} fill="#52525b" fontSize="8" fontWeight="600" textAnchor="middle">
+                          {Units.formatFeetShort(obj.y)}
+                        </text>
+                      </g>
+                    )}
+                  </g>
+                )}
+
+                {/* Object Local Width & Depth Dimension Lines */}
+                <g transform={rot ? `rotate(${rot}, ${cx}, ${cy})` : undefined}>
+                  {/* Top Width Dimension Line */}
+                  <path d={`M ${ox} ${oy - 11} L ${ox + ow} ${oy - 11} M ${ox} ${oy - 14} L ${ox} ${oy - 8} M ${ox + ow} ${oy - 14} L ${ox + ow} ${oy - 8}`} fill="none" stroke="#52525b" strokeWidth="0.8" />
+                  <rect x={ox + ow / 2 - 9} y={oy - 15.5} width="18" height="9" rx="2" fill="#ffffff" stroke="#d4d4d8" strokeWidth="0.6" />
+                  <text x={ox + ow / 2} y={oy - 9} fill="#18181b" fontSize="6.5" fontWeight="700" textAnchor="middle">
+                    {Units.formatFeetShort(wFt)}
+                  </text>
+
+                  {/* Left Depth Dimension Line */}
+                  <path d={`M ${ox - 11} ${oy} L ${ox - 11} ${oy + oh} M ${ox - 14} ${oy} L ${ox - 8} ${oy} M ${ox - 14} ${oy + oh} L ${ox - 8} ${oy + oh}`} fill="none" stroke="#52525b" strokeWidth="0.8" />
+                  <rect x={ox - 18} y={oy + oh / 2 - 4.5} width="14" height="9" rx="2" fill="#ffffff" stroke="#d4d4d8" strokeWidth="0.6" />
+                  <text x={ox - 11} y={oy + oh / 2 + 2} fill="#18181b" fontSize="6.5" fontWeight="700" textAnchor="middle">
+                    {Units.formatFeetShort(hFt)}
+                  </text>
+                </g>
+              </g>
+            );
+          })()}
         </g>
       </svg>
 

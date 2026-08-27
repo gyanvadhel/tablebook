@@ -305,22 +305,21 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
                 {/* Stall Number Badge - Always upright and compact */}
                 <g transform={t.rotation ? `rotate(${-t.rotation}, ${cx}, ${cy})` : undefined}>
                   <rect
-                    x={cx - (String(t.table_number).length > 2 ? 12 : 9)}
-                    y={cy - 7}
-                    width={String(t.table_number).length > 2 ? 24 : 18}
-                    height="14"
-                    rx="2"
+                    x={cx - (String(t.table_number).length > 2 ? 10 : String(t.table_number).length > 1 ? 8 : 6.5)}
+                    y={cy - 5.5}
+                    width={String(t.table_number).length > 2 ? 20 : String(t.table_number).length > 1 ? 16 : 13}
+                    height="11"
+                    rx="1.5"
                     fill="#ffffff"
                     stroke="#d4d4d8"
-                    strokeWidth="0.8"
-                    filter="drop-shadow(0 1px 2px rgba(0,0,0,0.06))"
+                    strokeWidth="0.6"
                     pointerEvents="none"
                   />
                   <text
                     x={cx}
-                    y={cy + 3.5}
+                    y={cy + 2.5}
                     fill={isBooked ? '#be123c' : isSelected ? '#18181b' : '#18181b'}
-                    fontSize="9"
+                    fontSize="7.5"
                     fontWeight="800"
                     textAnchor="middle"
                     pointerEvents="none"
@@ -363,15 +362,67 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
             if (elem.type === 'door') {
               const isEntrance = elem.doorType === 'entrance' || !elem.doorType;
               const isExit = elem.doorType === 'exit';
-              const doorColor = isEntrance ? '#15803d' : isExit ? '#b91c1c' : '#3f3f46';
+              const isDouble = elem.doorType === 'double';
+              const isWindow = elem.doorType === 'window';
+              const doorColor = isEntrance ? '#16a34a' : isExit ? '#dc2626' : '#52525b';
+              const labelText = isEntrance ? 'ENTRANCE' : isExit ? 'EXIT' : isDouble ? 'DOUBLE DOOR' : 'WINDOW';
 
               return (
                 <g key={elemId} transform={elem.rotation ? `rotate(${elem.rotation}, ${cx}, ${cy})` : undefined}>
-                  <rect x={x} y={y} width={w} height={h} fill="#ffffff" stroke={doorColor} strokeWidth="1.5" rx="1" />
-                  <path d={`M ${x} ${y + h} A ${w} ${w} 0 0 1 ${x + w} ${y}`} fill="none" stroke={doorColor} strokeWidth="1" strokeDasharray="3 2" />
-                  <text x={x + w / 2} y={y + h / 2 + 3} fill={doorColor} fontSize="8.5" fontWeight="700" textAnchor="middle">
-                    {isExit ? 'EXIT' : 'DOOR'}
-                  </text>
+                  {isWindow ? (
+                    <g>
+                      <rect x={x} y={y} width={w} height={h} fill="#f0f9ff" stroke="#38bdf8" strokeWidth="1" />
+                      <line x1={x} y1={y + h * 0.35} x2={x + w} y2={y + h * 0.35} stroke="#0284c7" strokeWidth="0.8" />
+                      <line x1={x} y1={y + h * 0.65} x2={x + w} y2={y + h * 0.65} stroke="#0284c7" strokeWidth="0.8" />
+                      <rect x={x} y={y - 1} width="3" height={h + 2} fill="#27272a" />
+                      <rect x={x + w - 3} y={y - 1} width="3" height={h + 2} fill="#27272a" />
+                    </g>
+                  ) : isDouble ? (
+                    <g>
+                      <rect x={x + 3} y={y} width={w - 6} height={h} fill="#ebe4d8" />
+                      <rect x={x} y={y - 1} width="3.5" height={h + 2} fill="#27272a" />
+                      <rect x={x + w - 3.5} y={y - 1} width="3.5" height={h + 2} fill="#27272a" />
+                      <line x1={x + 3} y1={y + h / 2} x2={x + 3} y2={y + h / 2 + w / 2 - 3} stroke={doorColor} strokeWidth="2.2" strokeLinecap="round" />
+                      <path d={`M ${x + 3} ${y + h / 2 + w / 2 - 3} A ${w / 2 - 3} ${w / 2 - 3} 0 0 0 ${x + w / 2} ${y + h / 2}`} fill="none" stroke={doorColor} strokeWidth="1" strokeDasharray="3 2" />
+                      <line x1={x + w - 3} y1={y + h / 2} x2={x + w - 3} y2={y + h / 2 + w / 2 - 3} stroke={doorColor} strokeWidth="2.2" strokeLinecap="round" />
+                      <path d={`M ${x + w - 3} ${y + h / 2 + w / 2 - 3} A ${w / 2 - 3} ${w / 2 - 3} 0 0 1 ${x + w / 2} ${y + h / 2}`} fill="none" stroke={doorColor} strokeWidth="1" strokeDasharray="3 2" />
+                    </g>
+                  ) : (
+                    <g>
+                      <rect x={x + 3} y={y} width={w - 6} height={h} fill="#ebe4d8" />
+                      <rect x={x} y={y - 1} width="3.5" height={h + 2} fill="#27272a" />
+                      <rect x={x + w - 3.5} y={y - 1} width="3.5" height={h + 2} fill="#27272a" />
+                      <line x1={x + 3} y1={y + h / 2} x2={x + 3} y2={y + h / 2 + w - 4} stroke={doorColor} strokeWidth="2.5" strokeLinecap="round" />
+                      <path d={`M ${x + 3} ${y + h / 2 + w - 4} A ${w - 4} ${w - 4} 0 0 0 ${x + w - 3} ${y + h / 2}`} fill="none" stroke={doorColor} strokeWidth="1" strokeDasharray="3 2" />
+                    </g>
+                  )}
+
+                  {(isEntrance || isExit) && (
+                    <g pointerEvents="none">
+                      <rect
+                        x={x + w / 2 - 18}
+                        y={y - 11}
+                        width="36"
+                        height="9.5"
+                        rx="2"
+                        fill="#ffffff"
+                        stroke={doorColor}
+                        strokeWidth="0.8"
+                        filter="drop-shadow(0 1px 2px rgba(0,0,0,0.06))"
+                      />
+                      <text
+                        x={x + w / 2}
+                        y={y - 4}
+                        fill={doorColor}
+                        fontSize="6.5"
+                        fontWeight="800"
+                        letterSpacing="0.4"
+                        textAnchor="middle"
+                      >
+                        {labelText}
+                      </text>
+                    </g>
+                  )}
                 </g>
               );
             }

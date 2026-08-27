@@ -546,121 +546,135 @@ const hallMap = {
     const x = this.px(door.x);
     const y = this.px(door.y);
 
-    if (door.doorType === 'double') {
-      const halfW = w / 2;
-      const arcPath = `M ${x} ${y} A ${halfW} ${halfW} 0 0 1 ${x + halfW} ${y + halfW} L ${x + halfW} ${y} M ${x + w} ${y} A ${halfW} ${halfW} 0 0 0 ${x + halfW} ${y + halfW} L ${x + halfW} ${y}`;
-      const arc = document.createElementNS(ns, 'path');
-      arc.setAttribute('d', arcPath);
-      arc.setAttribute('fill', 'rgba(37, 99, 235, 0.08)');
-      arc.setAttribute('stroke', '#2563eb');
-      arc.setAttribute('stroke-dasharray', '3 2');
-      group.appendChild(arc);
+    const isEntrance = door.doorType === 'entrance' || !door.doorType;
+    const isExit = door.doorType === 'exit';
+    const isDouble = door.doorType === 'double';
+    const isWindow = door.doorType === 'window';
+    const doorColor = isEntrance ? '#16a34a' : isExit ? '#dc2626' : '#52525b';
+    const labelText = isEntrance ? 'ENTRANCE' : isExit ? 'EXIT' : isDouble ? 'DOUBLE DOOR' : 'WINDOW';
 
-      const frame = document.createElementNS(ns, 'rect');
-      frame.setAttribute('x', x); frame.setAttribute('y', y - 3);
-      frame.setAttribute('width', w); frame.setAttribute('height', 6);
-      frame.setAttribute('fill', '#1e293b'); frame.setAttribute('rx', '2');
-      group.appendChild(frame);
-    } else if (door.doorType === 'gate') {
-      const frame = document.createElementNS(ns, 'rect');
-      frame.setAttribute('x', x); frame.setAttribute('y', y);
-      frame.setAttribute('width', w); frame.setAttribute('height', Math.max(h, 8));
-      frame.setAttribute('fill', '#f8fafc'); frame.setAttribute('stroke', '#64748b'); frame.setAttribute('stroke-width', '1.5');
-      group.appendChild(frame);
+    if (isWindow) {
+      const glass = document.createElementNS(ns, 'rect');
+      glass.setAttribute('x', x); glass.setAttribute('y', y);
+      glass.setAttribute('width', w); glass.setAttribute('height', h);
+      glass.setAttribute('fill', '#f0f9ff'); glass.setAttribute('stroke', '#38bdf8'); glass.setAttribute('stroke-width', '1');
+      group.appendChild(glass);
+
+      const p1 = document.createElementNS(ns, 'line');
+      p1.setAttribute('x1', x); p1.setAttribute('y1', y + h * 0.35);
+      p1.setAttribute('x2', x + w); p1.setAttribute('y2', y + h * 0.35);
+      p1.setAttribute('stroke', '#0284c7'); p1.setAttribute('stroke-width', '0.8');
+      group.appendChild(p1);
+
+      const p2 = document.createElementNS(ns, 'line');
+      p2.setAttribute('x1', x); p2.setAttribute('y1', y + h * 0.65);
+      p2.setAttribute('x2', x + w); p2.setAttribute('y2', y + h * 0.65);
+      p2.setAttribute('stroke', '#0284c7'); p2.setAttribute('stroke-width', '0.8');
+      group.appendChild(p2);
+
+      const jL = document.createElementNS(ns, 'rect');
+      jL.setAttribute('x', x); jL.setAttribute('y', y - 1);
+      jL.setAttribute('width', '3'); jL.setAttribute('height', h + 2);
+      jL.setAttribute('fill', '#27272a');
+      group.appendChild(jL);
+
+      const jR = document.createElementNS(ns, 'rect');
+      jR.setAttribute('x', x + w - 3); jR.setAttribute('y', y - 1);
+      jR.setAttribute('width', '3'); jR.setAttribute('height', h + 2);
+      jR.setAttribute('fill', '#27272a');
+      group.appendChild(jR);
+    } else if (isDouble) {
+      const floor = document.createElementNS(ns, 'rect');
+      floor.setAttribute('x', x + 3); floor.setAttribute('y', y);
+      floor.setAttribute('width', w - 6); floor.setAttribute('height', h);
+      floor.setAttribute('fill', '#ebe4d8');
+      group.appendChild(floor);
+
+      const jL = document.createElementNS(ns, 'rect');
+      jL.setAttribute('x', x); jL.setAttribute('y', y - 1);
+      jL.setAttribute('width', '3.5'); jL.setAttribute('height', h + 2);
+      jL.setAttribute('fill', '#27272a');
+      group.appendChild(jL);
+
+      const jR = document.createElementNS(ns, 'rect');
+      jR.setAttribute('x', x + w - 3.5); jR.setAttribute('y', y - 1);
+      jR.setAttribute('width', '3.5'); jR.setAttribute('height', h + 2);
+      jR.setAttribute('fill', '#27272a');
+      group.appendChild(jR);
+
+      const leafL = document.createElementNS(ns, 'line');
+      leafL.setAttribute('x1', x + 3); leafL.setAttribute('y1', y + h / 2);
+      leafL.setAttribute('x2', x + 3); leafL.setAttribute('y2', y + h / 2 + w / 2 - 3);
+      leafL.setAttribute('stroke', doorColor); leafL.setAttribute('stroke-width', '2.2'); leafL.setAttribute('stroke-linecap', 'round');
+      group.appendChild(leafL);
+
+      const arcL = document.createElementNS(ns, 'path');
+      arcL.setAttribute('d', `M ${x + 3} ${y + h / 2 + w / 2 - 3} A ${w / 2 - 3} ${w / 2 - 3} 0 0 0 ${x + w / 2} ${y + h / 2}`);
+      arcL.setAttribute('fill', 'none'); arcL.setAttribute('stroke', doorColor); arcL.setAttribute('stroke-width', '1'); arcL.setAttribute('stroke-dasharray', '3 2');
+      group.appendChild(arcL);
+
+      const leafR = document.createElementNS(ns, 'line');
+      leafR.setAttribute('x1', x + w - 3); leafR.setAttribute('y1', y + h / 2);
+      leafR.setAttribute('x2', x + w - 3); leafR.setAttribute('y2', y + h / 2 + w / 2 - 3);
+      leafR.setAttribute('stroke', doorColor); leafR.setAttribute('stroke-width', '2.2'); leafR.setAttribute('stroke-linecap', 'round');
+      group.appendChild(leafR);
+
+      const arcR = document.createElementNS(ns, 'path');
+      arcR.setAttribute('d', `M ${x + w - 3} ${y + h / 2 + w / 2 - 3} A ${w / 2 - 3} ${w / 2 - 3} 0 0 1 ${x + w / 2} ${y + h / 2}`);
+      arcR.setAttribute('fill', 'none'); arcR.setAttribute('stroke', doorColor); arcR.setAttribute('stroke-width', '1'); arcR.setAttribute('stroke-dasharray', '3 2');
+      group.appendChild(arcR);
     } else {
-      const swingR = w;
-      const isExit = door.doorType === 'exit';
-      const wallThick = this.px(0.8);
-      const isFlipped = !!door.flip;
+      const floor = document.createElementNS(ns, 'rect');
+      floor.setAttribute('x', x + 3); floor.setAttribute('y', y);
+      floor.setAttribute('width', w - 6); floor.setAttribute('height', h);
+      floor.setAttribute('fill', '#ebe4d8');
+      group.appendChild(floor);
 
-      // Clean wall opening cutout
-      const cutout = document.createElementNS(ns, 'rect');
-      cutout.setAttribute('x', x); cutout.setAttribute('y', y - wallThick / 2);
-      cutout.setAttribute('width', w); cutout.setAttribute('height', wallThick);
-      cutout.setAttribute('fill', '#ffffff');
-      group.appendChild(cutout);
+      const jL = document.createElementNS(ns, 'rect');
+      jL.setAttribute('x', x); jL.setAttribute('y', y - 1);
+      jL.setAttribute('width', '3.5'); jL.setAttribute('height', h + 2);
+      jL.setAttribute('fill', '#27272a');
+      group.appendChild(jL);
 
-      // Threshold lines
-      const threshTop = document.createElementNS(ns, 'line');
-      threshTop.setAttribute('x1', x); threshTop.setAttribute('y1', y - wallThick / 2);
-      threshTop.setAttribute('x2', x + w); threshTop.setAttribute('y2', y - wallThick / 2);
-      threshTop.setAttribute('stroke', '#cbd5e1'); threshTop.setAttribute('stroke-width', '1');
-      group.appendChild(threshTop);
+      const jR = document.createElementNS(ns, 'rect');
+      jR.setAttribute('x', x + w - 3.5); jR.setAttribute('y', y - 1);
+      jR.setAttribute('width', '3.5'); jR.setAttribute('height', h + 2);
+      jR.setAttribute('fill', '#27272a');
+      group.appendChild(jR);
 
-      const threshBot = document.createElementNS(ns, 'line');
-      threshBot.setAttribute('x1', x); threshBot.setAttribute('y1', y + wallThick / 2);
-      threshBot.setAttribute('x2', x + w); threshBot.setAttribute('y2', y + wallThick / 2);
-      threshBot.setAttribute('stroke', '#94a3b8'); threshBot.setAttribute('stroke-width', '1');
-      group.appendChild(threshBot);
-
-      // 90° Swing Arc
-      const arc = document.createElementNS(ns, 'path');
-      if (isFlipped) {
-        arc.setAttribute('d', `M ${x + swingR} ${y + wallThick / 2} A ${swingR} ${swingR} 0 0 1 ${x} ${y + wallThick / 2 + swingR}`);
-      } else {
-        arc.setAttribute('d', `M ${x} ${y + wallThick / 2} A ${swingR} ${swingR} 0 0 0 ${x + swingR} ${y + wallThick / 2 + swingR}`);
-      }
-      arc.setAttribute('fill', 'none');
-      arc.setAttribute('stroke', isExit ? '#f87171' : '#94a3b8');
-      arc.setAttribute('stroke-width', '1');
-      group.appendChild(arc);
-
-      // Door Leaf (Panel)
-      const leaf = document.createElementNS(ns, 'rect');
-      const leafX = isFlipped ? x : x + swingR - 3.5;
-      const leafY = y + wallThick / 2;
-      leaf.setAttribute('x', leafX);
-      leaf.setAttribute('y', leafY);
-      leaf.setAttribute('width', 3.5);
-      leaf.setAttribute('height', swingR);
-      leaf.setAttribute('fill', '#ffffff');
-      leaf.setAttribute('stroke', isExit ? '#dc2626' : '#1e293b');
-      leaf.setAttribute('stroke-width', '1.2');
-      leaf.setAttribute('rx', '1');
+      const leaf = document.createElementNS(ns, 'line');
+      leaf.setAttribute('x1', x + 3); leaf.setAttribute('y1', y + h / 2);
+      leaf.setAttribute('x2', x + 3); leaf.setAttribute('y2', y + h / 2 + w - 4);
+      leaf.setAttribute('stroke', doorColor); leaf.setAttribute('stroke-width', '2.5'); leaf.setAttribute('stroke-linecap', 'round');
       group.appendChild(leaf);
 
-      // Wall Jambs
-      const jambL = document.createElementNS(ns, 'rect');
-      jambL.setAttribute('x', x - 2); jambL.setAttribute('y', y - wallThick / 2);
-      jambL.setAttribute('width', 2.5); jambL.setAttribute('height', wallThick);
-      jambL.setAttribute('fill', '#1e293b');
-      group.appendChild(jambL);
-
-      const jambR = document.createElementNS(ns, 'rect');
-      jambR.setAttribute('x', x + w - 0.5); jambR.setAttribute('y', y - wallThick / 2);
-      jambR.setAttribute('width', 2.5); jambR.setAttribute('height', wallThick);
-      jambR.setAttribute('fill', '#1e293b');
-      group.appendChild(jambR);
+      const arc = document.createElementNS(ns, 'path');
+      arc.setAttribute('d', `M ${x + 3} ${y + h / 2 + w - 4} A ${w - 4} ${w - 4} 0 0 0 ${x + w - 3} ${y + h / 2}`);
+      arc.setAttribute('fill', 'none'); arc.setAttribute('stroke', doorColor); arc.setAttribute('stroke-width', '1'); arc.setAttribute('stroke-dasharray', '3 2');
+      group.appendChild(arc);
     }
 
-    const badgeG = document.createElementNS(ns, 'g');
-    badgeG.setAttribute('transform', `translate(${cx}, ${cy})`);
+    if (isEntrance || isExit) {
+      const badgeG = document.createElementNS(ns, 'g');
+      badgeG.setAttribute('pointer-events', 'none');
 
-    const labelText = door.label || (door.doorType === 'exit' ? 'EMERGENCY EXIT' : 'MAIN ENTRANCE');
-    const badgeRect = document.createElementNS(ns, 'rect');
-    const textWidth = Math.max(labelText.length * 6.5 + 16, 50);
-    badgeRect.setAttribute('x', -textWidth / 2); badgeRect.setAttribute('y', -10);
-    badgeRect.setAttribute('width', textWidth); badgeRect.setAttribute('height', 20);
-    badgeRect.setAttribute('rx', '10');
-    badgeRect.setAttribute('fill', door.doorType === 'exit' ? '#fee2e2' : '#dcfce7');
-    badgeRect.setAttribute('stroke', door.doorType === 'exit' ? '#ef4444' : '#10b981');
-    badgeRect.setAttribute('stroke-width', '1');
-    badgeG.appendChild(badgeRect);
+      const bg = document.createElementNS(ns, 'rect');
+      bg.setAttribute('x', x + w / 2 - 18); bg.setAttribute('y', y - 11);
+      bg.setAttribute('width', '36'); bg.setAttribute('height', '9.5');
+      bg.setAttribute('rx', '2'); bg.setAttribute('fill', '#ffffff');
+      bg.setAttribute('stroke', doorColor); bg.setAttribute('stroke-width', '0.8');
+      badgeG.appendChild(bg);
 
-    const txt = document.createElementNS(ns, 'text');
-    txt.setAttribute('x', 0); txt.setAttribute('y', 3);
-    txt.setAttribute('text-anchor', 'middle');
-    txt.setAttribute('fill', door.doorType === 'exit' ? '#991b1b' : '#065f46');
-    txt.setAttribute('font-size', '9');
-    txt.setAttribute('font-weight', '700');
-    txt.setAttribute('font-family', 'Inter, sans-serif');
-    txt.textContent = labelText;
-    badgeG.appendChild(txt);
+      const txt = document.createElementNS(ns, 'text');
+      txt.setAttribute('x', x + w / 2); txt.setAttribute('y', y - 4);
+      txt.setAttribute('fill', doorColor); txt.setAttribute('font-size', '6.5');
+      txt.setAttribute('font-weight', '800'); txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('letter-spacing', '0.4');
+      txt.textContent = labelText;
+      badgeG.appendChild(txt);
 
-    if (door.rotation) {
-      badgeG.setAttribute('transform', `translate(${cx}, ${cy}) rotate(${-door.rotation})`);
+      group.appendChild(badgeG);
     }
-    group.appendChild(badgeG);
 
     layer.appendChild(group);
   },

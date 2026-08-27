@@ -1,1 +1,5 @@
-{}
+{
+  "/admin/events/[id]/studio/page": "app/admin/events/[id]/studio/page.js",
+  "/api/events/[id]/route": "app/api/events/[id]/route.js",
+  "/api/events/[id]/tables/route": "app/api/events/[id]/tables/route.js"
+}
