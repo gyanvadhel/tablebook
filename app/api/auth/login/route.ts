@@ -27,12 +27,20 @@ export async function POST(req: NextRequest) {
       role: 'admin',
     });
 
-    await setAuthCookie(token);
-
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       user: { id: admin.id, username: admin.username, role: 'admin' },
     });
+
+    res.cookies.set('admin_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/',
+    });
+
+    return res;
   } catch (err: any) {
     console.error('Login error:', err);
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });

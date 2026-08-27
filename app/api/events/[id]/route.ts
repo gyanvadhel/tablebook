@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dbGet, dbRun } from '@/lib/db';
+import { dbGet, dbRun, withTransaction } from '@/lib/db';
 import { Units } from '@/lib/units';
 import { getSession } from '@/lib/auth';
 
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await getSession();
+    const session = await getSession(req);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -65,15 +65,25 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await getSession();
+    const session = await getSession(req);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const eventId = parseInt(params.id);
-    await dbRun('DELETE FROM events WHERE id = $1', [eventId]);
+    if (isNaN(eventId)) {
+      return NextResponse.json({ error: 'Invalid event ID' }, { status: 400 });
+    }
+
+    await withTransaction(async (client) => {
+      await client.query('DELETE FROM bookings WHERE event_id = $1', [eventId]);
+      await client.query('DELETE FROM tables WHERE event_id = $1', [eventId]);
+      await client.query('DELETE FROM events WHERE id = $1', [eventId]);
+    });
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
+    console.error('Delete event error:', err);
     return NextResponse.json({ error: err.message || 'Failed to delete event' }, { status: 500 });
   }
 }
