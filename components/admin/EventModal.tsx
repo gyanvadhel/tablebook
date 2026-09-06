@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, MapPin, Layers } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Units } from '@/lib/units';
+import { PosterField } from '@/components/admin/PosterField';
 import type { EventItem } from '@/types';
 
 interface EventModalProps {
@@ -25,6 +26,7 @@ export const EventModal: React.FC<EventModalProps> = ({
   const [endDate, setEndDate] = useState('');
   const [hallWidth, setHallWidth] = useState(80);
   const [hallHeight, setHallHeight] = useState(55);
+  const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -37,6 +39,7 @@ export const EventModal: React.FC<EventModalProps> = ({
       setEndDate(event.end_date || '');
       setHallWidth(event.hall_width || 80);
       setHallHeight(event.hall_height || 55);
+      setPosterUrl(event.poster_image || null);
     } else {
       setName('');
       setVenue('');
@@ -45,6 +48,7 @@ export const EventModal: React.FC<EventModalProps> = ({
       setEndDate('');
       setHallWidth(80);
       setHallHeight(55);
+      setPosterUrl(null);
     }
   }, [event, isOpen]);
 
@@ -75,6 +79,7 @@ export const EventModal: React.FC<EventModalProps> = ({
           end_date: endDate || null,
           hall_width: Units.clampHallFt(hallWidth, 80),
           hall_height: Units.clampHallFt(hallHeight, 55),
+          poster_image: posterUrl,
         }),
       });
 
@@ -179,6 +184,8 @@ export const EventModal: React.FC<EventModalProps> = ({
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900"
             />
           </div>
+
+          <PosterField value={posterUrl} onChange={setPosterUrl} disabled={isSubmitting} />
 
           <div className="flex items-center justify-end gap-3 pt-2">
             <button

@@ -113,6 +113,14 @@ export default function EventBookingPage() {
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
+          {event.poster_image && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={event.poster_image}
+              alt={`${event.name} poster`}
+              className="h-10 aspect-[3/4] rounded-md object-cover border border-zinc-200 shadow-xs"
+            />
+          )}
           <div>
             <h1 className="text-xs md:text-sm font-bold text-zinc-900 leading-tight">{event.name}</h1>
             <div className="flex items-center gap-3 text-[11px] text-zinc-500">

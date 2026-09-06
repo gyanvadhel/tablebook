@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS events (
   hall_height           REAL NOT NULL DEFAULT 55  CHECK (hall_height BETWEEN 10 AND 600),
   hall_background_image TEXT,
   hall_blueprint        JSONB,
+  poster_image          TEXT,
   hall_elements         JSONB DEFAULT '[]'::jsonb,
   hall_rotation         INTEGER DEFAULT 0,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -238,6 +239,7 @@ async function initializeDatabase() {
         ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_rotation INTEGER DEFAULT 0;
         ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_background_image TEXT;
         ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_blueprint JSONB;
+        ALTER TABLE events ADD COLUMN IF NOT EXISTS poster_image TEXT;
         ALTER TABLE tables DROP CONSTRAINT IF EXISTS tables_size_check;
         ALTER TABLE tables ADD CONSTRAINT tables_size_check CHECK (size IN ('small', 'medium', 'large', 'xlarge'));
         ${UPLOADS_SQL}

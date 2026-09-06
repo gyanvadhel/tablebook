@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { EventModal } from '@/components/admin/EventModal';
-import { Plus, Edit2, Trash2, LayoutGrid, Eye, MapPin, Calendar } from 'lucide-react';
+import { Plus, Edit2, Trash2, LayoutGrid, Eye, MapPin, Calendar, ImagePlus } from 'lucide-react';
 import { Units } from '@/lib/units';
 import { formatDate } from '@/lib/utils';
 import type { EventItem } from '@/types';
@@ -116,31 +116,53 @@ export default function AdminEventsPage() {
                   key={evt.id}
                   className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-xl p-5 flex flex-col justify-between shadow-xs transition"
                 >
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200">
-                        {Units.formatDims(evt.hall_width, evt.hall_height)}
-                      </span>
-                      <span className="text-[10px] font-semibold text-zinc-500">
-                        {total} Stalls ({booked} Booked)
-                      </span>
-                    </div>
-
-                    <h3 className="text-sm font-bold text-zinc-900 mb-2">{evt.name}</h3>
-
-                    <div className="flex flex-col gap-1 text-xs text-zinc-500 mb-4">
-                      {evt.venue && (
-                        <div className="flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                          <span className="truncate">{evt.venue}</span>
-                        </div>
+                  <div className="flex gap-3 mb-4">
+                    {/* Poster thumbnail — click to edit details, where it is set */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedEvent(evt);
+                        setIsModalOpen(true);
+                      }}
+                      title={evt.poster_image ? 'Change poster' : 'Add a poster'}
+                      className="shrink-0 w-16 aspect-[3/4] rounded-md overflow-hidden border border-zinc-200 bg-zinc-100 hover:border-zinc-400 transition"
+                    >
+                      {evt.poster_image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={evt.poster_image} alt={`${evt.name} poster`} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="w-full h-full flex items-center justify-center text-zinc-400">
+                          <ImagePlus className="w-4 h-4" />
+                        </span>
                       )}
-                      {evt.start_date && (
-                        <div className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                          <span>{formatDate(evt.start_date)}</span>
-                        </div>
-                      )}
+                    </button>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200 whitespace-nowrap">
+                          {Units.formatDims(evt.hall_width, evt.hall_height)}
+                        </span>
+                        <span className="text-[10px] font-semibold text-zinc-500 whitespace-nowrap">
+                          {total} Stalls ({booked} Booked)
+                        </span>
+                      </div>
+
+                      <h3 className="text-sm font-bold text-zinc-900 mb-2 leading-snug">{evt.name}</h3>
+
+                      <div className="flex flex-col gap-1 text-xs text-zinc-500">
+                        {evt.venue && (
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                            <span className="truncate">{evt.venue}</span>
+                          </div>
+                        )}
+                        {evt.start_date && (
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                            <span>{formatDate(evt.start_date)}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 

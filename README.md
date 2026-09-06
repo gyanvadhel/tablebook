@@ -143,6 +143,20 @@ origin, and opening it there would execute any script it carries against a
 live admin session. Files are identified by their magic bytes, not by the
 extension the browser claims.
 
+## Event posters
+
+Each exhibition can carry a portrait poster, set in the admin's Create / Edit
+Exhibition dialog (drop an image onto the frame or click it). It appears as a
+3:4 tile on the public exhibition card, as a thumbnail in the admin list, and
+beside the title on the booking page. Cards without a poster show a monogram
+tile instead, so a mixed list still lines up.
+
+Posters go through the same Postgres-backed store as blueprints
+(`POST /api/uploads` with `kind=poster`), so they work on Vercel with no extra
+configuration. Landscape images are accepted but cropped to portrait on the
+card — the dialog says so when it detects one. The URL lives in
+`events.poster_image`.
+
 ## Layout editor
 
 | Key | Action |

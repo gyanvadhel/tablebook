@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { dbAll, dbGet, dbRun } from '@/lib/db';
 import { Units } from '@/lib/units';
 import { createPlacement, sanitizeBlueprintUrl } from '@/lib/blueprint';
+import { sanitizeImageUrl } from '@/lib/imageUrl';
 import { getSession } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -42,7 +43,17 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, description = '', venue = '', start_date = null, end_date = null, hall_width = 80, hall_height = 55, hall_background_image = null } = body;
+    const {
+      name,
+      description = '',
+      venue = '',
+      start_date = null,
+      end_date = null,
+      hall_width = 80,
+      hall_height = 55,
+      hall_background_image = null,
+      poster_image = null,
+    } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: 'Event name is required' }, { status: 400 });
@@ -53,6 +64,7 @@ export async function POST(req: NextRequest) {
 
     const blueprintUrl = sanitizeBlueprintUrl(hall_background_image);
     const blueprintJson = blueprintUrl ? JSON.stringify(createPlacement(w, h)) : null;
+    const posterUrl = sanitizeImageUrl(poster_image);
 
     const initialBadge = [
       {
@@ -69,8 +81,8 @@ export async function POST(req: NextRequest) {
 
     const result = await dbRun(
       `
-      INSERT INTO events (name, description, venue, start_date, end_date, hall_width, hall_height, hall_background_image, hall_blueprint, hall_elements, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, 'draft')
+      INSERT INTO events (name, description, venue, start_date, end_date, hall_width, hall_height, hall_background_image, hall_blueprint, poster_image, hall_elements, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11::jsonb, 'draft')
       RETURNING *
     `,
       [
@@ -83,6 +95,7 @@ export async function POST(req: NextRequest) {
         h,
         blueprintUrl,
         blueprintJson,
+        posterUrl,
         JSON.stringify(initialBadge),
       ]
     );

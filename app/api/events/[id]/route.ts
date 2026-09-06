@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { dbGet, dbRun, withTransaction } from '@/lib/db';
 import { Units } from '@/lib/units';
 import { normalizeBlueprint, sanitizeBlueprintUrl } from '@/lib/blueprint';
+import { sanitizeImageUrl } from '@/lib/imageUrl';
 import { getSession } from '@/lib/auth';
 
 export async function GET(req: NextRequest, { params }: { params: any }) {
@@ -48,12 +49,16 @@ export async function PUT(req: NextRequest, { params }: { params: any }) {
       hall_height,
       hall_background_image,
       hall_blueprint,
+      poster_image,
     } = body;
 
     const existing = await dbGet('SELECT * FROM events WHERE id = $1', [eventId]);
     if (!existing) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
+
+    // Omitted → keep; empty or null → clear; string → validate
+    const posterUrl = poster_image !== undefined ? sanitizeImageUrl(poster_image) : sanitizeImageUrl(existing.poster_image);
 
     const w = hall_width ? Units.clampHallFt(hall_width, existing.hall_width) : existing.hall_width;
     const h = hall_height ? Units.clampHallFt(hall_height, existing.hall_height) : existing.hall_height;
@@ -81,11 +86,12 @@ export async function PUT(req: NextRequest, { params }: { params: any }) {
         hall_width = $7,
         hall_height = $8,
         hall_background_image = $9,
-        hall_blueprint = $10::jsonb
-      WHERE id = $11
+        hall_blueprint = $10::jsonb,
+        poster_image = $11
+      WHERE id = $12
       RETURNING *
     `,
-      [name, description, venue, start_date || null, end_date || null, status, w, h, bgImg, blueprintJson, eventId]
+      [name, description, venue, start_date || null, end_date || null, status, w, h, bgImg, blueprintJson, posterUrl, eventId]
     );
 
     return NextResponse.json(result.row);

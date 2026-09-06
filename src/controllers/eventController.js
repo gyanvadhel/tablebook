@@ -1,5 +1,6 @@
 const { dbAll, dbGet, dbRun } = require('../config/database');
 const Units = require('../../public/js/units');
+const { sanitizeImageUrl } = require('../utils/imageFormat');
 
 // Hall sizes are stored and exchanged in feet
 const EVENT_COUNTS = `
@@ -107,7 +108,7 @@ const eventController = {
   // Admin: Create event
   async createEvent(req, res) {
     try {
-      const { name, description, venue, start_date, end_date, status, hall_width, hall_height, hall_background_image, hall_blueprint, hall_elements, hall_rotation } = req.body;
+      const { name, description, venue, start_date, end_date, status, hall_width, hall_height, hall_background_image, hall_blueprint, poster_image, hall_elements, hall_rotation } = req.body;
 
       if (!name || !String(name).trim()) {
         return res.status(400).json({ error: 'Event name is required' });
@@ -118,17 +119,18 @@ const eventController = {
       const hallHeightFt = Units.clampHallFt(hall_height, Units.DEFAULT_HALL_HEIGHT_FT);
       const elementsJson = Array.isArray(hall_elements) ? JSON.stringify(hall_elements) : '[]';
       const rotation = Number.isInteger(hall_rotation) ? (hall_rotation % 360) : 0;
-      const bgImage = hall_background_image !== undefined ? (String(hall_background_image).trim() || null) : null;
+      const bgImage = sanitizeImageUrl(hall_background_image);
       const blueprintJson = resolveBlueprintJson(hall_blueprint, null, bgImage, hallWidthFt, hallHeightFt);
+      const posterUrl = sanitizeImageUrl(poster_image);
 
       const { row } = await dbRun(`
-        INSERT INTO events (name, description, venue, start_date, end_date, status, hall_width, hall_height, hall_background_image, hall_blueprint, hall_elements, hall_rotation)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb, $12)
+        INSERT INTO events (name, description, venue, start_date, end_date, status, hall_width, hall_height, hall_background_image, hall_blueprint, poster_image, hall_elements, hall_rotation)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12::jsonb, $13)
         RETURNING *
       `, [
         String(name).trim(), description || '', venue || '',
         start_date || null, end_date || null, status || 'draft',
-        hallWidthFt, hallHeightFt, bgImage, blueprintJson, elementsJson, rotation
+        hallWidthFt, hallHeightFt, bgImage, blueprintJson, posterUrl, elementsJson, rotation
       ]);
 
       res.status(201).json(row);
@@ -141,7 +143,7 @@ const eventController = {
   // Admin: Update event
   async updateEvent(req, res) {
     try {
-      const { name, description, venue, start_date, end_date, status, hall_width, hall_height, hall_background_image, hall_blueprint, hall_elements, hall_rotation } = req.body;
+      const { name, description, venue, start_date, end_date, status, hall_width, hall_height, hall_background_image, hall_blueprint, poster_image, hall_elements, hall_rotation } = req.body;
       const id = parseInt(req.params.id);
 
       const existing = await dbGet('SELECT * FROM events WHERE id = $1', [id]);
@@ -151,7 +153,8 @@ const eventController = {
 
       const elementsJson = hall_elements !== undefined ? (Array.isArray(hall_elements) ? JSON.stringify(hall_elements) : '[]') : (existing.hall_elements ? JSON.stringify(existing.hall_elements) : '[]');
       const rotation = hall_rotation !== undefined ? (Number(hall_rotation) % 360) : (existing.hall_rotation || 0);
-      const bgImage = hall_background_image !== undefined ? (String(hall_background_image).trim() || null) : existing.hall_background_image;
+      const bgImage = hall_background_image !== undefined ? sanitizeImageUrl(hall_background_image) : sanitizeImageUrl(existing.hall_background_image);
+      const posterUrl = poster_image !== undefined ? sanitizeImageUrl(poster_image) : sanitizeImageUrl(existing.poster_image);
       const hallWidthFt = Units.clampHallFt(hall_width, existing.hall_width);
       const hallHeightFt = Units.clampHallFt(hall_height, existing.hall_height);
       // A newly attached image gets the implied placement; an existing one keeps what the studio saved
@@ -167,8 +170,8 @@ const eventController = {
         UPDATE events SET
           name = $1, description = $2, venue = $3, start_date = $4, end_date = $5,
           status = $6, hall_width = $7, hall_height = $8, hall_background_image = $9,
-          hall_blueprint = $10::jsonb, hall_elements = $11::jsonb, hall_rotation = $12
-        WHERE id = $13
+          hall_blueprint = $10::jsonb, poster_image = $11, hall_elements = $12::jsonb, hall_rotation = $13
+        WHERE id = $14
         RETURNING *
       `, [
         name || existing.name,
@@ -181,6 +184,7 @@ const eventController = {
         hallHeightFt,
         bgImage,
         blueprintJson,
+        posterUrl,
         elementsJson,
         rotation,
         id

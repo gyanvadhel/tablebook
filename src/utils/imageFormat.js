@@ -53,4 +53,23 @@ function sanitizeFilename(original, fallbackExt) {
   return base || `blueprint${fallbackExt}`;
 }
 
-module.exports = { detectImageFormat, sanitizeFilename };
+/**
+ * An image URL safe to store and later render: site-relative, http(s), or a
+ * raster data URL. Rejects `javascript:` and anything unparseable. Null when
+ * empty. Twin of lib/imageUrl.ts.
+ */
+function sanitizeImageUrl(url) {
+  if (url === null || url === undefined) return null;
+  const trimmed = String(url).trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return trimmed;
+  if (/^data:image\/(png|jpeg|jpg|gif|webp);base64,/i.test(trimmed)) return trimmed;
+  try {
+    const proto = new URL(trimmed).protocol.toLowerCase();
+    return proto === 'http:' || proto === 'https:' ? trimmed : null;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { detectImageFormat, sanitizeFilename, sanitizeImageUrl };

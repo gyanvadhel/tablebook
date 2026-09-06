@@ -7,7 +7,8 @@ import { StudioPalette } from '@/components/studio/StudioPalette';
 import { StudioCanvas } from '@/components/studio/StudioCanvas';
 import { StudioInspector } from '@/components/studio/StudioInspector';
 import { StudioDirectory } from '@/components/studio/StudioDirectory';
-import { BlueprintPanel, measureAspect } from '@/components/studio/BlueprintPanel';
+import { BlueprintPanel } from '@/components/studio/BlueprintPanel';
+import { measureAspect } from '@/lib/clientImage';
 import { Units } from '@/lib/units';
 import { STALL_DEFAULTS } from '@/lib/constants';
 import {

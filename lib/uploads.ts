@@ -12,6 +12,14 @@ import { dbGet, dbRun } from '@/lib/db';
 
 export const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 
+/** What an upload is for. Dedup is per kind, so a poster and a blueprint never share a row. */
+export const UPLOAD_KINDS = ['blueprint', 'poster'] as const;
+export type UploadKind = (typeof UPLOAD_KINDS)[number];
+
+export function isUploadKind(value: unknown): value is UploadKind {
+  return typeof value === 'string' && (UPLOAD_KINDS as readonly string[]).includes(value);
+}
+
 export interface ImageFormat {
   key: 'png' | 'jpeg' | 'gif' | 'webp';
   ext: string;
@@ -101,7 +109,7 @@ export interface StoredUpload {
  * already stored. Re-uploading the same floor plan five times should cost one
  * row, not five.
  */
-export async function storeUpload(bytes: Buffer, originalName: string | undefined, kind = 'blueprint'): Promise<StoredUpload> {
+export async function storeUpload(bytes: Buffer, originalName: string | undefined, kind: UploadKind = 'blueprint'): Promise<StoredUpload> {
   const format = detectImageFormat(bytes);
   if (!format) {
     throw Object.assign(new Error('Not a PNG, JPG, GIF, or WEBP image'), { status: 415 });

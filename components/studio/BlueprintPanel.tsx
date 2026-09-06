@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Units } from '@/lib/units';
 import { isSafeBlueprintUrl, BLUEPRINT_MIN_FT, BLUEPRINT_MAX_FT } from '@/lib/blueprint';
+import { measureAspect } from '@/lib/clientImage';
 import type { BlueprintPlacement } from '@/lib/blueprint';
 
 interface BlueprintPanelProps {
@@ -37,18 +38,6 @@ interface BlueprintPanelProps {
   onStartCalibration: () => void;
   onCancelCalibration: () => void;
   onNotify: (text: string, type?: 'info' | 'success' | 'error') => void;
-}
-
-/** Read an image's intrinsic aspect ratio so we never stretch a floor plan. */
-export function measureAspect(src: string): Promise<number | null> {
-  return new Promise((resolve) => {
-    if (typeof window === 'undefined') return resolve(null);
-    const img = new window.Image();
-    img.onload = () => resolve(img.naturalWidth > 0 && img.naturalHeight > 0 ? img.naturalWidth / img.naturalHeight : null);
-    img.onerror = () => resolve(null);
-    img.crossOrigin = 'anonymous';
-    img.src = src;
-  });
 }
 
 /**

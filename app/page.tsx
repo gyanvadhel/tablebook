@@ -106,43 +106,68 @@ export default function HomePage() {
               const booked = evt.booked_tables || 0;
               const available = Math.max(0, total - booked);
 
+              const initial = (evt.name || '?').trim().charAt(0).toUpperCase();
+
               return (
                 <div
                   key={evt.id}
                   className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-xl p-5 flex flex-col justify-between transition shadow-xs"
                 >
-                  <div>
-                    {/* Badge */}
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200">
-                        {Units.formatDims(evt.hall_width, evt.hall_height)}
-                      </span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        {available} Available
-                      </span>
-                    </div>
-
-                    <h3 className="text-sm font-bold text-zinc-900 mb-1.5">
-                      {evt.name}
-                    </h3>
-
-                    {evt.description && (
-                      <p className="text-xs text-zinc-500 line-clamp-2 mb-3 leading-relaxed">{evt.description}</p>
-                    )}
-
-                    <div className="flex flex-col gap-1 text-xs text-zinc-500 mb-4">
-                      {evt.venue && (
-                        <div className="flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                          <span className="truncate">{evt.venue}</span>
-                        </div>
+                  <div className="flex gap-4 mb-4">
+                    {/* Portrait poster, or a quiet monogram tile until one is added */}
+                    <Link
+                      href={`/events/${evt.id}`}
+                      className="shrink-0 w-24 aspect-[3/4] rounded-lg overflow-hidden border border-zinc-200 bg-zinc-100 shadow-xs"
+                      aria-label={`${evt.name} floor plan`}
+                    >
+                      {evt.poster_image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={evt.poster_image}
+                          alt={`${evt.name} poster`}
+                          loading="lazy"
+                          className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-300"
+                        />
+                      ) : (
+                        <span className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-100 via-zinc-200 to-zinc-300 text-zinc-500 text-3xl font-black select-none">
+                          {initial}
+                        </span>
                       )}
-                      {evt.start_date && (
-                        <div className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                          <span>{formatDate(evt.start_date)}</span>
-                        </div>
+                    </Link>
+
+                    <div className="flex-1 min-w-0">
+                      {/* Badge */}
+                      <div className="flex items-center justify-between gap-2 mb-2.5">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200 whitespace-nowrap">
+                          {Units.formatDims(evt.hall_width, evt.hall_height)}
+                        </span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
+                          {available} Available
+                        </span>
+                      </div>
+
+                      <h3 className="text-sm font-bold text-zinc-900 mb-1.5 leading-snug">
+                        {evt.name}
+                      </h3>
+
+                      {evt.description && (
+                        <p className="text-xs text-zinc-500 line-clamp-2 mb-2 leading-relaxed">{evt.description}</p>
                       )}
+
+                      <div className="flex flex-col gap-1 text-xs text-zinc-500">
+                        {evt.venue && (
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                            <span className="truncate">{evt.venue}</span>
+                          </div>
+                        )}
+                        {evt.start_date && (
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                            <span>{formatDate(evt.start_date)}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 

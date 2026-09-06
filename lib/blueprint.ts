@@ -7,6 +7,7 @@
  * top-left corner. That way a blueprint stays put when the hall is resized,
  * and a stall traced over it lands on real coordinates.
  */
+import { isSafeImageUrl, sanitizeImageUrl } from '@/lib/imageUrl';
 
 export interface BlueprintPlacement {
   /** Feet from the hall's top-left corner. */
@@ -64,35 +65,9 @@ function toBool(val: any, fallback: boolean): boolean {
   return fallback;
 }
 
-/**
- * An image URL we are willing to hand to an SVG <image href>. Blocks
- * `javascript:` and friends, which would otherwise execute on click.
- */
-export function isSafeBlueprintUrl(url: any): boolean {
-  if (typeof url !== 'string') return false;
-  const trimmed = url.trim();
-  if (!trimmed) return false;
-
-  // Site-relative path, e.g. /uploads/blueprint_123.png
-  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return true;
-
-  if (/^data:image\/(png|jpeg|jpg|gif|webp);base64,/i.test(trimmed)) return true;
-
-  try {
-    const proto = new URL(trimmed).protocol.toLowerCase();
-    return proto === 'http:' || proto === 'https:';
-  } catch {
-    return false;
-  }
-}
-
-/** Trim and validate a URL down to something storable, or null. */
-export function sanitizeBlueprintUrl(url: any): string | null {
-  if (url === null || url === undefined) return null;
-  const trimmed = String(url).trim();
-  if (!trimmed) return null;
-  return isSafeBlueprintUrl(trimmed) ? trimmed : null;
-}
+/** URL safety is shared with posters and anything else we draw; see lib/imageUrl.ts. */
+export const isSafeBlueprintUrl = isSafeImageUrl;
+export const sanitizeBlueprintUrl = sanitizeImageUrl;
 
 /**
  * Size a fresh blueprint so it sits inside the hall at its natural aspect

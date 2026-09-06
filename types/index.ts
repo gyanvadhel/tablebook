@@ -74,6 +74,8 @@ export interface EventItem {
   /** Blueprint image URL. Placement for it lives in `hall_blueprint`. */
   hall_background_image?: string | null;
   hall_blueprint?: BlueprintPlacement | string | null;
+  /** Portrait poster shown on the exhibition card. */
+  poster_image?: string | null;
   is_active?: boolean;
   created_at?: string;
   updated_at?: string;
