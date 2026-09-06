@@ -1,16 +1,53 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
-import { Search } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, Download, Building2, Mail, Phone, StickyNote, Clock } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { Units } from '@/lib/units';
 import type { BookingItem } from '@/types';
+
+/** The booking as the API returns it, with the legacy names folded in. */
+function normalize(b: BookingItem) {
+  return {
+    id: b.id,
+    code: b.reference_code || b.booking_code || `TB-${String(b.id).padStart(6, '0')}`,
+    name: b.customer_name || b.user_name || '',
+    phone: b.customer_phone || b.user_phone || '',
+    email: b.customer_email || b.user_email || '',
+    brand: b.business_name || '',
+    notes: (b.notes || '').trim(),
+    event: b.event_name || 'Exhibition',
+    venue: (b as any).event_venue || b.venue || '',
+    stall: b.table_number || '',
+    stallLabel: b.table_label || '',
+    stallW: Number(b.table_width) || 0,
+    stallH: Number(b.table_height) || 0,
+    fee: Number(b.table_price ?? (b as any).price ?? 0) || 0,
+    status: b.status,
+    bookedAt: b.booked_at || b.created_at || '',
+  };
+}
+type Row = ReturnType<typeof normalize>;
+
+function formatWhen(iso: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+/** RFC 4180-ish: quote everything, double any embedded quotes. */
+function csvCell(value: string | number): string {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
 
 export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'confirmed' | 'cancelled'>('all');
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const loadBookings = async () => {
     try {
@@ -39,30 +76,65 @@ export default function AdminBookingsPage() {
       });
 
       if (res.ok) {
-        setBookings((prev) =>
-          prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b))
-        );
+        setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b)));
       }
     } catch (e) {
       alert('Failed to update booking status');
     }
   };
 
-  const filteredBookings = bookings.filter((b: any) => {
-    const name = b.customer_name || b.user_name || '';
-    const phone = b.customer_phone || b.user_phone || '';
-    const code = b.reference_code || b.booking_code || '';
-    const event = b.event_name || '';
+  const rows = useMemo(() => bookings.map(normalize), [bookings]);
 
+  const filteredRows = rows.filter((r) => {
+    const q = searchTerm.trim().toLowerCase();
     const matchesSearch =
-      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      phone.includes(searchTerm) ||
-      code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      event.toLowerCase().includes(searchTerm.toLowerCase());
+      !q ||
+      r.name.toLowerCase().includes(q) ||
+      r.brand.toLowerCase().includes(q) ||
+      r.email.toLowerCase().includes(q) ||
+      r.phone.includes(q) ||
+      r.code.toLowerCase().includes(q) ||
+      r.event.toLowerCase().includes(q) ||
+      r.notes.toLowerCase().includes(q) ||
+      `stall ${r.stall}`.toLowerCase().includes(q);
 
-    const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  // Everything in the current view, one row per booking — for the venue team
+  const exportCsv = () => {
+    const header = ['Code', 'Name', 'Brand / Company', 'Phone', 'Email', 'Exhibition', 'Stall', 'Stall Size', 'Fee', 'Status', 'Booked At', 'Notes'];
+    const lines = filteredRows.map((r) =>
+      [
+        r.code,
+        r.name,
+        r.brand,
+        r.phone,
+        r.email,
+        r.event,
+        r.stall ? `Stall ${r.stall}` : '',
+        r.stallW && r.stallH ? `${r.stallW} x ${r.stallH} ft` : '',
+        r.fee,
+        r.status,
+        formatWhen(r.bookedAt),
+        r.notes,
+      ]
+        .map(csvCell)
+        .join(',')
+    );
+    const csv = '﻿' + [header.map(csvCell).join(','), ...lines].join('\r\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reservations-${new Date().toISOString().slice(0, 10)}${statusFilter !== 'all' ? `-${statusFilter}` : ''}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const toggle = (id: number) => setExpandedId((prev) => (prev === id ? null : id));
 
   return (
     <div className="flex h-screen bg-zinc-50 font-sans text-zinc-900 overflow-hidden">
@@ -73,53 +145,46 @@ export default function AdminBookingsPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-xl font-bold text-zinc-900">Reservations</h1>
-            <p className="text-xs text-zinc-500 mt-0.5">Manage attendee reservations and booth allotments</p>
+            <p className="text-xs text-zinc-500 mt-0.5">Every booking with the exhibitor&apos;s contact, brand and requirements</p>
           </div>
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={filteredRows.length === 0}
+            title="Download the bookings currently shown as a spreadsheet"
+            className="flex items-center gap-2 px-3.5 py-2 bg-white border border-zinc-300 hover:bg-zinc-50 disabled:opacity-40 text-zinc-800 rounded-lg text-xs font-semibold shadow-xs transition"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export CSV ({filteredRows.length})
+          </button>
         </div>
 
         {/* Filters & Search */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-          {/* Search Input */}
-          <div className="w-full sm:w-80 relative">
+          <div className="w-full sm:w-96 relative">
             <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by name, phone, code..."
+              placeholder="Search name, brand, phone, email, code, notes..."
               className="w-full pl-9 pr-4 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition"
             />
           </div>
 
-          {/* Status Tabs */}
           <div className="flex items-center gap-1 bg-zinc-200/70 p-1 rounded-lg text-xs">
-            <button
-              type="button"
-              onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1 rounded-md font-semibold transition ${
-                statusFilter === 'all' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-600 hover:text-zinc-900'
-              }`}
-            >
-              All ({bookings.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('confirmed')}
-              className={`px-3 py-1 rounded-md font-semibold transition ${
-                statusFilter === 'confirmed' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-600 hover:text-zinc-900'
-              }`}
-            >
-              Confirmed
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('cancelled')}
-              className={`px-3 py-1 rounded-md font-semibold transition ${
-                statusFilter === 'cancelled' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-600 hover:text-zinc-900'
-              }`}
-            >
-              Cancelled
-            </button>
+            {(['all', 'confirmed', 'cancelled'] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setStatusFilter(key)}
+                className={`px-3 py-1 rounded-md font-semibold capitalize transition ${
+                  statusFilter === key ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                {key === 'all' ? `All (${rows.length})` : key}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -129,80 +194,185 @@ export default function AdminBookingsPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-50 text-zinc-500 font-bold uppercase tracking-wider text-[10px] border-b border-zinc-200">
                 <tr>
-                  <th className="px-5 py-3.5">Code</th>
-                  <th className="px-5 py-3.5">Exhibitor</th>
-                  <th className="px-5 py-3.5">Exhibition</th>
-                  <th className="px-5 py-3.5">Stall</th>
-                  <th className="px-5 py-3.5">Fee</th>
-                  <th className="px-5 py-3.5">Status</th>
-                  <th className="px-5 py-3.5 text-right">Actions</th>
+                  <th className="px-4 py-3.5 w-8" aria-label="Expand" />
+                  <th className="px-4 py-3.5">Code</th>
+                  <th className="px-4 py-3.5">Exhibitor</th>
+                  <th className="px-4 py-3.5">Contact</th>
+                  <th className="px-4 py-3.5">Exhibition</th>
+                  <th className="px-4 py-3.5">Stall</th>
+                  <th className="px-4 py-3.5">Notes</th>
+                  <th className="px-4 py-3.5">Fee</th>
+                  <th className="px-4 py-3.5">Status</th>
+                  <th className="px-4 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-10 text-zinc-400">
+                    <td colSpan={10} className="text-center py-10 text-zinc-400">
                       Loading reservations...
                     </td>
                   </tr>
-                ) : filteredBookings.length === 0 ? (
+                ) : filteredRows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12 text-zinc-400 font-medium">
+                    <td colSpan={10} className="text-center py-12 text-zinc-400 font-medium">
                       No reservations found.
                     </td>
                   </tr>
                 ) : (
-                  filteredBookings.map((b: any) => (
-                    <tr key={b.id} className="hover:bg-zinc-50 transition">
-                      <td className="px-5 py-4 font-mono font-bold text-zinc-900">
-                        {b.reference_code || b.booking_code || `TB-${String(b.id).padStart(6, '0')}`}
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="font-bold text-zinc-900">{b.customer_name || b.user_name}</div>
-                        <div className="text-zinc-500 text-[11px]">{b.customer_phone || b.user_phone}</div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="font-semibold text-zinc-800">{b.event_name || 'Exhibition'}</div>
-                        {b.venue && <div className="text-zinc-400 text-[11px]">{b.venue}</div>}
-                      </td>
-                      <td className="px-5 py-4 font-semibold text-zinc-800">
-                        Stall {b.table_number || '1'}
-                      </td>
-                      <td className="px-5 py-4 font-bold text-zinc-900">
-                        {formatCurrency(b.table_price || b.price || 0)}
-                      </td>
-                      <td className="px-5 py-4">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                            b.status === 'confirmed'
-                              ? 'bg-zinc-100 text-zinc-800 border border-zinc-200'
-                              : 'bg-rose-50 text-rose-700 border border-rose-200'
-                          }`}
+                  filteredRows.map((r: Row) => {
+                    const isOpen = expandedId === r.id;
+                    return (
+                      <React.Fragment key={r.id}>
+                        <tr
+                          onClick={() => toggle(r.id)}
+                          className={`cursor-pointer transition ${isOpen ? 'bg-zinc-50' : 'hover:bg-zinc-50'}`}
+                          aria-expanded={isOpen}
                         >
-                          {b.status}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        {b.status === 'confirmed' ? (
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateStatus(b.id, 'cancelled')}
-                            className="px-2.5 py-1 text-zinc-500 hover:text-rose-600 hover:bg-rose-50 rounded-md text-[11px] font-semibold transition"
-                          >
-                            Cancel
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateStatus(b.id, 'confirmed')}
-                            className="px-2.5 py-1 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-md text-[11px] font-semibold transition"
-                          >
-                            Reactivate
-                          </button>
+                          <td className="px-4 py-4 text-zinc-400">
+                            {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                          </td>
+                          <td className="px-4 py-4 font-mono font-bold text-zinc-900 whitespace-nowrap">{r.code}</td>
+
+                          {/* Exhibitor: name, then the brand they are exhibiting as */}
+                          <td className="px-4 py-4">
+                            <div className="font-bold text-zinc-900">{r.name}</div>
+                            {r.brand ? (
+                              <div className="flex items-center gap-1 text-zinc-600 text-[11px] mt-0.5">
+                                <Building2 className="w-3 h-3 text-zinc-400 shrink-0" />
+                                <span className="truncate max-w-[180px]" title={r.brand}>
+                                  {r.brand}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="text-zinc-400 text-[11px] mt-0.5">No brand given</div>
+                            )}
+                          </td>
+
+                          {/* Contact: phone and email, both actionable */}
+                          <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                            <a href={`tel:${r.phone}`} className="block text-zinc-800 font-medium hover:underline whitespace-nowrap">
+                              {r.phone}
+                            </a>
+                            {r.email ? (
+                              <a href={`mailto:${r.email}`} className="block text-zinc-500 text-[11px] hover:underline truncate max-w-[200px]" title={r.email}>
+                                {r.email}
+                              </a>
+                            ) : (
+                              <span className="block text-zinc-400 text-[11px]">No email</span>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-4">
+                            <div className="font-semibold text-zinc-800">{r.event}</div>
+                            {r.venue && <div className="text-zinc-400 text-[11px]">{r.venue}</div>}
+                          </td>
+
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <div className="font-semibold text-zinc-800">Stall {r.stall || '—'}</div>
+                            {r.stallW > 0 && r.stallH > 0 && (
+                              <div className="text-zinc-400 text-[11px]">
+                                {Units.formatFeetShort(r.stallW)} × {Units.formatFeetShort(r.stallH)}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Notes preview; the full text lives in the expanded row */}
+                          <td className="px-4 py-4 max-w-[240px]">
+                            {r.notes ? (
+                              <div className="flex items-start gap-1.5 text-zinc-700">
+                                <StickyNote className="w-3 h-3 text-amber-500 shrink-0 mt-0.5" />
+                                <span className="line-clamp-2 leading-snug" title={r.notes}>
+                                  {r.notes}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-zinc-400">—</span>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-4 font-bold text-zinc-900 whitespace-nowrap">{formatCurrency(r.fee)}</td>
+
+                          <td className="px-4 py-4">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                r.status === 'confirmed'
+                                  ? 'bg-zinc-100 text-zinc-800 border border-zinc-200'
+                                  : 'bg-rose-50 text-rose-700 border border-rose-200'
+                              }`}
+                            >
+                              {r.status}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                            {r.status === 'confirmed' ? (
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateStatus(r.id, 'cancelled')}
+                                className="px-2.5 py-1 text-zinc-500 hover:text-rose-600 hover:bg-rose-50 rounded-md text-[11px] font-semibold transition"
+                              >
+                                Cancel
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateStatus(r.id, 'confirmed')}
+                                className="px-2.5 py-1 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-md text-[11px] font-semibold transition"
+                              >
+                                Reactivate
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+
+                        {/* Full record */}
+                        {isOpen && (
+                          <tr className="bg-zinc-50/70">
+                            <td colSpan={10} className="px-6 pb-5 pt-1">
+                              <div className="ml-8 grid grid-cols-1 md:grid-cols-4 gap-x-8 gap-y-4 rounded-lg border border-zinc-200 bg-white p-4">
+                                <Detail icon={<Building2 className="w-3.5 h-3.5" />} label="Brand / Company" value={r.brand || '—'} />
+                                <Detail
+                                  icon={<Phone className="w-3.5 h-3.5" />}
+                                  label="Phone"
+                                  value={
+                                    <a href={`tel:${r.phone}`} className="hover:underline">
+                                      {r.phone || '—'}
+                                    </a>
+                                  }
+                                />
+                                <Detail
+                                  icon={<Mail className="w-3.5 h-3.5" />}
+                                  label="Email"
+                                  value={
+                                    r.email ? (
+                                      <a href={`mailto:${r.email}`} className="hover:underline break-all">
+                                        {r.email}
+                                      </a>
+                                    ) : (
+                                      '—'
+                                    )
+                                  }
+                                />
+                                <Detail icon={<Clock className="w-3.5 h-3.5" />} label="Booked at" value={formatWhen(r.bookedAt)} />
+                                <div className="md:col-span-4">
+                                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1">
+                                    <StickyNote className="w-3.5 h-3.5" />
+                                    Special requirements / notes
+                                  </div>
+                                  {r.notes ? (
+                                    <p className="text-zinc-800 whitespace-pre-wrap leading-relaxed">{r.notes}</p>
+                                  ) : (
+                                    <p className="text-zinc-400">None given</p>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
                         )}
-                      </td>
-                    </tr>
-                  ))
+                      </React.Fragment>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -212,3 +382,13 @@ export default function AdminBookingsPage() {
     </div>
   );
 }
+
+const Detail: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode }> = ({ icon, label, value }) => (
+  <div className="min-w-0">
+    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1">
+      {icon}
+      {label}
+    </div>
+    <div className="text-zinc-900 font-medium break-words">{value}</div>
+  </div>
+);

@@ -90,14 +90,22 @@ export interface BookingItem {
   id: number;
   event_id: number;
   table_id: number;
-  user_name: string;
-  user_email: string;
-  user_phone: string;
+  /** Columns as the API actually returns them */
+  reference_code?: string;
+  customer_name?: string;
+  customer_phone?: string;
+  customer_email?: string;
+  business_name?: string;
+  booked_at?: string;
+  /** Older field names, kept so existing screens keep compiling */
+  user_name?: string;
+  user_email?: string;
+  user_phone?: string;
   notes?: string;
   status: BookingStatus;
   booking_code?: string;
   total_amount?: number;
-  created_at: string;
+  created_at?: string;
   event_name?: string;
   event_date?: string;
   venue?: string;
