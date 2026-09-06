@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { dbGet, dbAll, withTransaction } from '@/lib/db';
 import { Units } from '@/lib/units';
 import { ELEMENT_OUTSIDE_MARGIN_FT } from '@/lib/constants';
+import { normalizeBlueprint, sanitizeBlueprintUrl } from '@/lib/blueprint';
 import { getSession } from '@/lib/auth';
 
 export async function GET(req: NextRequest, { params }: { params: any }) {
@@ -33,7 +34,17 @@ export async function POST(req: NextRequest, { params }: { params: any }) {
     }
 
     const body = await req.json();
-    const { tables, hall_elements, hall_width, hall_height, hall_rotation, name, venue } = body;
+    const {
+      tables,
+      hall_elements,
+      hall_width,
+      hall_height,
+      hall_rotation,
+      name,
+      venue,
+      hall_background_image,
+      hall_blueprint,
+    } = body;
 
     if (!Array.isArray(tables)) {
       return NextResponse.json({ error: 'Tables array is required' }, { status: 400 });
@@ -59,6 +70,19 @@ export async function POST(req: NextRequest, { params }: { params: any }) {
       (roomBadge && (roomBadge.label || roomBadge.text) ? String(roomBadge.label || roomBadge.text).trim() : event.name);
     const eventVenue = venue !== undefined ? venue : event.venue;
 
+    // Blueprint: the URL and its placement travel together. Dropping the URL
+    // drops the placement too, so a re-uploaded image starts fresh.
+    const blueprintUrl =
+      hall_background_image !== undefined
+        ? sanitizeBlueprintUrl(hall_background_image)
+        : sanitizeBlueprintUrl(event.hall_background_image);
+
+    let blueprintJson: string | null = null;
+    if (blueprintUrl) {
+      const source = hall_blueprint !== undefined ? hall_blueprint : event.hall_blueprint;
+      blueprintJson = JSON.stringify(normalizeBlueprint(source, currentHallW, currentHallH));
+    }
+
     const updated = await withTransaction(async (client) => {
       await client.query(
         `
@@ -68,10 +92,22 @@ export async function POST(req: NextRequest, { params }: { params: any }) {
           hall_width = $3,
           hall_height = $4,
           hall_rotation = $5,
-          hall_elements = $6::jsonb
-        WHERE id = $7
+          hall_elements = $6::jsonb,
+          hall_background_image = $7,
+          hall_blueprint = $8::jsonb
+        WHERE id = $9
       `,
-        [eventName, eventVenue, currentHallW, currentHallH, currentRotation, elementsJson, eventId]
+        [
+          eventName,
+          eventVenue,
+          currentHallW,
+          currentHallH,
+          currentRotation,
+          elementsJson,
+          blueprintUrl,
+          blueprintJson,
+          eventId,
+        ]
       );
 
       const keptNumbers: string[] = [];

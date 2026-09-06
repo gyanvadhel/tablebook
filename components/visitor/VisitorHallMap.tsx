@@ -3,7 +3,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Units } from '@/lib/units';
 import { WALL_THICKNESS_FT } from '@/lib/constants';
-import type { TableItem, HallElement } from '@/types';
+import type { TableItem, HallElement, BlueprintPlacement } from '@/types';
 
 interface VisitorHallMapProps {
   hallWidth: number;
@@ -13,6 +13,8 @@ interface VisitorHallMapProps {
   selectedTable: TableItem | null;
   onSelectTable: (table: TableItem) => void;
   eventName: string;
+  blueprintUrl?: string | null;
+  blueprint?: BlueprintPlacement | null;
 }
 
 export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
@@ -23,9 +25,14 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
   selectedTable,
   onSelectTable,
   eventName,
+  blueprintUrl = null,
+  blueprint = null,
 }) => {
   const hallWidth = Units.toFeet(rawHallW, 30) || 30;
   const hallHeight = Units.toFeet(rawHallH, 20) || 20;
+
+  // The admin decides per event whether visitors see the underlay at all
+  const showBlueprint = Boolean(blueprintUrl && blueprint?.visible && blueprint?.showToVisitors);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewBox, setViewBox] = useState<{ x: number; y: number; w: number; h: number }>({
@@ -186,6 +193,27 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
 
         {/* Main Hall Parquet Floor */}
         <rect x="0" y="0" width={wPx} height={hPx} fill="url(#visitor-wood)" stroke="#18181b" strokeWidth="1.5" />
+
+        {/* Blueprint Underlay — drawn on the floor, never intercepts a click */}
+        {showBlueprint && blueprint && (
+          <image
+            href={blueprintUrl as string}
+            x={px(blueprint.x)}
+            y={px(blueprint.y)}
+            width={px(blueprint.width)}
+            height={px(blueprint.height)}
+            opacity={blueprint.opacity}
+            preserveAspectRatio="none"
+            pointerEvents="none"
+            transform={
+              blueprint.rotation
+                ? `rotate(${blueprint.rotation}, ${px(blueprint.x + blueprint.width / 2)}, ${px(
+                    blueprint.y + blueprint.height / 2
+                  )})`
+                : undefined
+            }
+          />
+        )}
 
         {/* Hall Dimensions */}
         <text x={wPx / 2} y="-10" fill="#000000" fontSize="11" fontWeight="800" textAnchor="middle" pointerEvents="none">

@@ -8,7 +8,8 @@ import { VisitorHallMap } from '@/components/visitor/VisitorHallMap';
 import { BookingModal } from '@/components/visitor/BookingModal';
 import { Units } from '@/lib/units';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import type { EventItem, TableItem, HallElement } from '@/types';
+import { normalizeBlueprint, sanitizeBlueprintUrl } from '@/lib/blueprint';
+import type { EventItem, TableItem, HallElement, BlueprintPlacement } from '@/types';
 
 export default function EventBookingPage() {
   const params = useParams();
@@ -18,6 +19,8 @@ export default function EventBookingPage() {
   const [event, setEvent] = useState<EventItem | null>(null);
   const [tables, setTables] = useState<TableItem[]>([]);
   const [elements, setElements] = useState<HallElement[]>([]);
+  const [blueprintUrl, setBlueprintUrl] = useState<string | null>(null);
+  const [blueprint, setBlueprint] = useState<BlueprintPlacement | null>(null);
   const [selectedTable, setSelectedTable] = useState<TableItem | null>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,6 +51,12 @@ export default function EventBookingPage() {
           }
         }
         setElements(parsedElements);
+
+        const bpUrl = sanitizeBlueprintUrl(eventData.hall_background_image);
+        setBlueprintUrl(bpUrl);
+        setBlueprint(
+          bpUrl ? normalizeBlueprint(eventData.hall_blueprint, eventData.hall_width, eventData.hall_height) : null
+        );
 
         if (tablesRes.ok) {
           const tablesData = await tablesRes.json();
@@ -150,6 +159,8 @@ export default function EventBookingPage() {
           selectedTable={selectedTable}
           onSelectTable={setSelectedTable}
           eventName={event.name}
+          blueprintUrl={blueprintUrl}
+          blueprint={blueprint}
         />
 
         {/* Floating Selected Stall Action Bar */}

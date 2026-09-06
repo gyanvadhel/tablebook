@@ -72,6 +72,11 @@ function openEventModal(event = null) {
     document.getElementById('event-end-date').value = event.end_date || '';
     document.getElementById('event-hall-width').value = event.hall_width || Units.DEFAULT_HALL_WIDTH_FT;
     document.getElementById('event-hall-height').value = event.hall_height || Units.DEFAULT_HALL_HEIGHT_FT;
+    document.getElementById('event-bg-image').value = event.hall_background_image || '';
+    const fileInput1 = document.getElementById('event-bg-file');
+    if (fileInput1) fileInput1.value = '';
+    const statusEl1 = document.getElementById('event-bg-upload-status');
+    if (statusEl1) statusEl1.style.display = 'none';
     document.getElementById('event-status').value = event.status || 'draft';
   } else {
     editingEventId = null;
@@ -80,6 +85,11 @@ function openEventModal(event = null) {
     document.getElementById('event-form').reset();
     document.getElementById('event-hall-width').value = Units.DEFAULT_HALL_WIDTH_FT;
     document.getElementById('event-hall-height').value = Units.DEFAULT_HALL_HEIGHT_FT;
+    document.getElementById('event-bg-image').value = '';
+    const fileInput2 = document.getElementById('event-bg-file');
+    if (fileInput2) fileInput2.value = '';
+    const statusEl2 = document.getElementById('event-bg-upload-status');
+    if (statusEl2) statusEl2.style.display = 'none';
   }
 
   updateHallAreaHint();
@@ -108,6 +118,45 @@ function closeEventModal() {
 }
 
 async function saveEvent() {
+  const fileInput = document.getElementById('event-bg-file');
+  const statusEl = document.getElementById('event-bg-upload-status');
+  const file = fileInput && fileInput.files && fileInput.files[0];
+  let bgImageUrl = document.getElementById('event-bg-image').value.trim() || null;
+
+  // If a local file is selected, upload it first
+  if (file) {
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.textContent = 'Uploading blueprint...';
+      statusEl.style.color = 'var(--text-muted)';
+    }
+    try {
+      const formData = new FormData();
+      formData.append('blueprint', file);
+      const uploadRes = await fetch('/api/admin/upload/blueprint', {
+        method: 'POST',
+        body: formData
+      });
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json().catch(() => ({}));
+        throw new Error(errData.error || 'Upload failed');
+      }
+      const result = await uploadRes.json();
+      bgImageUrl = result.url;
+      if (statusEl) {
+        statusEl.textContent = 'Uploaded successfully';
+        statusEl.style.color = '#059669';
+      }
+    } catch (err) {
+      if (statusEl) {
+        statusEl.textContent = `Upload failed: ${err.message}`;
+        statusEl.style.color = '#dc2626';
+      }
+      showToast('Failed to upload blueprint file', 'error');
+      return;
+    }
+  }
+
   const data = {
     name: document.getElementById('event-name').value.trim(),
     venue: document.getElementById('event-venue').value.trim(),
@@ -116,6 +165,7 @@ async function saveEvent() {
     end_date: document.getElementById('event-end-date').value,
     hall_width: Units.clampHallFt(document.getElementById('event-hall-width').value, Units.DEFAULT_HALL_WIDTH_FT),
     hall_height: Units.clampHallFt(document.getElementById('event-hall-height').value, Units.DEFAULT_HALL_HEIGHT_FT),
+    hall_background_image: bgImageUrl,
     status: document.getElementById('event-status').value
   };
 

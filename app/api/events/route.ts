@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbAll, dbGet, dbRun } from '@/lib/db';
 import { Units } from '@/lib/units';
+import { createPlacement, sanitizeBlueprintUrl } from '@/lib/blueprint';
 import { getSession } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, description = '', venue = '', start_date = null, end_date = null, hall_width = 80, hall_height = 55 } = body;
+    const { name, description = '', venue = '', start_date = null, end_date = null, hall_width = 80, hall_height = 55, hall_background_image = null } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: 'Event name is required' }, { status: 400 });
@@ -49,6 +50,9 @@ export async function POST(req: NextRequest) {
 
     const w = Units.clampHallFt(hall_width, 80);
     const h = Units.clampHallFt(hall_height, 55);
+
+    const blueprintUrl = sanitizeBlueprintUrl(hall_background_image);
+    const blueprintJson = blueprintUrl ? JSON.stringify(createPlacement(w, h)) : null;
 
     const initialBadge = [
       {
@@ -65,11 +69,22 @@ export async function POST(req: NextRequest) {
 
     const result = await dbRun(
       `
-      INSERT INTO events (name, description, venue, start_date, end_date, hall_width, hall_height, hall_elements, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, 'draft')
+      INSERT INTO events (name, description, venue, start_date, end_date, hall_width, hall_height, hall_background_image, hall_blueprint, hall_elements, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, 'draft')
       RETURNING *
     `,
-      [name.trim(), description, venue, start_date || null, end_date || null, w, h, JSON.stringify(initialBadge)]
+      [
+        name.trim(),
+        description,
+        venue,
+        start_date || null,
+        end_date || null,
+        w,
+        h,
+        blueprintUrl,
+        blueprintJson,
+        JSON.stringify(initialBadge),
+      ]
     );
 
     return NextResponse.json(result.row, { status: 201 });

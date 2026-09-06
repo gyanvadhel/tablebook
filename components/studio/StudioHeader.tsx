@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ZoomIn, ZoomOut, Save } from 'lucide-react';
+import { ArrowLeft, ZoomIn, ZoomOut, Save, Layers } from 'lucide-react';
 import { Units } from '@/lib/units';
 import { RotateFloorMenu } from './RotateFloorMenu';
 import type { EventItem } from '@/types';
@@ -19,6 +19,10 @@ interface StudioHeaderProps {
   onRotateFloor: (mode: 'cw' | 'ccw' | '180') => void;
   onSave: () => void;
   isSaving: boolean;
+  blueprintOpen: boolean;
+  hasBlueprint: boolean;
+  onToggleBlueprint: () => void;
+  hasUnsavedChanges: boolean;
 }
 
 export const StudioHeader: React.FC<StudioHeaderProps> = ({
@@ -33,6 +37,10 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   onRotateFloor,
   onSave,
   isSaving,
+  blueprintOpen,
+  hasBlueprint,
+  onToggleBlueprint,
+  hasUnsavedChanges,
 }) => {
   return (
     <header className="h-12 bg-white border-b border-zinc-200 px-4 flex items-center justify-between shrink-0 z-20 select-none font-sans">
@@ -102,6 +110,25 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
           <option value={0}>Snap: Off</option>
         </select>
 
+        {/* Blueprint Underlay */}
+        <button
+          type="button"
+          onClick={onToggleBlueprint}
+          aria-pressed={blueprintOpen}
+          title="Blueprint underlay — trace a venue floor plan at true scale"
+          className={`relative flex items-center gap-1.5 px-2.5 py-1.5 border rounded-md text-xs font-semibold transition ${
+            blueprintOpen
+              ? 'bg-zinc-900 border-zinc-900 text-white'
+              : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-50'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span className="hidden lg:inline">Blueprint</span>
+          {hasBlueprint && !blueprintOpen && (
+            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-blue-500" />
+          )}
+        </button>
+
         {/* Rotate Floor Dropdown */}
         <RotateFloorMenu onRotateEntireFloor={onRotateFloor} />
 
@@ -110,10 +137,13 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
           type="button"
           onClick={onSave}
           disabled={isSaving}
-          className="flex items-center gap-1.5 px-4 py-1.5 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-bold rounded-md shadow-xs transition"
+          className="relative flex items-center gap-1.5 px-4 py-1.5 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-bold rounded-md shadow-xs transition"
         >
           <Save className="w-3.5 h-3.5" />
           <span>{isSaving ? 'Saving...' : 'Save Plan'}</span>
+          {hasUnsavedChanges && !isSaving && (
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 border border-white" />
+          )}
         </button>
       </div>
     </header>

@@ -105,6 +105,7 @@ CREATE TABLE IF NOT EXISTS events (
   hall_width            REAL NOT NULL DEFAULT 80  CHECK (hall_width  BETWEEN 10 AND 600),
   hall_height           REAL NOT NULL DEFAULT 55  CHECK (hall_height BETWEEN 10 AND 600),
   hall_background_image TEXT,
+  hall_blueprint        JSONB,
   hall_elements         JSONB DEFAULT '[]'::jsonb,
   hall_rotation         INTEGER DEFAULT 0,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -175,6 +176,8 @@ export async function initializeDatabase(): Promise<void> {
       await getPool().query(`
         ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_elements JSONB DEFAULT '[]'::jsonb;
         ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_rotation INTEGER DEFAULT 0;
+        ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_background_image TEXT;
+        ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_blueprint JSONB;
         ALTER TABLE tables DROP CONSTRAINT IF EXISTS tables_size_check;
         ALTER TABLE tables ADD CONSTRAINT tables_size_check CHECK (size IN ('small', 'medium', 'large', 'xlarge'));
       `);

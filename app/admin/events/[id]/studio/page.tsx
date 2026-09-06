@@ -1,15 +1,24 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { StudioHeader } from '@/components/studio/StudioHeader';
 import { StudioPalette } from '@/components/studio/StudioPalette';
 import { StudioCanvas } from '@/components/studio/StudioCanvas';
 import { StudioInspector } from '@/components/studio/StudioInspector';
 import { StudioDirectory } from '@/components/studio/StudioDirectory';
+import { BlueprintPanel, measureAspect } from '@/components/studio/BlueprintPanel';
 import { Units } from '@/lib/units';
 import { STALL_DEFAULTS } from '@/lib/constants';
-import type { EventItem, TableItem, HallElement, StudioSelectedItem } from '@/types';
+import {
+  DEFAULT_BLUEPRINT,
+  calibrate,
+  createPlacement,
+  fitToHall,
+  normalizeBlueprint,
+  sanitizeBlueprintUrl,
+} from '@/lib/blueprint';
+import type { EventItem, TableItem, HallElement, StudioSelectedItem, BlueprintPlacement } from '@/types';
 
 export default function StudioPage() {
   const params = useParams();
@@ -34,6 +43,17 @@ export default function StudioPage() {
     h: 800,
   });
 
+  // Blueprint Underlay State
+  const [blueprintUrl, setBlueprintUrl] = useState<string | null>(null);
+  const [blueprint, setBlueprint] = useState<BlueprintPlacement>(DEFAULT_BLUEPRINT);
+  const [blueprintAspect, setBlueprintAspect] = useState<number | null>(null);
+  const [isBlueprintPanelOpen, setIsBlueprintPanelOpen] = useState(false);
+  const [isCalibrating, setIsCalibrating] = useState(false);
+
+  // Snapshot of the last state written to the server, for the unsaved marker
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
+  const [needsSnapshot, setNeedsSnapshot] = useState(false);
+
   const showToast = (text: string, type: 'info' | 'success' | 'error' = 'info') => {
     setToastMessage({ text, type });
     setTimeout(() => setToastMessage(null), 3500);
@@ -41,6 +61,34 @@ export default function StudioPage() {
 
   const hallWidth = event ? Number(event.hall_width) || Units.DEFAULT_HALL_WIDTH_FT : Units.DEFAULT_HALL_WIDTH_FT;
   const hallHeight = event ? Number(event.hall_height) || Units.DEFAULT_HALL_HEIGHT_FT : Units.DEFAULT_HALL_HEIGHT_FT;
+
+  // Everything the Save button sends. Comparing it to the last saved copy is
+  // what lights the unsaved-changes dot.
+  const savePayload = useMemo(
+    () =>
+      JSON.stringify({
+        name: event?.name ?? '',
+        venue: event?.venue ?? '',
+        hall_width: hallWidth,
+        hall_height: hallHeight,
+        hall_rotation: event?.hall_rotation || 0,
+        hall_background_image: blueprintUrl,
+        hall_blueprint: blueprintUrl ? blueprint : null,
+        tables,
+        hall_elements: elements,
+      }),
+    [event?.name, event?.venue, event?.hall_rotation, hallWidth, hallHeight, blueprintUrl, blueprint, tables, elements]
+  );
+
+  const hasUnsavedChanges = savedSnapshot !== null && savedSnapshot !== savePayload;
+
+  // Take the baseline after a load or save, once the new state has landed
+  useEffect(() => {
+    if (needsSnapshot) {
+      setSavedSnapshot(savePayload);
+      setNeedsSnapshot(false);
+    }
+  }, [needsSnapshot, savePayload]);
 
   // Auto-fit ViewBox
   const fitViewBox = (
@@ -107,6 +155,23 @@ export default function StudioPage() {
         if (!isMounted) return;
         setEvent(eventData);
 
+        // Blueprint underlay: the URL and its placement are stored apart, so
+        // rebuild the pair and re-measure the image's true aspect ratio.
+        const savedUrl = sanitizeBlueprintUrl(eventData.hall_background_image);
+        setBlueprintUrl(savedUrl);
+        setBlueprint(
+          savedUrl
+            ? normalizeBlueprint(eventData.hall_blueprint, eventData.hall_width, eventData.hall_height)
+            : createPlacement(eventData.hall_width, eventData.hall_height)
+        );
+        setBlueprintAspect(null);
+
+        if (savedUrl) {
+          measureAspect(savedUrl).then((aspect) => {
+            if (isMounted) setBlueprintAspect(aspect);
+          });
+        }
+
         let initialElements: HallElement[] = [];
         if (eventData.hall_elements) {
           try {
@@ -162,6 +227,7 @@ export default function StudioPage() {
         }
 
         fitViewBox(loadedTables, initialElements, eventData.hall_width, eventData.hall_height);
+        setNeedsSnapshot(true);
       } catch (err: any) {
         if (isMounted) showToast(err.message || 'Error loading studio', 'error');
       } finally {
@@ -637,6 +703,65 @@ export default function StudioPage() {
     }
   };
 
+  /* ------------------------------------------------------------------
+     Blueprint underlay
+     ------------------------------------------------------------------ */
+
+  // Attach a freshly uploaded or linked image, sized to the hall at its own
+  // aspect ratio so it starts undistorted.
+  const handleAttachBlueprint = (url: string, aspect: number | null) => {
+    setBlueprintUrl(url);
+    setBlueprintAspect(aspect);
+    setBlueprint(createPlacement(hallWidth, hallHeight, aspect ?? undefined));
+    setIsCalibrating(false);
+  };
+
+  const handleRemoveBlueprint = () => {
+    setBlueprintUrl(null);
+    setBlueprintAspect(null);
+    setBlueprint(createPlacement(hallWidth, hallHeight));
+    setIsCalibrating(false);
+    showToast('Blueprint removed — save to make it stick', 'info');
+  };
+
+  const handleUpdateBlueprint = (patch: Partial<BlueprintPlacement>) => {
+    setBlueprint((prev) => ({ ...prev, ...patch }));
+  };
+
+  const handleFitBlueprintToHall = () => {
+    setBlueprint((prev) => ({ ...prev, ...fitToHall(hallWidth, hallHeight, blueprintAspect ?? undefined) }));
+    showToast('Blueprint fitted to the hall', 'info');
+  };
+
+  // Undo any stretching by letting the current width dictate the height
+  const handleResetBlueprintAspect = () => {
+    if (!blueprintAspect) return;
+    setBlueprint((prev) => ({ ...prev, height: Units.roundFt(prev.width / blueprintAspect) }));
+    showToast('Blueprint restored to its natural proportions', 'info');
+  };
+
+  const handleCalibrateBlueprint = (
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+    realFt: number
+  ) => {
+    const next = calibrate(blueprint, from, to, realFt);
+
+    if (!next) {
+      showToast('Those two points are too close together to calibrate from', 'error');
+      return;
+    }
+
+    const factor = next.width / blueprint.width;
+    setBlueprint(next);
+    setBlueprintAspect(next.width / next.height);
+    setIsCalibrating(false);
+    showToast(
+      `Calibrated — blueprint rescaled ${factor.toFixed(2)}× to ${Units.formatFeetShort(next.width)} wide`,
+      'success'
+    );
+  };
+
   // Save Floor Plan
   const handleSave = async () => {
     if (!eventId || !event) return;
@@ -652,6 +777,8 @@ export default function StudioPage() {
           hall_width: hallWidth,
           hall_height: hallHeight,
           hall_rotation: event.hall_rotation || 0,
+          hall_background_image: blueprintUrl,
+          hall_blueprint: blueprintUrl ? blueprint : null,
           tables,
           hall_elements: elements,
         }),
@@ -669,9 +796,18 @@ export default function StudioPage() {
 
       const data = await res.json();
       if (data.tables) setTables(data.tables);
-      if (data.event) setEvent(data.event);
+      if (data.event) {
+        setEvent(data.event);
+
+        const savedUrl = sanitizeBlueprintUrl(data.event.hall_background_image);
+        setBlueprintUrl(savedUrl);
+        if (savedUrl) {
+          setBlueprint(normalizeBlueprint(data.event.hall_blueprint, data.event.hall_width, data.event.hall_height));
+        }
+      }
 
       setSelectedItem(null);
+      setNeedsSnapshot(true);
       showToast('Floor plan saved successfully!', 'success');
     } catch (err: any) {
       showToast(err.message || 'Failed to save floor plan', 'error');
@@ -727,6 +863,15 @@ export default function StudioPage() {
         onRotateFloor={handleRotateEntireFloor}
         onSave={handleSave}
         isSaving={isSaving}
+        blueprintOpen={isBlueprintPanelOpen}
+        hasBlueprint={Boolean(blueprintUrl)}
+        onToggleBlueprint={() => {
+          setIsBlueprintPanelOpen((prev) => {
+            if (prev) setIsCalibrating(false);
+            return !prev;
+          });
+        }}
+        hasUnsavedChanges={hasUnsavedChanges}
       />
 
       {/* 3-Column Studio Workspace */}
@@ -743,25 +888,56 @@ export default function StudioPage() {
         />
 
         {/* 2. Center CAD SVG Canvas */}
-        <StudioCanvas
-          hallWidth={hallWidth}
-          hallHeight={hallHeight}
-          tables={tables}
-          elements={elements}
-          selectedItem={selectedItem}
-          snapGrid={snapGrid}
-          onSelectItem={(type, obj) => setSelectedItem({ type, obj })}
-          onDeselect={() => setSelectedItem(null)}
-          onUpdatePosition={handleUpdatePosition}
-          onRotateSelected={handleRotateSelected}
-          onFlipSelected={handleFlipSelected}
-          onDuplicateSelected={handleDuplicateSelected}
-          onDeleteSelected={handleDeleteSelected}
-          eventName={event?.name || 'Main Hall'}
-          zoomLevel={1}
-          viewBox={viewBox}
-          onUpdateViewBox={setViewBox}
-        />
+        <div className="flex-1 h-full relative flex">
+          <StudioCanvas
+            hallWidth={hallWidth}
+            hallHeight={hallHeight}
+            tables={tables}
+            elements={elements}
+            selectedItem={selectedItem}
+            snapGrid={snapGrid}
+            onSelectItem={(type, obj) => setSelectedItem({ type, obj })}
+            onDeselect={() => setSelectedItem(null)}
+            onUpdatePosition={handleUpdatePosition}
+            onRotateSelected={handleRotateSelected}
+            onFlipSelected={handleFlipSelected}
+            onDuplicateSelected={handleDuplicateSelected}
+            onDeleteSelected={handleDeleteSelected}
+            eventName={event?.name || 'Main Hall'}
+            zoomLevel={1}
+            viewBox={viewBox}
+            onUpdateViewBox={setViewBox}
+            blueprintUrl={blueprintUrl}
+            blueprint={blueprint}
+            blueprintActive={isBlueprintPanelOpen}
+            onUpdateBlueprint={handleUpdateBlueprint}
+            isCalibrating={isCalibrating}
+            onCalibrate={handleCalibrateBlueprint}
+            onCancelCalibration={() => setIsCalibrating(false)}
+          />
+
+          <BlueprintPanel
+            open={isBlueprintPanelOpen}
+            onClose={() => {
+              setIsBlueprintPanelOpen(false);
+              setIsCalibrating(false);
+            }}
+            url={blueprintUrl}
+            placement={blueprint}
+            naturalAspect={blueprintAspect}
+            hallWidth={hallWidth}
+            hallHeight={hallHeight}
+            isCalibrating={isCalibrating}
+            onAttach={handleAttachBlueprint}
+            onRemove={handleRemoveBlueprint}
+            onUpdate={handleUpdateBlueprint}
+            onFitToHall={handleFitBlueprintToHall}
+            onResetAspect={handleResetBlueprintAspect}
+            onStartCalibration={() => setIsCalibrating(true)}
+            onCancelCalibration={() => setIsCalibrating(false)}
+            onNotify={showToast}
+          />
+        </div>
 
         {/* 3. Right Inspector & Directory */}
         <aside className="w-[280px] bg-white border-l border-zinc-200 flex flex-col h-full overflow-y-auto select-none shrink-0">

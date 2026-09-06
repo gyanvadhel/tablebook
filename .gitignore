@@ -28,3 +28,14 @@ npm-debug.log*
 Thumbs.db
 .idea/
 .vscode/
+
+# Uploaded blueprint images (keep directory, ignore files)
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Local experiments and image crops used while reverse-engineering floor plans
+scratch/
+scratch_crops/
+
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo

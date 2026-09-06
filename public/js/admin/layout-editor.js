@@ -33,6 +33,7 @@ const layoutEditor = {
   elements: [],
   selectedItem: null, // { type: 'table' | 'element', obj: ... }
   directoryFilter: 'all',
+  blueprintOpacity: 0.6,
 
   // Snap & Guide Settings (feet)
   snapGridFt: 1,
@@ -490,6 +491,11 @@ const layoutEditor = {
     floor.setAttribute('stroke-width', '1.5');
     this.svg.appendChild(floor);
 
+    // Blueprint Background Image Layer
+    const blueprintLayer = document.createElementNS(ns, 'g');
+    blueprintLayer.setAttribute('id', 'editor-blueprint-layer');
+    this.svg.appendChild(blueprintLayer);
+
     // Architectural Layer Groups
     const structuresLayer = document.createElementNS(ns, 'g');
     structuresLayer.setAttribute('id', 'editor-structures-layer');
@@ -517,6 +523,7 @@ const layoutEditor = {
   },
 
   renderAllObjects() {
+    this.renderBlueprintImage();
     this.renderAllTables();
     this.renderAllElements();
     this.renderDynamicDimensionLines();
@@ -2636,6 +2643,146 @@ const layoutEditor = {
 
   resetView() {
     this.setupViewBox();
+  },
+
+  /* ----------------------------------------------------
+     BLUEPRINT FLOOR PLAN OVERLAY ENGINE & MODAL
+     ---------------------------------------------------- */
+  renderBlueprintImage() {
+    const layer = document.getElementById('editor-blueprint-layer');
+    if (!layer) return;
+    layer.innerHTML = '';
+
+    const bgUrl = this.eventData && this.eventData.hall_background_image;
+    if (!bgUrl) return;
+
+    const ns = 'http://www.w3.org/2000/svg';
+    const img = document.createElementNS(ns, 'image');
+    img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', bgUrl);
+    img.setAttribute('href', bgUrl);
+    img.setAttribute('x', '0');
+    img.setAttribute('y', '0');
+    img.setAttribute('width', this.px(this.hallWidthFt()));
+    img.setAttribute('height', this.px(this.hallHeightFt()));
+    img.setAttribute('preserveAspectRatio', 'none');
+    img.setAttribute('opacity', String(this.blueprintOpacity || 0.6));
+    img.setAttribute('pointer-events', 'none');
+    layer.appendChild(img);
+  },
+
+  openBlueprintModal() {
+    const modal = document.getElementById('blueprint-modal-overlay');
+    const input = document.getElementById('blueprint-url-input');
+    const opacityInput = document.getElementById('blueprint-opacity-input');
+    const opacityLabel = document.getElementById('opacity-val-label');
+
+    if (input) input.value = (this.eventData && this.eventData.hall_background_image) || '';
+    if (opacityInput) opacityInput.value = String(this.blueprintOpacity || 0.6);
+    if (opacityLabel) opacityLabel.textContent = `${Math.round((this.blueprintOpacity || 0.6) * 100)}%`;
+
+    if (modal) modal.classList.add('active');
+  },
+
+  closeBlueprintModal() {
+    const modal = document.getElementById('blueprint-modal-overlay');
+    if (modal) modal.classList.remove('active');
+  },
+
+  updateBlueprintOpacity(val) {
+    const num = parseFloat(val) || 0.6;
+    this.blueprintOpacity = num;
+
+    const opacityLabel = document.getElementById('opacity-val-label');
+    if (opacityLabel) opacityLabel.textContent = `${Math.round(num * 100)}%`;
+
+    this.renderBlueprintImage();
+  },
+
+  clearBlueprintImage() {
+    if (this.eventData) this.eventData.hall_background_image = null;
+    const urlInput = document.getElementById('blueprint-url-input');
+    const fileInput = document.getElementById('blueprint-file-input');
+    if (urlInput) urlInput.value = '';
+    if (fileInput) fileInput.value = '';
+    this.renderBlueprintImage();
+    this.closeBlueprintModal();
+
+    // Persist removal to server
+    fetch(`/api/admin/events/${this.eventId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hall_background_image: '' })
+    }).catch(err => console.error('Failed to clear blueprint on server:', err));
+
+    showToast('Blueprint image removed', 'info');
+  },
+
+  async saveBlueprintImage() {
+    if (!this.eventData) return;
+
+    const fileInput = document.getElementById('blueprint-file-input');
+    const urlInput = document.getElementById('blueprint-url-input');
+    const statusEl = document.getElementById('blueprint-upload-status');
+    const file = fileInput && fileInput.files && fileInput.files[0];
+    let finalUrl = urlInput ? urlInput.value.trim() : '';
+
+    // If a file is selected, upload it first
+    if (file) {
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.textContent = 'Uploading...';
+        statusEl.style.color = 'var(--text-muted)';
+      }
+
+      try {
+        const formData = new FormData();
+        formData.append('blueprint', file);
+
+        const uploadRes = await fetch('/api/admin/upload/blueprint', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json().catch(() => ({}));
+          throw new Error(errData.error || 'Upload failed');
+        }
+
+        const result = await uploadRes.json();
+        finalUrl = result.url;
+
+        if (statusEl) {
+          statusEl.textContent = 'Uploaded successfully';
+          statusEl.style.color = '#059669';
+        }
+        if (urlInput) urlInput.value = finalUrl;
+      } catch (err) {
+        console.error('Blueprint upload error:', err);
+        if (statusEl) {
+          statusEl.textContent = `Upload failed: ${err.message}`;
+          statusEl.style.color = '#dc2626';
+        }
+        showToast('Failed to upload blueprint file', 'error');
+        return;
+      }
+    }
+
+    this.eventData.hall_background_image = finalUrl || null;
+    this.renderBlueprintImage();
+    this.closeBlueprintModal();
+
+    try {
+      const res = await fetch(`/api/admin/events/${this.eventId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hall_background_image: finalUrl || null })
+      });
+      if (!res.ok) throw new Error('Failed to update event blueprint');
+      showToast('Blueprint overlay updated & saved', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to save blueprint overlay', 'error');
+    }
   }
 };
 

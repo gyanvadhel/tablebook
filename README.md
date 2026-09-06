@@ -85,6 +85,56 @@ everything in `public/` as static assets. Set `DATABASE_URL`, `SESSION_SECRET`,
 `ADMIN_USERNAME`, and `ADMIN_PASSWORD` as project environment variables, then
 deploy.
 
+## Blueprint underlay
+
+The studio can lay a real venue floor plan under the canvas and trace stalls
+over it. Open **Blueprint** in the studio header, then drop in a PNG, JPG, GIF
+or WEBP (up to 10 MB) or paste an image URL.
+
+**Calibrate it before you trace.** A scanned plan arrives at an arbitrary
+scale. Hit *Calibrate to a known distance*, click two points that span
+something you have a real measurement for — a wall, a doorway, a marked
+dimension — and type what it actually measures. The image rescales around the
+first point so the two land exactly that far apart, and everything you draw on
+top then has true coordinates.
+
+| Control | Effect |
+|---|---|
+| Drag the image | Moves it (snaps to the studio's snap grid) |
+| Corner handles | Uniform scale, pinned to the opposite corner |
+| Opacity | How strongly it reads under the plan |
+| Lock placement | Stops drag and resize; calibration still works |
+| Show to visitors | Also draws it on the public booking map |
+| Fit hall / Un-stretch | Re-fit to the hall, or restore natural proportions |
+
+Handles only appear while the Blueprint panel is open, so dragging the floor to
+pan keeps working the rest of the time. The blueprint saves with **Save Plan**,
+along with the rest of the layout — the amber dot on that button means there
+are unsaved changes.
+
+Storage:
+
+| Column | Holds |
+|---|---|
+| `events.hall_background_image` | The image URL |
+| `events.hall_blueprint` | `{x, y, width, height, rotation, opacity, visible, locked, showToVisitors}` — feet, from the hall's top-left corner |
+
+Placement is in feet, not pixels, so resizing the hall leaves the blueprint
+where it was. Clearing the image clears the placement with it.
+
+Uploads are written to `public/uploads/`, which works locally and on any
+persistent-disk host. **It does not work on Vercel or Lambda** — their
+filesystems are read-only outside `/tmp` and `/tmp` does not survive a cold
+start. The upload endpoint detects this and returns a message telling you to
+paste a hosted URL instead; for a real deployment, put the images in object
+storage (the Supabase project already backing this app has Storage) and paste
+those URLs.
+
+SVG uploads are refused on purpose: an uploaded `.svg` is served from our own
+origin, and opening it there would execute any script it carries against a
+live admin session. Files are identified by their magic bytes, not by the
+extension the browser claims.
+
 ## Layout editor
 
 | Key | Action |

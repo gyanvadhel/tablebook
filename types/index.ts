@@ -1,3 +1,7 @@
+import type { BlueprintPlacement } from '@/lib/blueprint';
+
+export type { BlueprintPlacement };
+
 export type TableStatus = 'available' | 'booked' | 'reserved' | 'selected';
 
 export type TableShape = 'rect' | 'single' | 'double' | 'L-Stall' | 'L-Stall-Inverted' | 'L-Inverted' | 'T-Stall' | 'Pod';
@@ -67,6 +71,9 @@ export interface EventItem {
   hall_height: number;
   hall_rotation?: number;
   hall_elements?: HallElement[] | string;
+  /** Blueprint image URL. Placement for it lives in `hall_blueprint`. */
+  hall_background_image?: string | null;
+  hall_blueprint?: BlueprintPlacement | string | null;
   is_active?: boolean;
   created_at?: string;
   updated_at?: string;

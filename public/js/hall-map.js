@@ -261,6 +261,21 @@ const hallMap = {
     floor.setAttribute('stroke', '#1e293b'); floor.setAttribute('stroke-width', '1.5');
     this.svg.appendChild(floor);
 
+    // Blueprint Overlay (if uploaded for venue)
+    if (this.eventData && this.eventData.hall_background_image) {
+      const bgImg = document.createElementNS(ns, 'image');
+      bgImg.setAttributeNS('http://www.w3.org/1999/xlink', 'href', this.eventData.hall_background_image);
+      bgImg.setAttribute('href', this.eventData.hall_background_image);
+      bgImg.setAttribute('x', '0');
+      bgImg.setAttribute('y', '0');
+      bgImg.setAttribute('width', w);
+      bgImg.setAttribute('height', h);
+      bgImg.setAttribute('preserveAspectRatio', 'none');
+      bgImg.setAttribute('opacity', '0.75');
+      bgImg.setAttribute('pointer-events', 'none');
+      this.svg.appendChild(bgImg);
+    }
+
     // Room name & Area badge (only render static if no room_badge element is placed)
     const hasCustomRoomBadge = this.elements && this.elements.some(el => el.type === 'room_badge');
     if (!hasCustomRoomBadge) {

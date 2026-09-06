@@ -3,8 +3,9 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Units } from '@/lib/units';
 import { WALL_THICKNESS_FT } from '@/lib/constants';
+import { cornerWorld, distanceFt, scaleAbout, BLUEPRINT_CORNERS } from '@/lib/blueprint';
 import { FloatingToolbar } from './FloatingToolbar';
-import type { TableItem, HallElement, StudioSelectedItem } from '@/types';
+import type { TableItem, HallElement, StudioSelectedItem, BlueprintPlacement } from '@/types';
 
 interface StudioCanvasProps {
   hallWidth: number;
@@ -24,7 +25,19 @@ interface StudioCanvasProps {
   zoomLevel: number;
   viewBox: { x: number; y: number; w: number; h: number };
   onUpdateViewBox: (vb: { x: number; y: number; w: number; h: number }) => void;
+  blueprintUrl: string | null;
+  blueprint: BlueprintPlacement;
+  /** Panel is open and the blueprint is draggable — show handles. */
+  blueprintActive: boolean;
+  onUpdateBlueprint: (patch: Partial<BlueprintPlacement>) => void;
+  isCalibrating: boolean;
+  onCalibrate: (from: { x: number; y: number }, to: { x: number; y: number }, realFt: number) => void;
+  onCancelCalibration: () => void;
 }
+
+type BlueprintDrag =
+  | { mode: 'move'; start: BlueprintPlacement; grabX: number; grabY: number }
+  | { mode: 'scale'; start: BlueprintPlacement; anchor: { x: number; y: number }; startDist: number };
 
 export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   hallWidth,
@@ -43,6 +56,13 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   eventName,
   viewBox,
   onUpdateViewBox,
+  blueprintUrl,
+  blueprint,
+  blueprintActive,
+  onUpdateBlueprint,
+  isCalibrating,
+  onCalibrate,
+  onCancelCalibration,
 }) => {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -53,6 +73,18 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [floatingPos, setFloatingPos] = useState<{ left: number; top: number } | null>(null);
+
+  // Blueprint underlay interaction
+  const [blueprintDrag, setBlueprintDrag] = useState<BlueprintDrag | null>(null);
+  const [calibrationFrom, setCalibrationFrom] = useState<{ x: number; y: number } | null>(null);
+  const [calibrationTo, setCalibrationTo] = useState<{ x: number; y: number } | null>(null);
+  const [calibrationHover, setCalibrationHover] = useState<{ x: number; y: number } | null>(null);
+  const [realDistanceDraft, setRealDistanceDraft] = useState('');
+  const [calibrationInputPos, setCalibrationInputPos] = useState<{ left: number; top: number } | null>(null);
+  const calibrationInputRef = useRef<HTMLInputElement | null>(null);
+
+  const showBlueprint = Boolean(blueprintUrl) && blueprint.visible;
+  const canGrabBlueprint = showBlueprint && blueprintActive && !blueprint.locked && !isCalibrating;
 
   // Feet to SVG pixels
   const px = (ft: number) => Units.ftToPx(ft);
@@ -102,11 +134,60 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     updateFloatingPos();
   }, [selectedItem, viewBox, tables, elements, updateFloatingPos]);
 
+  // Leaving calibration mode clears whatever was half-measured
+  useEffect(() => {
+    if (!isCalibrating) {
+      setCalibrationFrom(null);
+      setCalibrationTo(null);
+      setCalibrationHover(null);
+      setRealDistanceDraft('');
+    }
+  }, [isCalibrating]);
+
+  // Focus the distance box the moment the second point lands
+  useEffect(() => {
+    if (calibrationTo) {
+      const id = window.setTimeout(() => calibrationInputRef.current?.focus(), 0);
+      return () => window.clearTimeout(id);
+    }
+  }, [calibrationTo]);
+
+  // Anchor the distance box to the midpoint of the measurement, and keep it
+  // there while the canvas is zoomed or panned.
+  useEffect(() => {
+    if (!calibrationFrom || !calibrationTo || !svgRef.current || !containerRef.current) {
+      setCalibrationInputPos(null);
+      return;
+    }
+
+    try {
+      const pt = svgRef.current.createSVGPoint();
+      pt.x = Units.ftToPx((calibrationFrom.x + calibrationTo.x) / 2);
+      pt.y = Units.ftToPx((calibrationFrom.y + calibrationTo.y) / 2);
+
+      const screenPt = pt.matrixTransform(svgRef.current.getScreenCTM()!);
+      const rect = containerRef.current.getBoundingClientRect();
+
+      setCalibrationInputPos({ left: screenPt.x - rect.left, top: screenPt.y - rect.top });
+    } catch (e) {
+      setCalibrationInputPos(null);
+    }
+  }, [calibrationFrom, calibrationTo, viewBox]);
+
   // Global Keyboard Shortcuts
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement;
+
+      // Escape always backs out of calibration, even from the distance box
+      if (e.key === 'Escape' && isCalibrating) {
+        e.preventDefault();
+        onCancelCalibration();
+        return;
+      }
+
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+      if (isCalibrating) return;
 
       if (e.key === 'r' || e.key === 'R') {
         onRotateSelected();
@@ -126,7 +207,15 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onRotateSelected, onFlipSelected, onDuplicateSelected, onDeleteSelected, onDeselect]);
+  }, [onRotateSelected, onFlipSelected, onDuplicateSelected, onDeleteSelected, onDeselect, isCalibrating, onCancelCalibration]);
+
+  // Submit a completed calibration measurement
+  const commitCalibration = () => {
+    if (!calibrationFrom || !calibrationTo) return;
+    const feet = parseFloat(realDistanceDraft);
+    if (!isFinite(feet) || feet <= 0) return;
+    onCalibrate(calibrationFrom, calibrationTo, feet);
+  };
 
   // Mouse Down handler
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -137,6 +226,53 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     // If clicking a button or floating toolbar, do not deselect or pan
     if (target.closest('button') || target.closest('[data-floating-toolbar]')) {
       return;
+    }
+
+    // Calibration mode swallows canvas clicks: first click sets the start of
+    // the measurement, second sets the end. Nothing else is selectable.
+    if (isCalibrating) {
+      if (target.closest('[data-calibration-input]')) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const pt = getSvgPointFt(e.clientX, e.clientY);
+      if (!calibrationFrom || calibrationTo) {
+        setCalibrationFrom({ x: Units.roundFt(pt.x), y: Units.roundFt(pt.y) });
+        setCalibrationTo(null);
+        setRealDistanceDraft('');
+      } else {
+        setCalibrationTo({ x: Units.roundFt(pt.x), y: Units.roundFt(pt.y) });
+      }
+      return;
+    }
+
+    // Blueprint underlay: only grabbable while its panel is open, so panning
+    // over the floor keeps working the rest of the time.
+    if (canGrabBlueprint) {
+      const handle = target.closest('[data-blueprint-handle]') as SVGElement | null;
+      if (handle) {
+        const index = parseInt(handle.getAttribute('data-blueprint-handle') || '0', 10);
+        const corner = BLUEPRINT_CORNERS[index];
+        // Pin the opposite corner and scale away from it.
+        const anchor = cornerWorld(blueprint, (1 - corner.ix) as 0 | 1, (1 - corner.iy) as 0 | 1);
+        const pt = getSvgPointFt(e.clientX, e.clientY);
+        const startDist = Math.hypot(pt.x - anchor.x, pt.y - anchor.y);
+
+        if (startDist > 0.01) {
+          setBlueprintDrag({ mode: 'scale', start: blueprint, anchor, startDist });
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      if (target.closest('[data-blueprint-body]')) {
+        const pt = getSvgPointFt(e.clientX, e.clientY);
+        setBlueprintDrag({ mode: 'move', start: blueprint, grabX: pt.x - blueprint.x, grabY: pt.y - blueprint.y });
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
     }
 
     // Check if clicked a table
@@ -181,6 +317,36 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
 
   // Mouse Move handler
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (isCalibrating) {
+      const pt = getSvgPointFt(e.clientX, e.clientY);
+      setCalibrationHover({ x: pt.x, y: pt.y });
+      return;
+    }
+
+    if (blueprintDrag) {
+      const pt = getSvgPointFt(e.clientX, e.clientY);
+
+      if (blueprintDrag.mode === 'move') {
+        let nextX = pt.x - blueprintDrag.grabX;
+        let nextY = pt.y - blueprintDrag.grabY;
+
+        if (snapGrid > 0) {
+          nextX = Math.round(nextX / snapGrid) * snapGrid;
+          nextY = Math.round(nextY / snapGrid) * snapGrid;
+        }
+
+        onUpdateBlueprint({ x: Units.roundFt(nextX), y: Units.roundFt(nextY) });
+      } else {
+        const dist = Math.hypot(pt.x - blueprintDrag.anchor.x, pt.y - blueprintDrag.anchor.y);
+        const factor = dist / blueprintDrag.startDist;
+        // Always scale from the placement captured at grab time, so the drag
+        // does not compound frame over frame.
+        const next = scaleAbout(blueprintDrag.start, factor, blueprintDrag.anchor.x, blueprintDrag.anchor.y);
+        onUpdateBlueprint({ x: next.x, y: next.y, width: next.width, height: next.height });
+      }
+      return;
+    }
+
     if (isDragging && selectedItem) {
       const pt = getSvgPointFt(e.clientX, e.clientY);
       let rawX = pt.x - dragOffset.x;
@@ -213,6 +379,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   const handleMouseUp = () => {
     setIsDragging(false);
     setIsPanning(false);
+    setBlueprintDrag(null);
   };
 
   // Wheel Zoom handler
@@ -242,7 +409,23 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   const minor = px(1);
   const major = px(5);
 
+  // Keeps handles and guide strokes roughly the same size on screen at any
+  // zoom level, since zooming is done by resizing the viewBox.
+  const ui = viewBox.w / 1200;
+
   const selectedId = selectedItem ? String(selectedItem.obj.id || selectedItem.obj._tempId) : null;
+
+  // Blueprint geometry in drawing units
+  const bpX = px(blueprint.x);
+  const bpY = px(blueprint.y);
+  const bpW = px(blueprint.width);
+  const bpH = px(blueprint.height);
+  const bpTransform = blueprint.rotation
+    ? `rotate(${blueprint.rotation}, ${px(blueprint.x + blueprint.width / 2)}, ${px(blueprint.y + blueprint.height / 2)})`
+    : undefined;
+
+  const calibrationEnd = calibrationTo || calibrationHover;
+  const measuredFt = calibrationFrom && calibrationEnd ? distanceFt(calibrationFrom, calibrationEnd) : 0;
 
   return (
     <div
@@ -311,6 +494,34 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
 
         {/* Main Hall Parquet Interior */}
         <rect x="0" y="0" width={wPx} height={hPx} fill="url(#wood-floor-texture)" stroke="#18181b" strokeWidth="1.5" />
+
+        {/* 0. Blueprint Underlay — sits on the floor, beneath everything drawn */}
+        {showBlueprint && blueprintUrl && (
+          <g id="blueprint-layer" transform={bpTransform}>
+            <image
+              href={blueprintUrl}
+              x={bpX}
+              y={bpY}
+              width={bpW}
+              height={bpH}
+              opacity={blueprint.opacity}
+              preserveAspectRatio="none"
+              pointerEvents="none"
+            />
+            {canGrabBlueprint && (
+              <rect
+                data-blueprint-body=""
+                x={bpX}
+                y={bpY}
+                width={bpW}
+                height={bpH}
+                fill="transparent"
+                pointerEvents="all"
+                style={{ cursor: 'move' }}
+              />
+            )}
+          </g>
+        )}
 
         {/* 1. Structures & Secondary Halls Layer */}
         <g id="structures-layer">
@@ -789,12 +1000,140 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             );
           })()}
         </g>
+        {/* 5. Blueprint Placement Handles — above the plan so they stay grabbable */}
+        {canGrabBlueprint && (
+          <g id="blueprint-handles" transform={bpTransform}>
+            <rect
+              x={bpX}
+              y={bpY}
+              width={bpW}
+              height={bpH}
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth={1.5 * ui}
+              strokeDasharray={`${7 * ui} ${5 * ui}`}
+              pointerEvents="none"
+            />
+            {BLUEPRINT_CORNERS.map((corner, index) => (
+              <rect
+                key={index}
+                data-blueprint-handle={index}
+                x={bpX + corner.ix * bpW - 5 * ui}
+                y={bpY + corner.iy * bpH - 5 * ui}
+                width={10 * ui}
+                height={10 * ui}
+                rx={2 * ui}
+                fill="#ffffff"
+                stroke="#2563eb"
+                strokeWidth={1.5 * ui}
+                pointerEvents="all"
+                style={{ cursor: corner.cursor }}
+              />
+            ))}
+          </g>
+        )}
+
+        {/* 6. Calibration Measurement */}
+        {isCalibrating && calibrationFrom && (
+          <g id="calibration-layer" pointerEvents="none">
+            {calibrationEnd && (
+              <>
+                <line
+                  x1={px(calibrationFrom.x)}
+                  y1={px(calibrationFrom.y)}
+                  x2={px(calibrationEnd.x)}
+                  y2={px(calibrationEnd.y)}
+                  stroke="#2563eb"
+                  strokeWidth={2 * ui}
+                  strokeDasharray={calibrationTo ? undefined : `${6 * ui} ${4 * ui}`}
+                  strokeLinecap="round"
+                />
+                {!calibrationTo && measuredFt > 0 && (
+                  <text
+                    x={px((calibrationFrom.x + calibrationEnd.x) / 2)}
+                    y={px((calibrationFrom.y + calibrationEnd.y) / 2) - 8 * ui}
+                    fill="#2563eb"
+                    fontSize={11 * ui}
+                    fontWeight="800"
+                    textAnchor="middle"
+                  >
+                    {Units.formatFeetShort(measuredFt)} on plan
+                  </text>
+                )}
+              </>
+            )}
+
+            {[calibrationFrom, calibrationTo].map((point, index) =>
+              point ? (
+                <g key={index}>
+                  <circle cx={px(point.x)} cy={px(point.y)} r={5 * ui} fill="#ffffff" stroke="#2563eb" strokeWidth={2 * ui} />
+                  <circle cx={px(point.x)} cy={px(point.y)} r={1.5 * ui} fill="#2563eb" />
+                </g>
+              ) : null
+            )}
+          </g>
+        )}
       </svg>
+
+      {/* Calibration guidance banner */}
+      {isCalibrating && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40 px-3.5 py-2 bg-zinc-900 text-white rounded-lg shadow-xl text-xs font-semibold flex items-center gap-2 pointer-events-none">
+          <span className="w-4 h-4 rounded-full bg-blue-500 text-[10px] flex items-center justify-center font-bold">
+            {calibrationTo ? 3 : calibrationFrom ? 2 : 1}
+          </span>
+          {calibrationTo
+            ? 'Type the real distance between those two points'
+            : calibrationFrom
+            ? 'Click the second point of the known distance'
+            : 'Click the first point of a distance you know'}
+        </div>
+      )}
+
+      {/* Real-distance entry, pinned to the middle of the measurement */}
+      {calibrationInputPos && calibrationFrom && calibrationTo && (
+        <div
+          data-calibration-input=""
+          className="absolute z-50 -translate-x-1/2 -translate-y-[140%] bg-white border border-zinc-300 rounded-lg shadow-2xl p-2.5 w-[210px]"
+          style={{ left: calibrationInputPos.left, top: calibrationInputPos.top }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">
+            Measures {Units.formatFeetShort(distanceFt(calibrationFrom, calibrationTo))} · really is
+          </p>
+          <div className="flex gap-1.5">
+            <input
+              ref={calibrationInputRef}
+              type="number"
+              min={0.1}
+              step={0.5}
+              value={realDistanceDraft}
+              onChange={(e) => setRealDistanceDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  commitCalibration();
+                }
+              }}
+              placeholder="40"
+              className="flex-1 min-w-0 px-2 py-1.5 border border-zinc-300 rounded-md text-xs tabular-nums focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 focus:outline-none"
+            />
+            <span className="self-center text-[11px] font-semibold text-zinc-500">ft</span>
+            <button
+              type="button"
+              onClick={commitCalibration}
+              disabled={!(parseFloat(realDistanceDraft) > 0)}
+              className="px-2.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 text-white text-[11px] font-bold rounded-md transition"
+            >
+              Set
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Floating Action Bar */}
       <FloatingToolbar
         selectedItem={selectedItem}
-        position={floatingPos}
+        position={isCalibrating ? null : floatingPos}
         onFlip={onFlipSelected}
         onRotate={onRotateSelected}
         onDuplicate={onDuplicateSelected}

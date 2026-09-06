@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbGet, dbRun, withTransaction } from '@/lib/db';
 import { Units } from '@/lib/units';
+import { normalizeBlueprint, sanitizeBlueprintUrl } from '@/lib/blueprint';
 import { getSession } from '@/lib/auth';
 
 export async function GET(req: NextRequest, { params }: { params: any }) {
@@ -36,7 +37,18 @@ export async function PUT(req: NextRequest, { params }: { params: any }) {
     }
 
     const body = await req.json();
-    const { name, description, venue, start_date, end_date, status, hall_width, hall_height } = body;
+    const {
+      name,
+      description,
+      venue,
+      start_date,
+      end_date,
+      status,
+      hall_width,
+      hall_height,
+      hall_background_image,
+      hall_blueprint,
+    } = body;
 
     const existing = await dbGet('SELECT * FROM events WHERE id = $1', [eventId]);
     if (!existing) {
@@ -45,6 +57,17 @@ export async function PUT(req: NextRequest, { params }: { params: any }) {
 
     const w = hall_width ? Units.clampHallFt(hall_width, existing.hall_width) : existing.hall_width;
     const h = hall_height ? Units.clampHallFt(hall_height, existing.hall_height) : existing.hall_height;
+
+    const bgImg =
+      hall_background_image !== undefined
+        ? sanitizeBlueprintUrl(hall_background_image)
+        : sanitizeBlueprintUrl(existing.hall_background_image);
+
+    const blueprintJson = bgImg
+      ? JSON.stringify(
+          normalizeBlueprint(hall_blueprint !== undefined ? hall_blueprint : existing.hall_blueprint, w, h)
+        )
+      : null;
 
     const result = await dbRun(
       `
@@ -56,11 +79,13 @@ export async function PUT(req: NextRequest, { params }: { params: any }) {
         end_date = $5,
         status = COALESCE($6, status),
         hall_width = $7,
-        hall_height = $8
-      WHERE id = $9
+        hall_height = $8,
+        hall_background_image = $9,
+        hall_blueprint = $10::jsonb
+      WHERE id = $11
       RETURNING *
     `,
-      [name, description, venue, start_date || null, end_date || null, status, w, h, eventId]
+      [name, description, venue, start_date || null, end_date || null, status, w, h, bgImg, blueprintJson, eventId]
     );
 
     return NextResponse.json(result.row);
