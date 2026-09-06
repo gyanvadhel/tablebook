@@ -125,7 +125,7 @@ export default function AdminEventsPage() {
                         setIsModalOpen(true);
                       }}
                       title={evt.poster_image ? 'Change poster' : 'Add a poster'}
-                      className="shrink-0 w-16 aspect-[3/4] rounded-md overflow-hidden border border-zinc-200 bg-zinc-100 hover:border-zinc-400 transition"
+                      className="shrink-0 w-16 aspect-[2/3] rounded-md overflow-hidden border border-zinc-200 bg-zinc-100 hover:border-zinc-400 transition"
                     >
                       {evt.poster_image ? (
                         // eslint-disable-next-line @next/next/no-img-element

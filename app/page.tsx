@@ -2,10 +2,17 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Calendar, MapPin, Search, ArrowRight, LayoutGrid, ShieldCheck } from 'lucide-react';
+import { Search, ArrowRight, LayoutGrid, ShieldCheck } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Units } from '@/lib/units';
 import type { EventItem } from '@/types';
+
+/** The corner tag on a poster, driven by how full the hall is. */
+function availabilityTag(available: number, total: number): { label: string; className: string } {
+  if (total > 0 && available === 0) return { label: 'SOLD OUT', className: 'bg-rose-600' };
+  if (total > 0 && available / total <= 0.2) return { label: 'FILLING FAST', className: 'bg-amber-500' };
+  return { label: 'BOOKING OPEN', className: 'bg-emerald-600' };
+}
 
 export default function HomePage() {
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -79,16 +86,20 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Exhibitions Grid */}
+      {/* Exhibitions — poster wall */}
       <main className="max-w-7xl mx-auto px-6 pb-20">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-sm font-bold text-zinc-800 uppercase tracking-wider">Upcoming Exhibitions ({filteredEvents.length})</h2>
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-56 rounded-xl bg-white border border-zinc-200 animate-pulse" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex flex-col gap-2.5">
+                <div className="aspect-[2/3] rounded-xl bg-zinc-200 animate-pulse" />
+                <div className="h-4 w-3/4 rounded bg-zinc-200 animate-pulse" />
+                <div className="h-3 w-1/2 rounded bg-zinc-200 animate-pulse" />
+              </div>
             ))}
           </div>
         ) : filteredEvents.length === 0 ? (
@@ -100,86 +111,81 @@ export default function HomePage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
             {filteredEvents.map((evt) => {
               const total = evt.total_tables || 0;
               const booked = evt.booked_tables || 0;
               const available = Math.max(0, total - booked);
-
               const initial = (evt.name || '?').trim().charAt(0).toUpperCase();
+              const tag = availabilityTag(available, total);
+              const href = `/events/${evt.id}`;
+
+              const subtitle =
+                [evt.venue, evt.start_date ? formatDate(evt.start_date) : null].filter(Boolean).join(' · ') ||
+                `${Units.formatDims(evt.hall_width, evt.hall_height)} hall`;
 
               return (
-                <div
-                  key={evt.id}
-                  className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-xl p-5 flex flex-col justify-between transition shadow-xs"
-                >
-                  <div className="flex gap-4 mb-4">
-                    {/* Portrait poster, or a quiet monogram tile until one is added */}
-                    <Link
-                      href={`/events/${evt.id}`}
-                      className="shrink-0 w-24 aspect-[3/4] rounded-lg overflow-hidden border border-zinc-200 bg-zinc-100 shadow-xs"
-                      aria-label={`${evt.name} floor plan`}
+                <article key={evt.id} className="group flex flex-col">
+                  {/* Poster — the card itself */}
+                  <Link
+                    href={href}
+                    aria-label={`${evt.name} — view floor plan and book`}
+                    className="relative block aspect-[2/3] rounded-xl overflow-hidden bg-zinc-800 shadow-sm ring-1 ring-black/5 transition-shadow group-hover:shadow-lg"
+                  >
+                    {evt.poster_image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={evt.poster_image}
+                        alt={`${evt.name} poster`}
+                        loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                      />
+                    ) : (
+                      <span className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-950 text-white/90 text-6xl font-black select-none">
+                        {initial}
+                      </span>
+                    )}
+
+                    {/* Corner tag */}
+                    <span
+                      className={`absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[10px] font-extrabold tracking-wider text-white shadow-sm ${tag.className}`}
                     >
-                      {evt.poster_image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={evt.poster_image}
-                          alt={`${evt.name} poster`}
-                          loading="lazy"
-                          className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-300"
-                        />
+                      {tag.label}
+                    </span>
+
+                    {/* Stat band */}
+                    <div className="absolute inset-x-0 bottom-0 bg-zinc-900/95 px-3 py-2 flex items-center gap-2 text-white">
+                      <LayoutGrid className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      {total > 0 ? (
+                        <>
+                          <span className="text-xs font-bold tabular-nums">{available} Available</span>
+                          <span className="ml-auto text-[11px] font-medium text-zinc-400 tabular-nums">{total} Stalls</span>
+                        </>
                       ) : (
-                        <span className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-100 via-zinc-200 to-zinc-300 text-zinc-500 text-3xl font-black select-none">
-                          {initial}
-                        </span>
+                        <span className="text-xs font-semibold text-zinc-300">Floor plan coming soon</span>
                       )}
-                    </Link>
-
-                    <div className="flex-1 min-w-0">
-                      {/* Badge */}
-                      <div className="flex items-center justify-between gap-2 mb-2.5">
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200 whitespace-nowrap">
-                          {Units.formatDims(evt.hall_width, evt.hall_height)}
-                        </span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
-                          {available} Available
-                        </span>
-                      </div>
-
-                      <h3 className="text-sm font-bold text-zinc-900 mb-1.5 leading-snug">
-                        {evt.name}
-                      </h3>
-
-                      {evt.description && (
-                        <p className="text-xs text-zinc-500 line-clamp-2 mb-2 leading-relaxed">{evt.description}</p>
-                      )}
-
-                      <div className="flex flex-col gap-1 text-xs text-zinc-500">
-                        {evt.venue && (
-                          <div className="flex items-center gap-1.5">
-                            <MapPin className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                            <span className="truncate">{evt.venue}</span>
-                          </div>
-                        )}
-                        {evt.start_date && (
-                          <div className="flex items-center gap-1.5">
-                            <Calendar className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                            <span>{formatDate(evt.start_date)}</span>
-                          </div>
-                        )}
-                      </div>
                     </div>
+                  </Link>
+
+                  {/* Title & subtitle */}
+                  <div className="mt-2.5 px-0.5 min-w-0">
+                    <Link href={href} className="block text-sm font-bold text-zinc-900 leading-snug line-clamp-2 hover:underline">
+                      {evt.name}
+                    </Link>
+                    <p className="text-xs text-zinc-500 mt-0.5 truncate" title={subtitle}>
+                      {subtitle}
+                    </p>
                   </div>
 
-                  {/* Stall booking button */}
+                  {/* Book */}
                   <Link
-                    href={`/events/${evt.id}`}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold transition"
+                    href={href}
+                    className="mt-2.5 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold transition"
                   >
                     <span>View Floor Plan &amp; Book</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
-                </div>
+                </article>
               );
             })}
           </div>

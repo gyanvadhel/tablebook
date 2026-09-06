@@ -118,7 +118,7 @@ export default function EventBookingPage() {
             <img
               src={event.poster_image}
               alt={`${event.name} poster`}
-              className="h-10 aspect-[3/4] rounded-md object-cover border border-zinc-200 shadow-xs"
+              className="h-10 aspect-[2/3] rounded-md object-cover border border-zinc-200 shadow-xs"
             />
           )}
           <div>

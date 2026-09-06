@@ -68,7 +68,7 @@ export const PosterField: React.FC<PosterFieldProps> = ({ value, onChange, disab
       <label className="block font-semibold text-slate-700 mb-1">Poster</label>
 
       <div className="flex gap-4">
-        {/* Portrait frame — always 3:4, exactly how the card will show it */}
+        {/* Portrait frame — 2:3 like a movie poster, exactly how the card will crop it */}
         <button
           type="button"
           onClick={pick}
@@ -85,7 +85,7 @@ export const PosterField: React.FC<PosterFieldProps> = ({ value, onChange, disab
             if (file && !disabled) upload(file);
           }}
           title={value ? 'Replace poster' : 'Upload poster'}
-          className={`relative shrink-0 w-24 aspect-[3/4] rounded-lg border-2 overflow-hidden transition text-left ${
+          className={`relative shrink-0 w-24 aspect-[2/3] rounded-lg border-2 overflow-hidden transition text-left ${
             isDropTarget
               ? 'border-slate-900 bg-slate-100'
               : value
@@ -111,8 +111,8 @@ export const PosterField: React.FC<PosterFieldProps> = ({ value, onChange, disab
 
         <div className="flex-1 min-w-0 flex flex-col gap-2">
           <p className="text-slate-500 leading-relaxed">
-            Shown on the exhibition card. Portrait works best — 3:4 or 2:3, for example 1200 × 1600. PNG, JPG, GIF or
-            WEBP up to 10 MB.
+            Shown large on the exhibition card. Use a 2:3 portrait like a movie poster — for example 1000 × 1500. PNG,
+            JPG, GIF or WEBP up to 10 MB.
           </p>
 
           {dims && (

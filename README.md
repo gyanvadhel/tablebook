@@ -146,10 +146,13 @@ extension the browser claims.
 ## Event posters
 
 Each exhibition can carry a portrait poster, set in the admin's Create / Edit
-Exhibition dialog (drop an image onto the frame or click it). It appears as a
-3:4 tile on the public exhibition card, as a thumbnail in the admin list, and
-beside the title on the booking page. Cards without a poster show a monogram
-tile instead, so a mixed list still lines up.
+Exhibition dialog (drop an image onto the frame or click it). On the public
+home page the poster *is* the card: a 2:3 movie-poster tile with a corner tag
+(Booking Open / Filling Fast / Sold Out, from the live stall counts) and a
+dark stat band showing availability, with the title and venue · date beneath.
+It also appears as a thumbnail in the admin list and beside the title on the
+booking page. Cards without a poster show a monogram tile, so a mixed list
+still lines up.
 
 Posters go through the same Postgres-backed store as blueprints
 (`POST /api/uploads` with `kind=poster`), so they work on Vercel with no extra
