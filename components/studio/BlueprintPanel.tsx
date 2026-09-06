@@ -168,16 +168,21 @@ export const BlueprintPanel: React.FC<BlueprintPanelProps> = ({
     setIsUploading(true);
     try {
       const formData = new FormData();
-      formData.append('blueprint', file);
+      formData.append('file', file);
 
-      const res = await fetch('/api/upload/blueprint', { method: 'POST', body: formData });
+      const res = await fetch('/api/uploads', { method: 'POST', body: formData });
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) throw new Error(data.error || 'Upload failed');
 
       const aspect = await measureAspect(data.url);
       onAttach(data.url, aspect);
-      onNotify(`Blueprint attached · ${(data.bytes / 1024).toFixed(0)} KB`, 'success');
+      onNotify(
+        data.deduplicated
+          ? `Blueprint attached · already on file, reused (${(data.bytes / 1024).toFixed(0)} KB)`
+          : `Blueprint attached · ${(data.bytes / 1024).toFixed(0)} KB`,
+        'success'
+      );
     } catch (err: any) {
       onNotify(err.message || 'Failed to upload blueprint', 'error');
     } finally {

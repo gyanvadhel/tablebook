@@ -114,21 +114,29 @@ are unsaved changes.
 
 Storage:
 
-| Column | Holds |
+| Where | Holds |
 |---|---|
-| `events.hall_background_image` | The image URL |
+| `events.hall_background_image` | The image URL, normally `/api/uploads/<id>.<ext>` |
 | `events.hall_blueprint` | `{x, y, width, height, rotation, opacity, visible, locked, showToVisitors}` — feet, from the hall's top-left corner |
+| `uploads` table | The image bytes themselves (`BYTEA`), with MIME type, size and SHA-256 |
 
 Placement is in feet, not pixels, so resizing the hall leaves the blueprint
 where it was. Clearing the image clears the placement with it.
 
-Uploads are written to `public/uploads/`, which works locally and on any
-persistent-disk host. **It does not work on Vercel or Lambda** — their
-filesystems are read-only outside `/tmp` and `/tmp` does not survive a cold
-start. The upload endpoint detects this and returns a message telling you to
-paste a hosted URL instead; for a real deployment, put the images in object
-storage (the Supabase project already backing this app has Storage) and paste
-those URLs.
+**Uploaded images live in Postgres, not on disk.** `POST /api/uploads` stores
+the bytes in the `uploads` table and returns `/api/uploads/<id>.<ext>`; `GET`
+on that URL serves them with a one-year immutable cache header and an ETag.
+This is what makes blueprints work on Vercel: its filesystem is read-only and
+discarded on every cold start, so a file written to `public/uploads/` never
+exists in production. One `DATABASE_URL` is the whole configuration.
+Identical bytes are stored once — re-uploading the same plan reuses the
+existing row. Vercel caps function request and response bodies at roughly
+4.5 MB, so keep floor-plan images under that when deploying there; the app's
+own limit is 10 MB.
+
+The legacy Express editor's upload route stores to the same table, and when
+it attaches an image it also records the placement it implies — stretched
+over the hall and shown to visitors — so both UIs draw the same picture.
 
 SVG uploads are refused on purpose: an uploaded `.svg` is served from our own
 origin, and opening it there would execute any script it carries against a

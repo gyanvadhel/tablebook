@@ -113,6 +113,26 @@ async function withTransaction(fn) {
   }
 }
 
+/**
+ * Uploaded images (blueprints) are stored as bytes here rather than on disk,
+ * because the production filesystem is read-only and ephemeral. Shared with
+ * the Next.js bootstrap in lib/db.ts — keep them in step.
+ */
+const UPLOADS_SQL = `
+CREATE TABLE IF NOT EXISTS uploads (
+  id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  kind        TEXT NOT NULL DEFAULT 'blueprint',
+  filename    TEXT NOT NULL,
+  mime_type   TEXT NOT NULL,
+  byte_size   INTEGER NOT NULL,
+  sha256      TEXT NOT NULL,
+  data        BYTEA NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_uploads_sha ON uploads(sha256);
+ALTER TABLE uploads ENABLE ROW LEVEL SECURITY;
+`;
+
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS admins (
   id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -133,6 +153,7 @@ CREATE TABLE IF NOT EXISTS events (
   hall_width            REAL NOT NULL DEFAULT 80  CHECK (hall_width  BETWEEN 10 AND 600),
   hall_height           REAL NOT NULL DEFAULT 55  CHECK (hall_height BETWEEN 10 AND 600),
   hall_background_image TEXT,
+  hall_blueprint        JSONB,
   hall_elements         JSONB DEFAULT '[]'::jsonb,
   hall_rotation         INTEGER DEFAULT 0,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -181,6 +202,7 @@ ALTER TABLE admins   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tables   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
+${UPLOADS_SQL}
 `;
 
 async function seedDefaultAdmin() {
@@ -214,8 +236,11 @@ async function initializeDatabase() {
       await query(`
         ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_elements JSONB DEFAULT '[]'::jsonb;
         ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_rotation INTEGER DEFAULT 0;
+        ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_background_image TEXT;
+        ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_blueprint JSONB;
         ALTER TABLE tables DROP CONSTRAINT IF EXISTS tables_size_check;
         ALTER TABLE tables ADD CONSTRAINT tables_size_check CHECK (size IN ('small', 'medium', 'large', 'xlarge'));
+        ${UPLOADS_SQL}
       `);
     }
 

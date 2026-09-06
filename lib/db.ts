@@ -85,6 +85,26 @@ export async function withTransaction<T>(fn: (client: any) => Promise<T>): Promi
   }
 }
 
+/**
+ * Uploaded images (blueprints) are stored as bytes here rather than on disk,
+ * because the production filesystem is read-only and ephemeral. Shared with
+ * the legacy Express bootstrap in src/config/database.js — keep them in step.
+ */
+const UPLOADS_SQL = `
+CREATE TABLE IF NOT EXISTS uploads (
+  id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  kind        TEXT NOT NULL DEFAULT 'blueprint',
+  filename    TEXT NOT NULL,
+  mime_type   TEXT NOT NULL,
+  byte_size   INTEGER NOT NULL,
+  sha256      TEXT NOT NULL,
+  data        BYTEA NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_uploads_sha ON uploads(sha256);
+ALTER TABLE uploads ENABLE ROW LEVEL SECURITY;
+`;
+
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS admins (
   id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -149,6 +169,7 @@ CREATE INDEX IF NOT EXISTS idx_tables_event    ON tables(event_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_event  ON bookings(event_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_table  ON bookings(table_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_booked ON bookings(booked_at DESC);
+${UPLOADS_SQL}
 `;
 
 async function seedDefaultAdmin() {
@@ -180,6 +201,7 @@ export async function initializeDatabase(): Promise<void> {
         ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_blueprint JSONB;
         ALTER TABLE tables DROP CONSTRAINT IF EXISTS tables_size_check;
         ALTER TABLE tables ADD CONSTRAINT tables_size_check CHECK (size IN ('small', 'medium', 'large', 'xlarge'));
+        ${UPLOADS_SQL}
       `);
     }
 

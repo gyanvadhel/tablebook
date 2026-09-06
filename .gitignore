@@ -29,9 +29,8 @@ Thumbs.db
 .idea/
 .vscode/
 
-# Uploaded blueprint images (keep directory, ignore files)
-public/uploads/*
-!public/uploads/.gitkeep
+# Leftover on-disk uploads from before images moved into Postgres (uploads table)
+public/uploads/
 
 # Local experiments and image crops used while reverse-engineering floor plans
 scratch/

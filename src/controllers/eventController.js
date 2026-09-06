@@ -7,6 +7,34 @@ const EVENT_COUNTS = `
   (SELECT COUNT(*) FROM tables WHERE event_id = e.id AND status = 'available') AS available_tables
 `;
 
+/**
+ * The placement this editor implies when it attaches a blueprint: stretched
+ * over the whole hall and visible on the public map, which is exactly how
+ * public/js/hall-map.js draws it. Recording it means the Next.js studio and
+ * visitor map render the same picture instead of falling back to defaults.
+ */
+function impliedBlueprintPlacement(hallWidthFt, hallHeightFt) {
+  return {
+    x: 0,
+    y: 0,
+    width: hallWidthFt,
+    height: hallHeightFt,
+    rotation: 0,
+    opacity: 0.75,
+    visible: true,
+    locked: false,
+    showToVisitors: true
+  };
+}
+
+/** JSON for events.hall_blueprint: explicit body value, else what is already stored, else the implied default. */
+function resolveBlueprintJson(bodyValue, existingValue, imageUrl, hallWidthFt, hallHeightFt) {
+  if (!imageUrl) return null;
+  if (bodyValue && typeof bodyValue === 'object') return JSON.stringify(bodyValue);
+  if (existingValue && typeof existingValue === 'object') return JSON.stringify(existingValue);
+  return JSON.stringify(impliedBlueprintPlacement(hallWidthFt, hallHeightFt));
+}
+
 const eventController = {
   // Public: Get all active events
   async getActiveEvents(req, res) {
@@ -79,7 +107,7 @@ const eventController = {
   // Admin: Create event
   async createEvent(req, res) {
     try {
-      const { name, description, venue, start_date, end_date, status, hall_width, hall_height, hall_background_image, hall_elements, hall_rotation } = req.body;
+      const { name, description, venue, start_date, end_date, status, hall_width, hall_height, hall_background_image, hall_blueprint, hall_elements, hall_rotation } = req.body;
 
       if (!name || !String(name).trim()) {
         return res.status(400).json({ error: 'Event name is required' });
@@ -91,15 +119,16 @@ const eventController = {
       const elementsJson = Array.isArray(hall_elements) ? JSON.stringify(hall_elements) : '[]';
       const rotation = Number.isInteger(hall_rotation) ? (hall_rotation % 360) : 0;
       const bgImage = hall_background_image !== undefined ? (String(hall_background_image).trim() || null) : null;
+      const blueprintJson = resolveBlueprintJson(hall_blueprint, null, bgImage, hallWidthFt, hallHeightFt);
 
       const { row } = await dbRun(`
-        INSERT INTO events (name, description, venue, start_date, end_date, status, hall_width, hall_height, hall_background_image, hall_elements, hall_rotation)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
+        INSERT INTO events (name, description, venue, start_date, end_date, status, hall_width, hall_height, hall_background_image, hall_blueprint, hall_elements, hall_rotation)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb, $12)
         RETURNING *
       `, [
         String(name).trim(), description || '', venue || '',
         start_date || null, end_date || null, status || 'draft',
-        hallWidthFt, hallHeightFt, bgImage, elementsJson, rotation
+        hallWidthFt, hallHeightFt, bgImage, blueprintJson, elementsJson, rotation
       ]);
 
       res.status(201).json(row);
@@ -112,7 +141,7 @@ const eventController = {
   // Admin: Update event
   async updateEvent(req, res) {
     try {
-      const { name, description, venue, start_date, end_date, status, hall_width, hall_height, hall_background_image, hall_elements, hall_rotation } = req.body;
+      const { name, description, venue, start_date, end_date, status, hall_width, hall_height, hall_background_image, hall_blueprint, hall_elements, hall_rotation } = req.body;
       const id = parseInt(req.params.id);
 
       const existing = await dbGet('SELECT * FROM events WHERE id = $1', [id]);
@@ -123,13 +152,23 @@ const eventController = {
       const elementsJson = hall_elements !== undefined ? (Array.isArray(hall_elements) ? JSON.stringify(hall_elements) : '[]') : (existing.hall_elements ? JSON.stringify(existing.hall_elements) : '[]');
       const rotation = hall_rotation !== undefined ? (Number(hall_rotation) % 360) : (existing.hall_rotation || 0);
       const bgImage = hall_background_image !== undefined ? (String(hall_background_image).trim() || null) : existing.hall_background_image;
+      const hallWidthFt = Units.clampHallFt(hall_width, existing.hall_width);
+      const hallHeightFt = Units.clampHallFt(hall_height, existing.hall_height);
+      // A newly attached image gets the implied placement; an existing one keeps what the studio saved
+      const blueprintJson = resolveBlueprintJson(
+        hall_blueprint,
+        bgImage === existing.hall_background_image ? existing.hall_blueprint : null,
+        bgImage,
+        hallWidthFt,
+        hallHeightFt
+      );
 
       const { row } = await dbRun(`
         UPDATE events SET
           name = $1, description = $2, venue = $3, start_date = $4, end_date = $5,
           status = $6, hall_width = $7, hall_height = $8, hall_background_image = $9,
-          hall_elements = $10::jsonb, hall_rotation = $11
-        WHERE id = $12
+          hall_blueprint = $10::jsonb, hall_elements = $11::jsonb, hall_rotation = $12
+        WHERE id = $13
         RETURNING *
       `, [
         name || existing.name,
@@ -138,9 +177,10 @@ const eventController = {
         start_date || existing.start_date,
         end_date || existing.end_date,
         status || existing.status,
-        Units.clampHallFt(hall_width, existing.hall_width),
-        Units.clampHallFt(hall_height, existing.hall_height),
+        hallWidthFt,
+        hallHeightFt,
         bgImage,
+        blueprintJson,
         elementsJson,
         rotation,
         id
