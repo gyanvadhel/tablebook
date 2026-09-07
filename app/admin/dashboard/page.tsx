@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { AdminShell } from '@/components/admin/AdminShell';
 import { Calendar, LayoutGrid, CheckCircle2, TrendingUp, ArrowRight, Plus } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { EventItem, BookingItem } from '@/types';
@@ -45,27 +45,21 @@ export default function AdminDashboardPage() {
   const totalRevenue = bookings.reduce((acc, b) => acc + (Number(b.table_price) || 0), 0);
 
   return (
-    <div className="flex h-screen bg-zinc-50 font-sans text-zinc-900 overflow-hidden">
-      <AdminSidebar />
-
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto p-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-xl font-bold text-zinc-900">Dashboard</h1>
-            <p className="text-xs text-zinc-500 mt-0.5">Overview of floor plan layouts and stall reservations</p>
-          </div>
-          <Link
-            href="/admin/events"
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-semibold shadow-xs transition"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Manage Exhibitions</span>
-          </Link>
-        </div>
-
-        {/* Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <AdminShell
+      title="Dashboard"
+      subtitle="Overview of floor plan layouts and stall reservations"
+      actions={
+        <Link
+          href="/admin/events"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-semibold shadow-xs transition"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Manage Exhibitions</span>
+        </Link>
+      }
+    >
+      {/* Metric Cards — two up on phones so the row stays scannable */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 lg:mb-8">
           <div className="bg-white border border-zinc-200 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium text-zinc-500">Total Exhibitions</span>
@@ -113,8 +107,8 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Quick Launch & Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Quick Launch & Recent Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Exhibitions Floor Plans List */}
           <div className="lg:col-span-2 bg-white border border-zinc-200 rounded-xl p-6 shadow-xs">
             <div className="flex items-center justify-between mb-4">
@@ -133,17 +127,17 @@ export default function AdminDashboardPage() {
                 {events.slice(0, 5).map((evt) => (
                   <div
                     key={evt.id}
-                    className="flex items-center justify-between p-3.5 rounded-lg bg-zinc-50 border border-zinc-200 hover:border-zinc-300 transition"
+                    className="flex items-center justify-between gap-3 p-3.5 rounded-lg bg-zinc-50 border border-zinc-200 hover:border-zinc-300 transition"
                   >
-                    <div>
-                      <h4 className="text-xs font-bold text-zinc-900">{evt.name}</h4>
-                      <p className="text-[11px] text-zinc-500 mt-0.5">
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-zinc-900 truncate">{evt.name}</h4>
+                      <p className="text-[11px] text-zinc-500 mt-0.5 truncate">
                         {evt.venue || 'Venue TBD'} · {evt.total_tables || 0} stalls ({evt.booked_tables || 0} booked)
                       </p>
                     </div>
                     <Link
                       href={`/admin/events/${evt.id}/studio`}
-                      className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-md text-xs font-semibold transition flex items-center gap-1.5"
+                      className="shrink-0 px-3 py-2 sm:py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-md text-xs font-semibold transition flex items-center gap-1.5"
                     >
                       <span>Studio</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -171,20 +165,21 @@ export default function AdminDashboardPage() {
               <div className="flex flex-col gap-2.5">
                 {bookings.slice(0, 5).map((b) => (
                   <div key={b.id} className="p-3 rounded-lg bg-zinc-50 border border-zinc-200 text-xs">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-zinc-900">{b.user_name}</span>
-                      <span className="font-bold text-zinc-900">{formatCurrency(b.table_price || 0)}</span>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="font-bold text-zinc-900 truncate">
+                        {b.customer_name || b.user_name || 'Exhibitor'}
+                      </span>
+                      <span className="font-bold text-zinc-900 shrink-0">{formatCurrency(b.table_price || 0)}</span>
                     </div>
-                    <div className="text-zinc-500 text-[11px]">
-                      Stall {b.table_number} · {b.event_name || 'Exhibition'}
+                    <div className="text-zinc-500 text-[11px] truncate">
+                      {b.business_name ? `${b.business_name} · ` : ''}Stall {b.table_number} · {b.event_name || 'Exhibition'}
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        </div>
-      </main>
-    </div>
+      </div>
+    </AdminShell>
   );
 }

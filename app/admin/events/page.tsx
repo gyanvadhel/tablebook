@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { AdminShell } from '@/components/admin/AdminShell';
 import { EventModal } from '@/components/admin/EventModal';
 import { Plus, Edit2, Trash2, LayoutGrid, Eye, MapPin, Calendar, ImagePlus } from 'lucide-react';
 import { Units } from '@/lib/units';
@@ -59,30 +59,24 @@ export default function AdminEventsPage() {
   };
 
   return (
-    <div className="flex h-screen bg-zinc-50 font-sans text-zinc-900 overflow-hidden">
-      <AdminSidebar />
-
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto p-8">
-        {/* Top Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-xl font-bold text-zinc-900">Exhibitions</h1>
-            <p className="text-xs text-zinc-500 mt-0.5">Manage exhibitions, configure halls, and launch the CAD Studio</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedEvent(null);
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-semibold shadow-xs transition"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create Exhibition</span>
-          </button>
-        </div>
-
-        {/* Grid of Events */}
+    <AdminShell
+      title="Exhibitions"
+      subtitle="Manage exhibitions, configure halls, and launch the CAD Studio"
+      actions={
+        <button
+          type="button"
+          onClick={() => {
+            setSelectedEvent(null);
+            setIsModalOpen(true);
+          }}
+          className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-semibold shadow-xs transition"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Create Exhibition</span>
+        </button>
+      }
+    >
+      {/* Grid of Events */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {[1, 2, 3].map((i) => (
@@ -180,7 +174,7 @@ export default function AdminEventsPage() {
                       <Link
                         href={`/events/${evt.id}`}
                         target="_blank"
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-700 text-xs font-medium transition"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-700 text-xs font-medium transition"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         <span>Public View</span>
@@ -192,8 +186,9 @@ export default function AdminEventsPage() {
                           setSelectedEvent(evt);
                           setIsModalOpen(true);
                         }}
-                        className="p-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-600 transition"
+                        className="p-2 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-600 transition"
                         title="Edit Info"
+                        aria-label={`Edit ${evt.name}`}
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
@@ -201,8 +196,9 @@ export default function AdminEventsPage() {
                       <button
                         type="button"
                         onClick={() => handleDelete(evt.id, evt.name)}
-                        className="p-1.5 rounded-lg border border-zinc-200 hover:bg-rose-50 text-rose-600 transition"
+                        className="p-2 rounded-lg border border-zinc-200 hover:bg-rose-50 text-rose-600 transition"
                         title="Delete Exhibition"
+                        aria-label={`Delete ${evt.name}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -211,9 +207,8 @@ export default function AdminEventsPage() {
                 </div>
               );
             })}
-          </div>
-        )}
-      </main>
+        </div>
+      )}
 
       {/* Create / Edit Modal */}
       <EventModal
@@ -225,6 +220,6 @@ export default function AdminEventsPage() {
           loadEvents();
         }}
       />
-    </div>
+    </AdminShell>
   );
 }

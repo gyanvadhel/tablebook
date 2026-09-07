@@ -52,6 +52,24 @@ export const EventModal: React.FC<EventModalProps> = ({
     }
   }, [event, isOpen]);
 
+  // Escape closes; while open the page behind must not scroll
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -95,22 +113,33 @@ export const EventModal: React.FC<EventModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in duration-200">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+    /* A bottom sheet on phones, a centred dialog from `sm` up */
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-xs"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[92dvh] flex flex-col overflow-hidden border border-slate-200 animate-in fade-in slide-in-from-bottom-4 sm:zoom-in sm:slide-in-from-bottom-0 duration-200"
+      >
+        <div className="shrink-0 flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100 bg-slate-50">
           <h3 className="text-base font-bold text-slate-900">
             {event ? 'Edit Exhibition Details' : 'Create New Exhibition'}
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition"
+            aria-label="Close"
+            className="w-9 h-9 -mr-1.5 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4 text-xs">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 flex flex-col gap-4 text-xs">
           {error && <div className="p-3 bg-rose-50 text-rose-800 rounded-lg text-xs font-semibold">{error}</div>}
 
           <div>
@@ -123,7 +152,7 @@ export const EventModal: React.FC<EventModalProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Grand Home &amp; Crafts Expo 2026"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900"
+              className="w-full px-3 py-2.5 sm:py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900 text-base sm:text-xs"
             />
           </div>
 
@@ -135,7 +164,7 @@ export const EventModal: React.FC<EventModalProps> = ({
                 value={venue}
                 onChange={(e) => setVenue(e.target.value)}
                 placeholder="e.g. Hall 4, Convention Center"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900"
+                className="w-full px-3 py-2.5 sm:py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900 text-base sm:text-xs"
               />
             </div>
             <div>
@@ -144,7 +173,7 @@ export const EventModal: React.FC<EventModalProps> = ({
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900"
+                className="w-full px-3 py-2.5 sm:py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900 text-base sm:text-xs"
               />
             </div>
           </div>
@@ -158,7 +187,7 @@ export const EventModal: React.FC<EventModalProps> = ({
                 max={500}
                 value={hallWidth}
                 onChange={(e) => setHallWidth(parseFloat(e.target.value) || 80)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900"
+                className="w-full px-3 py-2.5 sm:py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900 text-base sm:text-xs"
               />
             </div>
             <div>
@@ -169,7 +198,7 @@ export const EventModal: React.FC<EventModalProps> = ({
                 max={500}
                 value={hallHeight}
                 onChange={(e) => setHallHeight(parseFloat(e.target.value) || 55)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900"
+                className="w-full px-3 py-2.5 sm:py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900 text-base sm:text-xs"
               />
             </div>
           </div>
@@ -181,24 +210,26 @@ export const EventModal: React.FC<EventModalProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief summary of the exhibition theme and target exhibitors..."
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900"
+              className="w-full px-3 py-2.5 sm:py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900 text-base sm:text-xs"
             />
           </div>
 
           <PosterField value={posterUrl} onChange={setPosterUrl} disabled={isSubmitting} />
+          </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
+          {/* Stays put while the fields above scroll */}
+          <div className="shrink-0 flex items-center justify-end gap-3 px-5 sm:px-6 py-4 border-t border-slate-100 bg-white pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-semibold transition"
+              className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 text-xs font-semibold transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-lg font-bold shadow-sm transition"
+              className="flex-1 sm:flex-none px-5 py-2.5 sm:py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-lg text-xs font-bold shadow-sm transition"
             >
               {isSubmitting ? 'Saving...' : event ? 'Save Changes' : 'Create Exhibition'}
             </button>
