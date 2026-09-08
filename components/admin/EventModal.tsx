@@ -27,6 +27,7 @@ export const EventModal: React.FC<EventModalProps> = ({
   const [hallWidth, setHallWidth] = useState(80);
   const [hallHeight, setHallHeight] = useState(55);
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
+  const [status, setStatus] = useState<'draft' | 'active' | 'completed'>('draft');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -40,6 +41,7 @@ export const EventModal: React.FC<EventModalProps> = ({
       setHallWidth(event.hall_width || 80);
       setHallHeight(event.hall_height || 55);
       setPosterUrl(event.poster_image || null);
+      setStatus((event.status as any) || 'draft');
     } else {
       setName('');
       setVenue('');
@@ -49,6 +51,7 @@ export const EventModal: React.FC<EventModalProps> = ({
       setHallWidth(80);
       setHallHeight(55);
       setPosterUrl(null);
+      setStatus('draft');
     }
   }, [event, isOpen]);
 
@@ -98,6 +101,7 @@ export const EventModal: React.FC<EventModalProps> = ({
           hall_width: Units.clampHallFt(hallWidth, 80),
           hall_height: Units.clampHallFt(hallHeight, 55),
           poster_image: posterUrl,
+          status,
         }),
       });
 
@@ -183,8 +187,8 @@ export const EventModal: React.FC<EventModalProps> = ({
               <label className="block font-semibold text-slate-700 mb-1">Main Hall Width (ft)</label>
               <input
                 type="number"
-                min={10}
-                max={500}
+                min={Units.MIN_HALL_FT}
+                max={Units.MAX_HALL_FT}
                 value={hallWidth}
                 onChange={(e) => setHallWidth(parseFloat(e.target.value) || 80)}
                 className="w-full px-3 py-2.5 sm:py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900 text-base sm:text-xs"
@@ -194,8 +198,8 @@ export const EventModal: React.FC<EventModalProps> = ({
               <label className="block font-semibold text-slate-700 mb-1">Main Hall Depth (ft)</label>
               <input
                 type="number"
-                min={10}
-                max={500}
+                min={Units.MIN_HALL_FT}
+                max={Units.MAX_HALL_FT}
                 value={hallHeight}
                 onChange={(e) => setHallHeight(parseFloat(e.target.value) || 55)}
                 className="w-full px-3 py-2.5 sm:py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900 text-base sm:text-xs"
@@ -215,6 +219,22 @@ export const EventModal: React.FC<EventModalProps> = ({
           </div>
 
           <PosterField value={posterUrl} onChange={setPosterUrl} disabled={isSubmitting} />
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">Visibility</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as any)}
+              className="w-full px-3 py-2.5 sm:py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none text-slate-900 text-base sm:text-xs bg-white"
+            >
+              <option value="draft">Draft — hidden from the public site</option>
+              <option value="active">Active — listed and open for booking</option>
+              <option value="completed">Completed — hidden from the public site</option>
+            </select>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Only active exhibitions appear on the visitor home page.
+            </p>
+          </div>
           </div>
 
           {/* Stays put while the fields above scroll */}

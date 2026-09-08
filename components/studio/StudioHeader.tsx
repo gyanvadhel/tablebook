@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ZoomIn, ZoomOut, Save, Layers } from 'lucide-react';
+import { ArrowLeft, ZoomIn, ZoomOut, Save, Layers, PanelLeft, SlidersHorizontal } from 'lucide-react';
 import { Units } from '@/lib/units';
 import { RotateFloorMenu } from './RotateFloorMenu';
 import type { EventItem } from '@/types';
@@ -23,6 +23,9 @@ interface StudioHeaderProps {
   hasBlueprint: boolean;
   onToggleBlueprint: () => void;
   hasUnsavedChanges: boolean;
+  /** Which side panel is open as a sheet below `lg`. */
+  mobilePanel: 'tools' | 'props' | null;
+  onToggleMobilePanel: (panel: 'tools' | 'props') => void;
 }
 
 export const StudioHeader: React.FC<StudioHeaderProps> = ({
@@ -41,6 +44,8 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   hasBlueprint,
   onToggleBlueprint,
   hasUnsavedChanges,
+  mobilePanel,
+  onToggleMobilePanel,
 }) => {
   return (
     <header className="h-12 bg-white border-b border-zinc-200 px-4 flex items-center justify-between shrink-0 z-20 select-none font-sans">
@@ -69,9 +74,35 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
       </div>
 
       {/* Right Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Side panels become sheets below lg, opened from here */}
+        <button
+          type="button"
+          onClick={() => onToggleMobilePanel('tools')}
+          aria-pressed={mobilePanel === 'tools'}
+          aria-label="Toggle tools panel"
+          title="Tools"
+          className={`lg:hidden w-9 h-9 flex items-center justify-center rounded-md border transition ${
+            mobilePanel === 'tools' ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white border-zinc-300 text-zinc-700'
+          }`}
+        >
+          <PanelLeft className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onToggleMobilePanel('props')}
+          aria-pressed={mobilePanel === 'props'}
+          aria-label="Toggle properties panel"
+          title="Properties"
+          className={`lg:hidden w-9 h-9 flex items-center justify-center rounded-md border transition ${
+            mobilePanel === 'props' ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white border-zinc-300 text-zinc-700'
+          }`}
+        >
+          <SlidersHorizontal className="w-4 h-4" />
+        </button>
+
         {/* Zoom Controls */}
-        <div className="flex items-center border border-zinc-200 rounded-md bg-white overflow-hidden">
+        <div className="hidden sm:flex items-center border border-zinc-200 rounded-md bg-white overflow-hidden">
           <button
             type="button"
             onClick={onZoomOut}
@@ -102,7 +133,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
         <select
           value={snapGrid}
           onChange={(e) => onSetSnapGrid(parseFloat(e.target.value))}
-          className="text-xs font-medium bg-white border border-zinc-300 text-zinc-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-zinc-900 cursor-pointer"
+          className="hidden xl:block text-xs font-medium bg-white border border-zinc-300 text-zinc-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-zinc-900 cursor-pointer"
         >
           <option value={1}>Snap: 1 ft</option>
           <option value={0.5}>Snap: 6 in</option>
@@ -130,7 +161,9 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
         </button>
 
         {/* Rotate Floor Dropdown */}
-        <RotateFloorMenu onRotateEntireFloor={onRotateFloor} />
+        <div className="hidden md:block">
+          <RotateFloorMenu onRotateEntireFloor={onRotateFloor} />
+        </div>
 
         {/* Save Button */}
         <button

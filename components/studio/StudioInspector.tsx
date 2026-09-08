@@ -59,8 +59,8 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
               <label className="block text-[11px] font-semibold text-zinc-600 mb-1">Hall Width (ft)</label>
               <input
                 type="number"
-                min={10}
-                max={500}
+                min={Units.MIN_HALL_FT}
+                max={Units.MAX_HALL_FT}
                 value={hallWidth}
                 onChange={(e) => onUpdateMainHall('hall_width', e.target.value)}
                 onBlur={(e) => onUpdateMainHall('hall_width', Units.clampHallFt(e.target.value))}
@@ -71,8 +71,8 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
               <label className="block text-[11px] font-semibold text-zinc-600 mb-1">Hall Depth (ft)</label>
               <input
                 type="number"
-                min={10}
-                max={500}
+                min={Units.MIN_HALL_FT}
+                max={Units.MAX_HALL_FT}
                 value={hallHeight}
                 onChange={(e) => onUpdateMainHall('hall_height', e.target.value)}
                 onBlur={(e) => onUpdateMainHall('hall_height', Units.clampHallFt(e.target.value))}

@@ -71,14 +71,16 @@ export function detectImageFormat(bytes: Buffer): ImageFormat | null {
 
 /** Keep a display-friendly version of the original name; never trust it as a path. */
 export function sanitizeFilename(original: string | undefined, fallbackExt: string): string {
-  const base = (original || 'blueprint')
+  const cleaned = (original || '')
     .split(/[\\/]/)
     .pop()!
     .replace(/[^A-Za-z0-9._ -]+/g, '_')
     .replace(/^\.+/, '')
     .trim()
     .slice(0, 80);
-  return base || `blueprint${fallbackExt}`;
+  // Falling back here rather than earlier keeps the extension on the default
+  // name; defaulting to a bare "blueprint" up front skipped it entirely.
+  return cleaned || `blueprint${fallbackExt}`;
 }
 
 /** Public URL for a stored upload. The extension is cosmetic — the id is what resolves. */

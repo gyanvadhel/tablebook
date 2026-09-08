@@ -51,6 +51,9 @@ export default function StudioPage() {
   const [isBlueprintPanelOpen, setIsBlueprintPanelOpen] = useState(false);
   const [isCalibrating, setIsCalibrating] = useState(false);
 
+  /** Which side panel is showing as a sheet on small screens. */
+  const [mobilePanel, setMobilePanel] = useState<'tools' | 'props' | null>(null);
+
   // Snapshot of the last state written to the server, for the unsaved marker
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
   const [needsSnapshot, setNeedsSnapshot] = useState(false);
@@ -840,7 +843,7 @@ export default function StudioPage() {
 
   if (isLoading) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-zinc-50 text-zinc-600 font-medium text-xs">
+      <div className="h-dvh w-full flex items-center justify-center bg-zinc-50 text-zinc-600 font-medium text-xs">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin" />
           <span>Loading Floor Plan Studio...</span>
@@ -850,7 +853,8 @@ export default function StudioPage() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden bg-zinc-100 font-sans">
+    /* h-dvh, not h-screen: on phones the address bar makes 100vh overflow */
+    <div className="h-dvh w-full flex flex-col overflow-hidden bg-zinc-100 font-sans">
       {/* Studio Header Bar */}
       <StudioHeader
         event={event}
@@ -867,26 +871,45 @@ export default function StudioPage() {
         blueprintOpen={isBlueprintPanelOpen}
         hasBlueprint={Boolean(blueprintUrl)}
         onToggleBlueprint={() => {
+          setMobilePanel(null);
           setIsBlueprintPanelOpen((prev) => {
             if (prev) setIsCalibrating(false);
             return !prev;
           });
         }}
         hasUnsavedChanges={hasUnsavedChanges}
+        mobilePanel={mobilePanel}
+        onToggleMobilePanel={(panel) => setMobilePanel((prev) => (prev === panel ? null : panel))}
       />
 
-      {/* 3-Column Studio Workspace */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* 3-Column Studio Workspace. Below lg the two side panels become
+          sheets over the canvas, so the drawing area keeps the full width. */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Dim the canvas while a sheet is open, and close on tap */}
+        {mobilePanel && (
+          <div
+            onClick={() => setMobilePanel(null)}
+            aria-hidden="true"
+            className="lg:hidden absolute inset-0 z-20 bg-zinc-900/40"
+          />
+        )}
+
         {/* 1. Left Palette Toolbox */}
-        <StudioPalette
+        <div
+          className={`${
+            mobilePanel === 'tools' ? 'flex' : 'hidden'
+          } lg:flex absolute lg:static inset-y-0 left-0 z-30 shadow-2xl lg:shadow-none`}
+        >
+          <StudioPalette
           onAddTable={handleAddTable}
           onAddHallRoom={handleAddHallRoom}
           onPromptCustomHall={handlePromptCustomHall}
           onAddDoor={handleAddDoor}
           onAddText={handleAddText}
           onPromptCustomText={handlePromptCustomText}
-          onAddStructure={handleAddStructure}
-        />
+            onAddStructure={handleAddStructure}
+          />
+        </div>
 
         {/* 2. Center CAD SVG Canvas */}
         <div className="flex-1 h-full relative flex">
@@ -941,7 +964,11 @@ export default function StudioPage() {
         </div>
 
         {/* 3. Right Inspector & Directory */}
-        <aside className="w-[280px] bg-white border-l border-zinc-200 flex flex-col h-full overflow-y-auto select-none shrink-0">
+        <aside
+          className={`${
+            mobilePanel === 'props' ? 'flex' : 'hidden'
+          } lg:flex absolute lg:static inset-y-0 right-0 z-30 w-[280px] max-w-[85vw] bg-white border-l border-zinc-200 flex-col h-full overflow-y-auto select-none shrink-0 shadow-2xl lg:shadow-none`}
+        >
           <StudioInspector
             selectedItem={selectedItem}
             event={event}

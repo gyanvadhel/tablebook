@@ -217,9 +217,17 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     onCalibrate(calibrationFrom, calibrationTo, feet);
   };
 
-  // Mouse Down handler
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0) return; // Only left click
+  // Pointer down. Pointer events rather than mouse events so a finger works
+  // the same as a cursor — a touch never fires mousedown/mousemove reliably.
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return; // Primary button, or any touch/pen contact
+
+    // Keep receiving moves even if the finger slides off the element
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      // Safe to ignore: capture is an optimisation, the drag still works
+    }
 
     const target = e.target as HTMLElement | SVGElement;
 
@@ -315,8 +323,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     setPanStart({ x: e.clientX, y: e.clientY });
   };
 
-  // Mouse Move handler
-  const handleMouseMove = (e: React.MouseEvent) => {
+  // Pointer move
+  const handlePointerMove = (e: React.PointerEvent) => {
     if (isCalibrating) {
       const pt = getSvgPointFt(e.clientX, e.clientY);
       setCalibrationHover({ x: pt.x, y: pt.y });
@@ -375,8 +383,15 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     }
   };
 
-  // Mouse Up handler
-  const handleMouseUp = () => {
+  // Pointer up, and pointer cancel (the browser taking the gesture back)
+  const handlePointerUp = (e?: React.PointerEvent) => {
+    if (e) {
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {
+        // Already released, or never captured
+      }
+    }
     setIsDragging(false);
     setIsPanning(false);
     setBlueprintDrag(null);
@@ -430,11 +445,13 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   return (
     <div
       ref={containerRef}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
       onWheel={handleWheel}
-      className="flex-1 h-full relative overflow-hidden bg-zinc-100 cursor-crosshair select-none"
+      /* touch-none stops the browser panning/zooming the page mid-drag */
+      className="flex-1 h-full relative overflow-hidden bg-zinc-100 cursor-crosshair select-none touch-none"
     >
       <svg
         ref={svgRef}
@@ -1095,7 +1112,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           data-calibration-input=""
           className="absolute z-50 -translate-x-1/2 -translate-y-[140%] bg-white border border-zinc-300 rounded-lg shadow-2xl p-2.5 w-[210px]"
           style={{ left: calibrationInputPos.left, top: calibrationInputPos.top }}
-          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">
             Measures {Units.formatFeetShort(distanceFt(calibrationFrom, calibrationTo))} · really is

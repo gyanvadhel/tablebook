@@ -65,16 +65,20 @@ export default function AdminBookingsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'confirmed' | 'cancelled'>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const loadBookings = async () => {
     try {
+      setLoadError('');
       const res = await fetch('/api/bookings');
-      if (res.ok) {
-        const data = await res.json();
-        setBookings(Array.isArray(data) ? data : []);
-      }
-    } catch (e) {
+      if (!res.ok) throw new Error(`Failed to load reservations (${res.status})`);
+
+      const data = await res.json();
+      setBookings(Array.isArray(data) ? data : []);
+    } catch (e: any) {
       console.error(e);
+      setLoadError(e?.message || 'Failed to load reservations');
     } finally {
       setIsLoading(false);
     }
@@ -85,6 +89,7 @@ export default function AdminBookingsPage() {
   }, []);
 
   const handleUpdateStatus = async (bookingId: number, newStatus: 'confirmed' | 'cancelled') => {
+    setActionError('');
     try {
       const res = await fetch(`/api/bookings/${bookingId}`, {
         method: 'PATCH',
@@ -92,11 +97,16 @@ export default function AdminBookingsPage() {
         body: JSON.stringify({ status: newStatus }),
       });
 
-      if (res.ok) {
-        setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b)));
+      // A non-OK response used to be swallowed, so the button did nothing and
+      // said nothing. Surface it instead.
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Could not update the reservation (${res.status})`);
       }
-    } catch (e) {
-      alert('Failed to update booking status');
+
+      setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b)));
+    } catch (e: any) {
+      setActionError(e?.message || 'Failed to update booking status');
     }
   };
 
@@ -200,8 +210,34 @@ export default function AdminBookingsPage() {
         </div>
       </div>
 
+      {actionError && (
+        <div className="mb-4 flex items-start justify-between gap-3 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError('')} aria-label="Dismiss" className="shrink-0 hover:text-rose-950">
+            ×
+          </button>
+        </div>
+      )}
+
+      {loadError && (
+        <div className="mb-4 p-4 rounded-xl border border-dashed border-rose-300 bg-rose-50/50 text-center">
+          <h3 className="text-sm font-bold text-rose-900 mb-1">Could not load reservations</h3>
+          <p className="text-rose-700 text-xs mb-3">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setIsLoading(true);
+              loadBookings();
+            }}
+            className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-semibold transition"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
       {/* ---------- Phones & tablets: one card per booking ---------- */}
-      <div className="lg:hidden">
+      <div className={`lg:hidden ${loadError ? 'hidden' : ''}`}>
         {isLoading ? (
           <div className="flex flex-col gap-3">
             {[1, 2, 3].map((i) => (
@@ -310,7 +346,7 @@ export default function AdminBookingsPage() {
       </div>
 
       {/* ---------- Desktop: full table with an expandable detail row ---------- */}
-      <div className="hidden lg:block bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-xs">
+      <div className={`${loadError ? 'hidden' : 'hidden lg:block'} bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-xs`}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-zinc-50 text-zinc-500 font-bold uppercase tracking-wider text-[10px] border-b border-zinc-200">

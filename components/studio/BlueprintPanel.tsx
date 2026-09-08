@@ -218,7 +218,7 @@ export const BlueprintPanel: React.FC<BlueprintPanelProps> = ({
   return (
     <div
       data-blueprint-panel
-      className="absolute top-2 right-2 z-40 w-[320px] max-h-[calc(100vh-5rem)] overflow-y-auto bg-white border border-zinc-200 rounded-xl shadow-2xl font-sans"
+      className="absolute top-2 right-2 z-40 w-[320px] max-w-[calc(100vw-1rem)] max-h-[calc(100dvh-5rem)] overflow-y-auto bg-white border border-zinc-200 rounded-xl shadow-2xl font-sans"
     >
       {/* Header */}
       <div className="sticky top-0 flex items-center justify-between px-3.5 py-2.5 bg-white border-b border-zinc-200 rounded-t-xl">

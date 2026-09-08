@@ -146,7 +146,9 @@ export function scaleAbout(
   anchorX: number,
   anchorY: number
 ): BlueprintPlacement {
-  const k = toNumber(factor, 1);
+  // NaN must reach the guard below rather than being rescued to 1, so every
+  // nonsensical factor leaves the placement untouched by the same path.
+  const k = toNumber(factor, NaN);
   if (!isFinite(k) || k <= 0) return bp;
 
   const cx = bp.x + bp.width / 2;

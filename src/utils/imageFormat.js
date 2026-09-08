@@ -43,14 +43,15 @@ function detectImageFormat(bytes) {
 }
 
 function sanitizeFilename(original, fallbackExt) {
-  const base = String(original || 'blueprint')
+  const cleaned = String(original || '')
     .split(/[\\/]/)
     .pop()
     .replace(/[^A-Za-z0-9._ -]+/g, '_')
     .replace(/^\.+/, '')
     .trim()
     .slice(0, 80);
-  return base || `blueprint${fallbackExt}`;
+  // Falling back here rather than earlier keeps the extension on the default name.
+  return cleaned || `blueprint${fallbackExt}`;
 }
 
 /**

@@ -2,21 +2,49 @@ import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import type { UserSession } from '@/types';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'tablebook-secret-key-super-secure-change-in-prod';
 const COOKIE_NAME = 'admin_token';
+
+/** Only used when JWT_SECRET is unset, and never in production. */
+const DEV_ONLY_SECRET = 'tablebook-local-development-secret';
+
+/**
+ * The signing key for admin sessions.
+ *
+ * This used to fall back to a literal committed in this repository, which
+ * meant any deployment missing JWT_SECRET could have admin tokens forged by
+ * anyone who had read the source. Production now fails closed instead.
+ *
+ * Resolved per call rather than at module load so a missing variable surfaces
+ * as a failed request, not a failed build.
+ */
+function getJwtSecret(): string {
+  const fromEnv = process.env.JWT_SECRET?.trim();
+  if (fromEnv) return fromEnv;
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'JWT_SECRET is not set. Refusing to sign or verify admin sessions with a default key in production.'
+    );
+  }
+
+  return DEV_ONLY_SECRET;
+}
 
 export function signToken(user: UserSession): string {
   return jwt.sign(
     { id: user.id, username: user.username, role: user.role },
-    JWT_SECRET,
+    getJwtSecret(),
     { expiresIn: '7d' }
   );
 }
 
 export function verifyToken(token: string): UserSession | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as UserSession;
+    return jwt.verify(token, getJwtSecret()) as UserSession;
   } catch (err) {
+    // An unset JWT_SECRET in production is a deployment fault, not a bad
+    // token — surface it rather than reporting every visitor as logged out.
+    if (err instanceof Error && err.message.includes('JWT_SECRET is not set')) throw err;
     return null;
   }
 }

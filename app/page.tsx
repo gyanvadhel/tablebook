@@ -18,17 +18,21 @@ export default function HomePage() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     async function loadEvents() {
       try {
-        const res = await fetch('/api/events');
-        if (res.ok) {
-          const data = await res.json();
-          setEvents(Array.isArray(data) ? data : []);
-        }
-      } catch (err) {
+        // Only active exhibitions are public; drafts and completed ones are
+        // visible to admins alone.
+        const res = await fetch('/api/events?status=active');
+        if (!res.ok) throw new Error('Could not load exhibitions');
+
+        const data = await res.json();
+        setEvents(Array.isArray(data) ? data : []);
+      } catch (err: any) {
         console.error(err);
+        setLoadError(err?.message || 'Could not load exhibitions');
       } finally {
         setIsLoading(false);
       }
@@ -101,6 +105,19 @@ export default function HomePage() {
                 <div className="h-3 w-1/2 rounded bg-zinc-200 animate-pulse" />
               </div>
             ))}
+          </div>
+        ) : loadError ? (
+          /* A failed request must not look like an empty catalogue */
+          <div className="text-center py-16 border border-dashed border-rose-300 bg-rose-50/50 rounded-xl">
+            <h3 className="text-sm font-bold text-rose-900 mb-1">Could not load exhibitions</h3>
+            <p className="text-rose-700 text-xs mb-4">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-semibold transition"
+            >
+              Try again
+            </button>
           </div>
         ) : filteredEvents.length === 0 ? (
           <div className="text-center py-16 border border-dashed border-zinc-300 rounded-xl bg-white">

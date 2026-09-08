@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbAll, dbGet, withTransaction } from '@/lib/db';
+import { validateBookingInput } from '@/lib/bookingInput';
 import { getSession } from '@/lib/auth';
 
 function generateReferenceCode(): string {
@@ -59,11 +60,17 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { table_id, customer_name, customer_phone, customer_email = '', business_name = '', notes = '' } = body;
+    const { table_id } = body;
 
-    if (!table_id || !customer_name || !customer_phone) {
-      return NextResponse.json({ error: 'Table ID, customer name, and phone number are required' }, { status: 400 });
+    if (!table_id) {
+      return NextResponse.json({ error: 'Table ID is required' }, { status: 400 });
     }
+
+    const checked = validateBookingInput(body);
+    if (checked.error || !checked.values) {
+      return NextResponse.json({ error: checked.error || 'Invalid booking details' }, { status: 400 });
+    }
+    const { name: customer_name, phone: customer_phone, email: customer_email, business: business_name, notes } = checked.values;
 
     const booking = await withTransaction(async (client) => {
       const tableRes = await client.query('SELECT * FROM tables WHERE id = $1 FOR UPDATE', [table_id]);
@@ -92,7 +99,7 @@ export async function POST(req: NextRequest) {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'confirmed')
         RETURNING *
       `,
-        [table.id, table.event_id, code, customer_name.trim(), customer_phone.trim(), customer_email.trim(), business_name.trim(), notes.trim()]
+        [table.id, table.event_id, code, customer_name, customer_phone, customer_email, business_name, notes]
       );
 
       await client.query("UPDATE tables SET status = 'booked' WHERE id = $1", [table.id]);

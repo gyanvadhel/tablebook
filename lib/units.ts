@@ -3,15 +3,20 @@
  */
 export const PX_PER_FOOT = 12;
 
-export const DEFAULT_HALL_WIDTH_FT = 50;
-export const DEFAULT_HALL_HEIGHT_FT = 30;
+/**
+ * These bounds mirror the CHECK constraints on `events` and `tables` (see
+ * lib/db.ts). They must not be tighter than the database, or a value the
+ * database would happily accept gets silently shrunk on the way in.
+ */
+export const DEFAULT_HALL_WIDTH_FT = 80;
+export const DEFAULT_HALL_HEIGHT_FT = 55;
 export const MIN_HALL_FT = 10;
-export const MAX_HALL_FT = 500;
+export const MAX_HALL_FT = 600;
 
 export const DEFAULT_STALL_WIDTH_FT = 4;
 export const DEFAULT_STALL_HEIGHT_FT = 2;
 export const STALL_MIN_FT = 1;
-export const STALL_MAX_FT = 60;
+export const STALL_MAX_FT = 200;
 
 export const Units = {
   PX_PER_FOOT,

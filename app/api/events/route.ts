@@ -53,10 +53,16 @@ export async function POST(req: NextRequest) {
       hall_height = 55,
       hall_background_image = null,
       poster_image = null,
+      status = 'draft',
     } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: 'Event name is required' }, { status: 400 });
+    }
+
+    const EVENT_STATUSES = ['draft', 'active', 'completed'];
+    if (!EVENT_STATUSES.includes(status)) {
+      return NextResponse.json({ error: `status must be one of: ${EVENT_STATUSES.join(', ')}` }, { status: 400 });
     }
 
     const w = Units.clampHallFt(hall_width, 80);
@@ -82,7 +88,7 @@ export async function POST(req: NextRequest) {
     const result = await dbRun(
       `
       INSERT INTO events (name, description, venue, start_date, end_date, hall_width, hall_height, hall_background_image, hall_blueprint, poster_image, hall_elements, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11::jsonb, 'draft')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11::jsonb, $12)
       RETURNING *
     `,
       [
@@ -97,6 +103,7 @@ export async function POST(req: NextRequest) {
         blueprintJson,
         posterUrl,
         JSON.stringify(initialBadge),
+        status,
       ]
     );
 

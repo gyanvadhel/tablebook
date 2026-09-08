@@ -16,16 +16,19 @@ export default function AdminEventsPage() {
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   const loadEvents = async () => {
     try {
+      setLoadError('');
       const res = await fetch('/api/events');
-      if (res.ok) {
-        const data = await res.json();
-        setEvents(Array.isArray(data) ? data : []);
-      }
-    } catch (e) {
+      if (!res.ok) throw new Error(`Failed to load exhibitions (${res.status})`);
+
+      const data = await res.json();
+      setEvents(Array.isArray(data) ? data : []);
+    } catch (e: any) {
       console.error(e);
+      setLoadError(e?.message || 'Failed to load exhibitions');
     } finally {
       setIsLoading(false);
     }
@@ -83,7 +86,22 @@ export default function AdminEventsPage() {
               <div key={i} className="h-56 rounded-xl bg-white border border-zinc-200 animate-pulse" />
             ))}
           </div>
-        ) : events.length === 0 ? (
+        ) : loadError ? (
+        <div className="text-center py-16 border border-dashed border-rose-300 bg-rose-50/50 rounded-xl">
+          <h3 className="text-sm font-bold text-rose-900 mb-1">Could not load exhibitions</h3>
+          <p className="text-rose-700 text-xs mb-4">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setIsLoading(true);
+              loadEvents();
+            }}
+            className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-semibold transition"
+          >
+            Try again
+          </button>
+        </div>
+      ) : events.length === 0 ? (
           <div className="text-center py-20 border border-dashed border-zinc-300 rounded-xl bg-white">
             <LayoutGrid className="w-8 h-8 text-zinc-400 mx-auto mb-2" />
             <h3 className="text-sm font-bold text-zinc-900 mb-1">No Exhibitions Created</h3>
@@ -133,10 +151,25 @@ export default function AdminEventsPage() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200 whitespace-nowrap">
-                          {Units.formatDims(evt.hall_width, evt.hall_height)}
-                        </span>
-                        <span className="text-[10px] font-semibold text-zinc-500 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200 whitespace-nowrap">
+                            {Units.formatDims(evt.hall_width, evt.hall_height)}
+                          </span>
+                          {/* Only "active" reaches the public site */}
+                          <span
+                            className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border whitespace-nowrap ${
+                              evt.status === 'active'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : evt.status === 'completed'
+                                ? 'bg-zinc-100 text-zinc-500 border-zinc-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}
+                            title={evt.status === 'active' ? 'Listed on the public site' : 'Hidden from the public site'}
+                          >
+                            {evt.status || 'draft'}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-semibold text-zinc-500 whitespace-nowrap shrink-0">
                           {total} Stalls ({booked} Booked)
                         </span>
                       </div>

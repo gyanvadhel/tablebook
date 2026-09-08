@@ -76,6 +76,8 @@ export interface EventItem {
   hall_blueprint?: BlueprintPlacement | string | null;
   /** Portrait poster shown on the exhibition card. */
   poster_image?: string | null;
+  /** Only 'active' events are listed on the public site. */
+  status?: EventStatus;
   is_active?: boolean;
   created_at?: string;
   updated_at?: string;
@@ -83,6 +85,8 @@ export interface EventItem {
   booked_tables?: number;
   available_tables?: number;
 }
+
+export type EventStatus = 'draft' | 'active' | 'completed';
 
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled';
 
