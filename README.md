@@ -63,9 +63,9 @@ cp .env.example .env     # then fill in DATABASE_URL and SESSION_SECRET
 npm run dev
 ```
 
-Open http://localhost:3000. The admin panel is at `/admin/login.html`.
+Open http://localhost:3000. The admin panel is at `/admin/login`.
 
-The schema is created automatically on first run, along with an admin account
+The schema is migrated automatically on first run, along with an admin account
 using `ADMIN_USERNAME` / `ADMIN_PASSWORD`. **Change those before exposing the
 site** — the seeded default is only meant to get you in the door.
 
@@ -74,16 +74,40 @@ site** — the seeded default is only meant to get you in the door.
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | Postgres connection string. On Supabase use the **Transaction pooler** URI (port 6543) for serverless. |
-| `SESSION_SECRET` | Signs the admin session cookie. Required in production. |
+| `JWT_SECRET` | Signs the admin session token. **Required in production** — the app refuses to sign or verify sessions without it rather than falling back to a known key. Development uses a local default. |
+| `SESSION_SECRET` | Signs the cookie for the legacy Express server only. |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Seeds the first admin account, only when no admin exists yet. |
 | `PORT` | Local port. Ignored on Vercel. |
 
+## Tests
+
+```bash
+npm test          # once
+npm run test:watch
+```
+
+Vitest, covering the logic worth guarding: blueprint calibration geometry
+(including at arbitrary rotations), corner-anchored resizing, placement
+clamping, image magic-byte sniffing, URL safety, unit conversion and clamping,
+and booking input validation. Tests live in `tests/` and import through the
+same `@/` alias as the app.
+
+## Database migrations
+
+`lib/db.ts` holds an ordered `MIGRATIONS` list and a `schema_migrations` table
+that records which ids have run, so DDL executes once per database rather than
+on every cold start. An advisory lock serialises concurrent cold starts.
+
+To change the schema, **append a new migration** — never edit one that has
+shipped, since databases that already applied it will not re-run it. Write
+each step idempotently (`ADD COLUMN IF NOT EXISTS`, `DROP CONSTRAINT IF
+EXISTS`); that is what lets an existing database adopt the ledger safely.
+
 ## Deploying to Vercel
 
-`vercel.json` routes `/api/*` to the Express app in `api/index.js` and serves
-everything in `public/` as static assets. Set `DATABASE_URL`, `SESSION_SECRET`,
-`ADMIN_USERNAME`, and `ADMIN_PASSWORD` as project environment variables, then
-deploy.
+Set `DATABASE_URL`, `JWT_SECRET`, `ADMIN_USERNAME`, and `ADMIN_PASSWORD` as
+project environment variables, then deploy. Migrations run on the first
+request after a deploy.
 
 ## Blueprint underlay
 

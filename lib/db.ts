@@ -170,8 +170,96 @@ CREATE INDEX IF NOT EXISTS idx_tables_event    ON tables(event_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_event  ON bookings(event_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_table  ON bookings(table_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_booked ON bookings(booked_at DESC);
-${UPLOADS_SQL}
 `;
+
+interface Migration {
+  id: string;
+  sql: string;
+}
+
+/**
+ * Ordered, append-only. Applied ids are recorded in `schema_migrations`, so
+ * each one runs at most once per database instead of on every cold start.
+ *
+ * Every step is written to be idempotent anyway. That is what lets an
+ * existing database — which already has all of this — adopt the ledger
+ * safely: the first run re-executes each step as a no-op and records it.
+ *
+ * Never edit a migration that has shipped; add a new one.
+ */
+const MIGRATIONS: Migration[] = [
+  { id: '0001_initial_schema', sql: SCHEMA_SQL },
+  { id: '0002_uploads_table', sql: UPLOADS_SQL },
+  {
+    id: '0003_event_layout_columns',
+    sql: `
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_elements JSONB DEFAULT '[]'::jsonb;
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_rotation INTEGER DEFAULT 0;
+    `,
+  },
+  {
+    id: '0004_blueprint_columns',
+    sql: `
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_background_image TEXT;
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_blueprint JSONB;
+    `,
+  },
+  {
+    id: '0005_poster_column',
+    sql: `ALTER TABLE events ADD COLUMN IF NOT EXISTS poster_image TEXT;`,
+  },
+  {
+    id: '0006_stall_size_xlarge',
+    sql: `
+      ALTER TABLE tables DROP CONSTRAINT IF EXISTS tables_size_check;
+      ALTER TABLE tables ADD CONSTRAINT tables_size_check CHECK (size IN ('small', 'medium', 'large', 'xlarge'));
+    `,
+  },
+];
+
+/**
+ * Serverless means several instances can cold-start at once. An advisory lock
+ * makes them queue rather than race to apply the same DDL.
+ */
+const MIGRATION_LOCK_KEY = 8_147_321;
+
+async function applyMigrations(): Promise<void> {
+  const client = await getPool().connect();
+
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        id         TEXT PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await client.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_KEY]);
+    try {
+      const { rows } = await client.query('SELECT id FROM schema_migrations');
+      const applied = new Set<string>(rows.map((r: any) => r.id));
+
+      for (const migration of MIGRATIONS) {
+        if (applied.has(migration.id)) continue;
+
+        await client.query('BEGIN');
+        try {
+          await client.query(migration.sql);
+          await client.query('INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING', [migration.id]);
+          await client.query('COMMIT');
+          console.log(`Applied migration ${migration.id}`);
+        } catch (err) {
+          await client.query('ROLLBACK');
+          throw new Error(`Migration ${migration.id} failed: ${(err as Error).message}`);
+        }
+      }
+    } finally {
+      await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_KEY]);
+    }
+  } finally {
+    client.release();
+  }
+}
 
 async function seedDefaultAdmin() {
   const username = process.env.ADMIN_USERNAME || 'admin';
@@ -189,24 +277,7 @@ export async function initializeDatabase(): Promise<void> {
   if (schemaReady) return schemaReady;
 
   schemaReady = (async () => {
-    const { rows } = await getPool().query("SELECT to_regclass('public.events') AS table_name");
-
-    if (!rows || !rows[0] || !rows[0].table_name) {
-      await getPool().query(SCHEMA_SQL);
-      console.log('Database schema created');
-    } else {
-      await getPool().query(`
-        ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_elements JSONB DEFAULT '[]'::jsonb;
-        ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_rotation INTEGER DEFAULT 0;
-        ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_background_image TEXT;
-        ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_blueprint JSONB;
-        ALTER TABLE events ADD COLUMN IF NOT EXISTS poster_image TEXT;
-        ALTER TABLE tables DROP CONSTRAINT IF EXISTS tables_size_check;
-        ALTER TABLE tables ADD CONSTRAINT tables_size_check CHECK (size IN ('small', 'medium', 'large', 'xlarge'));
-        ${UPLOADS_SQL}
-      `);
-    }
-
+    await applyMigrations();
     await seedDefaultAdmin();
   })();
 
