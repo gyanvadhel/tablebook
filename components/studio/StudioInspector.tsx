@@ -30,6 +30,7 @@ interface StudioInspectorProps {
   onMoveMainHall?: (newX: number, newY: number, shiftContents?: boolean) => void;
   shiftInteriorWithHall?: boolean;
   onToggleShiftInterior?: (val: boolean) => void;
+  onUpdateItemProp: (prop: string, val: any) => void;
   onRotateSelected: () => void;
   onFlipSelected: () => void;
   onToggleInvertL: () => void;
@@ -55,8 +56,8 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
   onUpdateSecondaryHallName,
   allElements,
 }) => {
-  // 1. If nothing selected or main hall selected: show Main Hall properties
-  if (!selectedItem || selectedItem.type === 'main_hall') {
+  // 1. If nothing selected: show Main Hall properties
+  if (!selectedItem) {
     const areaSqFt = Math.round(hallWidth * hallHeight);
     const currentHallX = hallX ?? (event?.hall_x || 0);
     const currentHallY = hallY ?? (event?.hall_y || 0);
