@@ -52,6 +52,11 @@ export interface HallElement {
   color?: string;
   fontSize?: number;
   fontWeight?: string;
+  fontStyle?: 'normal' | 'italic';
+  textAlign?: 'left' | 'center' | 'right';
+  letterSpacing?: number;
+  textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+  textColor?: string;
   badge?: boolean;
   targetHallId?: string;
 }
@@ -69,6 +74,8 @@ export interface EventItem {
   venue?: string;
   hall_width: number;
   hall_height: number;
+  hall_x?: number;
+  hall_y?: number;
   hall_rotation?: number;
   hall_elements?: HallElement[] | string;
   /** Blueprint image URL. Placement for it lives in `hall_blueprint`. */

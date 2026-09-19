@@ -239,6 +239,8 @@ async function initializeDatabase() {
         ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_rotation INTEGER DEFAULT 0;
         ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_background_image TEXT;
         ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_blueprint JSONB;
+        ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_x REAL DEFAULT 0;
+        ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_y REAL DEFAULT 0;
         ALTER TABLE events ADD COLUMN IF NOT EXISTS poster_image TEXT;
         ALTER TABLE tables DROP CONSTRAINT IF EXISTS tables_size_check;
         ALTER TABLE tables ADD CONSTRAINT tables_size_check CHECK (size IN ('small', 'medium', 'large', 'xlarge'));

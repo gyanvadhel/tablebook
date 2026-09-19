@@ -282,6 +282,14 @@ export const StudioPalette: React.FC<StudioPaletteProps> = ({
             </button>
             <button
               type="button"
+              onClick={() => onAddText('FLOOR LABEL', { badge: false, color: 'transparent' })}
+              className="px-2.5 py-1.5 rounded hover:bg-zinc-100 text-left font-medium text-zinc-700 truncate flex items-center justify-between"
+            >
+              <span>Plain Text Label</span>
+              <span className="text-[10px] text-zinc-400 font-normal">No Box</span>
+            </button>
+            <button
+              type="button"
               onClick={onPromptCustomText}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded hover:bg-zinc-100 text-left font-semibold text-zinc-900"
             >

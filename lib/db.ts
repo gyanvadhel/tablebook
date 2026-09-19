@@ -129,6 +129,8 @@ CREATE TABLE IF NOT EXISTS events (
   poster_image          TEXT,
   hall_elements         JSONB DEFAULT '[]'::jsonb,
   hall_rotation         INTEGER DEFAULT 0,
+  hall_x                REAL DEFAULT 0,
+  hall_y                REAL DEFAULT 0,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -213,6 +215,13 @@ const MIGRATIONS: Migration[] = [
     sql: `
       ALTER TABLE tables DROP CONSTRAINT IF EXISTS tables_size_check;
       ALTER TABLE tables ADD CONSTRAINT tables_size_check CHECK (size IN ('small', 'medium', 'large', 'xlarge'));
+    `,
+  },
+  {
+    id: '0007_hall_position_columns',
+    sql: `
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_x REAL DEFAULT 0;
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS hall_y REAL DEFAULT 0;
     `,
   },
 ];

@@ -23,12 +23,16 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
 }) => {
   if (!selectedItem || !position) return null;
 
+  const stopProp = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <div
       data-floating-toolbar="true"
-      onMouseDown={(e) => e.stopPropagation()}
-      onMouseUp={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
+      onPointerDown={stopProp}
+      onMouseDown={stopProp}
+      onClick={stopProp}
       className="absolute z-50 flex flex-col items-center pointer-events-auto select-none transition-transform -translate-x-1/2 -translate-y-full -mt-3"
       style={{ left: `${position.left}px`, top: `${position.top}px` }}
     >
@@ -38,49 +42,49 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
       <div className="flex items-center gap-0.5 bg-zinc-900 border border-zinc-700 rounded-md p-1 shadow-2xl">
         <button
           type="button"
-          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={stopProp}
           onClick={(e) => {
             e.stopPropagation();
             onFlip();
           }}
           title="Flip / Invert (F)"
-          className="p-1.5 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 transition"
+          className="p-1.5 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 active:scale-95 transition"
         >
           <FlipHorizontal className="w-3.5 h-3.5" />
         </button>
         <button
           type="button"
-          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={stopProp}
           onClick={(e) => {
             e.stopPropagation();
             onRotate();
           }}
           title="Rotate 90° (R)"
-          className="p-1.5 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 transition"
+          className="p-1.5 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 active:scale-95 transition"
         >
           <RotateCw className="w-3.5 h-3.5" />
         </button>
         <button
           type="button"
-          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={stopProp}
           onClick={(e) => {
             e.stopPropagation();
             onDuplicate();
           }}
           title="Duplicate (Shift+D)"
-          className="p-1.5 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 transition"
+          className="p-1.5 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 active:scale-95 transition"
         >
           <Copy className="w-3.5 h-3.5" />
         </button>
         <button
           type="button"
-          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={stopProp}
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
           }}
           title="Delete (Del)"
-          className="p-1.5 rounded text-rose-400 hover:text-rose-300 hover:bg-rose-950/50 transition"
+          className="p-1.5 rounded text-rose-400 hover:text-rose-300 hover:bg-rose-950/50 active:scale-95 transition"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -88,3 +92,4 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
     </div>
   );
 };
+

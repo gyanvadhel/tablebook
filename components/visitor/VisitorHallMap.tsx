@@ -8,6 +8,8 @@ import type { TableItem, HallElement, BlueprintPlacement } from '@/types';
 interface VisitorHallMapProps {
   hallWidth: number;
   hallHeight: number;
+  hallX?: number;
+  hallY?: number;
   tables: TableItem[];
   elements: HallElement[];
   selectedTable: TableItem | null;
@@ -20,6 +22,8 @@ interface VisitorHallMapProps {
 export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
   hallWidth: rawHallW,
   hallHeight: rawHallH,
+  hallX: rawHallX = 0,
+  hallY: rawHallY = 0,
   tables,
   elements,
   selectedTable,
@@ -30,6 +34,8 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
 }) => {
   const hallWidth = Units.toFeet(rawHallW, 30) || 30;
   const hallHeight = Units.toFeet(rawHallH, 20) || 20;
+  const hallX = Number(rawHallX) || 0;
+  const hallY = Number(rawHallY) || 0;
 
   // The admin decides per event whether visitors see the underlay at all
   const showBlueprint = Boolean(blueprintUrl && blueprint?.visible && blueprint?.showToVisitors);
@@ -44,14 +50,17 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
 
+  // Feet to pixels
   const px = (ft: number) => Units.ftToPx(ft);
+  const hx = px(hallX);
+  const hy = px(hallY);
 
   // Auto-fit viewBox perfectly to the hall and all secondary halls/tables
   useEffect(() => {
-    let minX = 0;
-    let minY = 0;
-    let maxX = hallWidth;
-    let maxY = hallHeight;
+    let minX = hallX;
+    let minY = hallY;
+    let maxX = hallX + hallWidth;
+    let maxY = hallY + hallHeight;
 
     tables.forEach((t) => {
       const rX = (t.x || 0) + (t.width || 4);
@@ -78,7 +87,7 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
     const hPx = Units.ftToPx(maxY - minY + padFt * 2);
 
     setViewBox({ x: xPx, y: yPx, w: wPx, h: hPx });
-  }, [hallWidth, hallHeight, tables, elements]);
+  }, [hallWidth, hallHeight, hallX, hallY, tables, elements]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -177,12 +186,18 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
         </defs>
 
         {/* Canvas Background Grid */}
-        <rect x={-px(120)} y={-px(120)} width={wPx + px(240)} height={hPx + px(240)} fill="url(#visitor-grid)" />
+        <rect
+          x={px(Math.min(-120, hallX - 120))}
+          y={px(Math.min(-120, hallY - 120))}
+          width={px(Math.max(hallWidth, hallX + hallWidth) - Math.min(0, hallX) + 240)}
+          height={px(Math.max(hallHeight, hallY + hallHeight) - Math.min(0, hallY) + 240)}
+          fill="url(#visitor-grid)"
+        />
 
         {/* Main Hall Outer Perimeter Wall */}
         <rect
-          x={-wallThick}
-          y={-wallThick}
+          x={hx - wallThick}
+          y={hy - wallThick}
           width={wPx + wallThick * 2}
           height={hPx + wallThick * 2}
           fill="#3f3f46"
@@ -192,7 +207,7 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
         />
 
         {/* Main Hall Parquet Floor */}
-        <rect x="0" y="0" width={wPx} height={hPx} fill="url(#visitor-wood)" stroke="#18181b" strokeWidth="1.5" />
+        <rect x={hx} y={hy} width={wPx} height={hPx} fill="url(#visitor-wood)" stroke="#18181b" strokeWidth="1.5" />
 
         {/* Blueprint Underlay — drawn on the floor, never intercepts a click */}
         {showBlueprint && blueprint && (
@@ -479,11 +494,52 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
             }
 
             if (elem.type === 'text') {
+              const rawText = elem.text || elem.label || 'SIGN';
+              const hasBg = elem.color !== 'transparent' && elem.color !== 'none' && elem.badge !== false;
+              const bg = hasBg ? (elem.color || '#27272a') : 'transparent';
+              const textColor = elem.textColor || (hasBg ? '#ffffff' : '#18181b');
+              const fSize = elem.fontSize ?? 10;
+              const fWeight = elem.fontWeight ?? '700';
+              const fStyle = elem.fontStyle ?? 'normal';
+              const tAlign = elem.textAlign ?? 'center';
+              const lSpacing = elem.letterSpacing ?? 0;
+              const tTransform = elem.textTransform ?? 'none';
+
+              let displayText = rawText;
+              if (tTransform === 'uppercase') displayText = rawText.toUpperCase();
+              else if (tTransform === 'lowercase') displayText = rawText.toLowerCase();
+              else if (tTransform === 'capitalize') displayText = rawText.replace(/\b\w/g, (c: string) => c.toUpperCase());
+
+              const isBold = fWeight === '700' || fWeight === 'bold' || fWeight === '800' || fWeight === '900';
+              const charW = isBold ? 0.65 : 0.6;
+              const signW = Math.max(w, displayText.length * (fSize * charW + lSpacing) + (hasBg ? fSize * 1.5 : 8));
+              const signH = Math.max(h, fSize * 2.2 + (hasBg ? 8 : 4));
+              const signCx = x + signW / 2;
+              const signCy = y + signH / 2;
+
+              const textAnchor = tAlign === 'left' ? 'start' : tAlign === 'right' ? 'end' : 'middle';
+              const textX = tAlign === 'left' ? x + (hasBg ? 8 : 4) : tAlign === 'right' ? x + signW - (hasBg ? 8 : 4) : signCx;
+
               return (
-                <g key={elemId}>
-                  <rect x={x} y={y} width={w} height={h} rx="4" fill={elem.color || '#27272a'} filter="drop-shadow(0 1px 3px rgba(0,0,0,0.08))" />
-                  <text x={x + w / 2} y={y + h / 2 + 4} fill="#ffffff" fontSize="10" fontWeight="700" textAnchor="middle">
-                    {elem.text || elem.label || 'SIGN'}
+                <g
+                  key={elemId}
+                  transform={elem.rotation ? `rotate(${elem.rotation}, ${signCx}, ${signCy})` : undefined}
+                >
+                  {hasBg && (
+                    <rect x={x} y={y} width={signW} height={signH} rx="4" fill={bg} filter="drop-shadow(0 1px 3px rgba(0,0,0,0.08))" />
+                  )}
+                  <text
+                    x={textX}
+                    y={signCy}
+                    dominantBaseline="central"
+                    fill={textColor}
+                    fontSize={fSize}
+                    fontWeight={fWeight}
+                    fontStyle={fStyle}
+                    textAnchor={textAnchor}
+                    letterSpacing={lSpacing > 0 ? `${lSpacing}px` : undefined}
+                  >
+                    {displayText}
                   </text>
                 </g>
               );
@@ -497,27 +553,56 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
               const wFt = targetHall ? targetHall.width || 30 : hallWidth;
               const hFt = targetHall ? targetHall.height || 20 : hallHeight;
               const areaFt = Math.round(wFt * hFt);
-              const badgeW = Math.max(titleText.length * 8 + 28, 115);
-              const badgeH = 38;
+
+              const fSize = elem.fontSize ?? 12;
+              const subFSize = Math.max(8, Math.round(fSize * 0.75));
+              const fWeight = elem.fontWeight ?? '700';
+              const fStyle = elem.fontStyle ?? 'normal';
+              const textColor = elem.textColor || '#18181b';
+              const bg = elem.color || 'rgba(255, 255, 255, 0.98)';
+
+              const subText = `${Units.formatFeetShort(wFt)} × ${Units.formatFeetShort(hFt)} · ${areaFt.toLocaleString('en-IN')} sq ft`;
+              const maxTextWidth = Math.max(titleText.length * fSize * 0.65, subText.length * subFSize * 0.58);
+              const padX = Math.max(14, fSize * 1.1);
+              const badgeW = Math.max(maxTextWidth + padX * 2, 120);
+              const badgeH = Math.max(fSize + subFSize + 22, 40);
+              const badgeCx = x + badgeW / 2;
+              const badgeCy = y + badgeH / 2;
 
               return (
-                <g key={elemId}>
+                <g
+                  key={elemId}
+                  transform={elem.rotation ? `rotate(${elem.rotation}, ${badgeCx}, ${badgeCy})` : undefined}
+                >
                   <rect
                     x={x}
                     y={y}
                     width={badgeW}
                     height={badgeH}
                     rx="6"
-                    fill="rgba(255, 255, 255, 0.98)"
+                    fill={bg}
                     stroke="#e4e4e7"
                     strokeWidth="1"
                     filter="drop-shadow(0 2px 4px rgba(0,0,0,0.05))"
                   />
-                  <text x={x + 12} y={y + 16} fill="#18181b" fontSize="12" fontWeight="700">
+                  <text
+                    x={x + padX}
+                    y={y + padX * 0.5 + fSize * 0.8}
+                    fill={textColor}
+                    fontSize={fSize}
+                    fontWeight={fWeight}
+                    fontStyle={fStyle}
+                  >
                     {titleText}
                   </text>
-                  <text x={x + 12} y={y + 29} fill="#71717a" fontSize="9.5" fontWeight="600">
-                    {`${Units.formatFeetShort(wFt)} × ${Units.formatFeetShort(hFt)} · ${areaFt.toLocaleString('en-IN')} sq ft`}
+                  <text
+                    x={x + padX}
+                    y={y + padX * 0.5 + fSize + subFSize * 1.05}
+                    fill="#71717a"
+                    fontSize={subFSize}
+                    fontWeight="600"
+                  >
+                    {subText}
                   </text>
                 </g>
               );

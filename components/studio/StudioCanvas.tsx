@@ -10,6 +10,9 @@ import type { TableItem, HallElement, StudioSelectedItem, BlueprintPlacement } f
 interface StudioCanvasProps {
   hallWidth: number;
   hallHeight: number;
+  hallX?: number;
+  hallY?: number;
+  onMoveMainHall?: (newX: number, newY: number) => void;
   tables: TableItem[];
   elements: HallElement[];
   selectedItem: StudioSelectedItem | null;
@@ -42,6 +45,9 @@ type BlueprintDrag =
 export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   hallWidth,
   hallHeight,
+  hallX = 0,
+  hallY = 0,
+  onMoveMainHall,
   tables,
   elements,
   selectedItem,
@@ -70,6 +76,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   // Dragging & Interaction State
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isDraggingMainHall, setIsDraggingMainHall] = useState(false);
+  const [mainHallDragOffset, setMainHallDragOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [floatingPos, setFloatingPos] = useState<{ left: number; top: number } | null>(null);
@@ -317,6 +325,17 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       }
     }
 
+    // Check if clicked main hall drag handle or perimeter wall
+    const mainHallDrag = target.closest('[data-main-hall-drag]');
+    if (mainHallDrag && onMoveMainHall) {
+      setIsDraggingMainHall(true);
+      const pt = getSvgPointFt(e.clientX, e.clientY);
+      setMainHallDragOffset({ x: pt.x - hallX, y: pt.y - hallY });
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
     // Clicked empty canvas -> Deselect and Pan
     onDeselect();
     setIsPanning(true);
@@ -352,6 +371,20 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
         const next = scaleAbout(blueprintDrag.start, factor, blueprintDrag.anchor.x, blueprintDrag.anchor.y);
         onUpdateBlueprint({ x: next.x, y: next.y, width: next.width, height: next.height });
       }
+      return;
+    }
+
+    if (isDraggingMainHall && onMoveMainHall) {
+      const pt = getSvgPointFt(e.clientX, e.clientY);
+      let rawX = pt.x - mainHallDragOffset.x;
+      let rawY = pt.y - mainHallDragOffset.y;
+
+      if (snapGrid > 0) {
+        rawX = Math.round(rawX / snapGrid) * snapGrid;
+        rawY = Math.round(rawY / snapGrid) * snapGrid;
+      }
+
+      onMoveMainHall(Units.roundFt(rawX), Units.roundFt(rawY));
       return;
     }
 
@@ -393,6 +426,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       }
     }
     setIsDragging(false);
+    setIsDraggingMainHall(false);
     setIsPanning(false);
     setBlueprintDrag(null);
   };
@@ -420,6 +454,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
 
   const wPx = px(hallWidth);
   const hPx = px(hallHeight);
+  const hx = px(hallX);
+  const hy = px(hallY);
   const wallThick = px(WALL_THICKNESS_FT);
   const minor = px(1);
   const major = px(5);
@@ -495,22 +531,87 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
         </defs>
 
         {/* Expansive Canvas Background Grid */}
-        <rect x={-px(120)} y={-px(120)} width={wPx + px(240)} height={hPx + px(240)} fill="url(#canvas-bg-grid)" />
+        <rect
+          x={px(Math.min(-120, hallX - 120))}
+          y={px(Math.min(-120, hallY - 120))}
+          width={px(Math.max(hallWidth, hallX + hallWidth) - Math.min(0, hallX) + 240)}
+          height={px(Math.max(hallHeight, hallY + hallHeight) - Math.min(0, hallY) + 240)}
+          fill="url(#canvas-bg-grid)"
+        />
 
         {/* Main Hall Outer Perimeter Wall */}
         <rect
-          x={-wallThick}
-          y={-wallThick}
+          data-main-hall-drag="true"
+          x={hx - wallThick}
+          y={hy - wallThick}
           width={wPx + wallThick * 2}
           height={hPx + wallThick * 2}
           fill="#3f3f46"
           stroke="#18181b"
           strokeWidth="1.5"
           rx="2"
+          className="cursor-move"
         />
 
         {/* Main Hall Parquet Interior */}
-        <rect x="0" y="0" width={wPx} height={hPx} fill="url(#wood-floor-texture)" stroke="#18181b" strokeWidth="1.5" />
+        <rect x={hx} y={hy} width={wPx} height={hPx} fill="url(#wood-floor-texture)" stroke="#18181b" strokeWidth="1.5" />
+
+        {/* Main Hall Draggable Grip Pill / Handle */}
+        <g
+          data-main-hall-drag="true"
+          className="cursor-move select-none group"
+          transform={`translate(${hx + wPx / 2}, ${hy - wallThick - 16 * ui})`}
+        >
+          {/* Pill background */}
+          <rect
+            x={-60 * ui}
+            y={-12 * ui}
+            width={120 * ui}
+            height={24 * ui}
+            rx={12 * ui}
+            fill="#18181b"
+            stroke="#3f3f46"
+            strokeWidth={1.5 * ui}
+            className="filter drop-shadow-md group-hover:fill-zinc-800 transition-colors"
+          />
+          {/* Grip dots & 4-way move arrows */}
+          <g fill="#ffffff" transform={`scale(${ui})`}>
+            {/* Grip dots */}
+            <circle cx="-46" cy="-3" r="1.5" fill="#a1a1aa" />
+            <circle cx="-46" cy="3" r="1.5" fill="#a1a1aa" />
+            <circle cx="-41" cy="-3" r="1.5" fill="#a1a1aa" />
+            <circle cx="-41" cy="3" r="1.5" fill="#a1a1aa" />
+
+            {/* Move 4-way arrow icon */}
+            <path
+              d="M -26 0 L -22 -3.5 L -22 -1 L -16 -1 L -16 -7 L -18.5 -7 L -15 -10.5 L -11.5 -7 L -14 -7 L -14 -1 L -8 -1 L -8 -3.5 L -4.5 0 L -8 3.5 L -8 1 L -14 1 L -14 7 L -11.5 7 L -15 10.5 L -18.5 7 L -16 7 L -16 1 L -22 1 L -22 3.5 Z"
+              fill="#60a5fa"
+              transform="translate(-10, 0) scale(0.65)"
+            />
+            {/* Label */}
+            <text
+              x="-12"
+              y="3.5"
+              fill="#ffffff"
+              fontSize="9"
+              fontWeight="700"
+              fontFamily="system-ui, -apple-system, sans-serif"
+            >
+              Main Hall
+            </text>
+            {/* Coords */}
+            <text
+              x="36"
+              y="3.5"
+              fill="#93c5fd"
+              fontSize="7.5"
+              fontWeight="600"
+              fontFamily="monospace"
+            >
+              {Units.roundFt(hallX)},{Units.roundFt(hallY)}ft
+            </text>
+          </g>
+        </g>
 
         {/* 0. Blueprint Underlay — sits on the floor, beneath everything drawn */}
         {showBlueprint && blueprintUrl && (
@@ -598,7 +699,12 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             // Square Pillar
             if (elem.type === 'pillar_square') {
               return (
-                <g key={elemId} data-element-id={elemId} className="cursor-grab active:cursor-grabbing">
+                <g
+                  key={elemId}
+                  data-element-id={elemId}
+                  transform={elem.rotation ? `rotate(${elem.rotation}, ${cx}, ${cy})` : undefined}
+                  className="cursor-grab active:cursor-grabbing"
+                >
                   <rect x={x} y={y} width={w} height={h} fill="#3f3f46" stroke="#18181b" strokeWidth="1.5" rx="2" />
                   {isSelected && (
                     <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} fill="none" stroke="#18181b" strokeWidth="1.5" strokeDasharray="3 3" rx="4" />
@@ -623,7 +729,12 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             // Stage
             if (elem.type === 'stage') {
               return (
-                <g key={elemId} data-element-id={elemId} className="cursor-grab active:cursor-grabbing">
+                <g
+                  key={elemId}
+                  data-element-id={elemId}
+                  transform={elem.rotation ? `rotate(${elem.rotation}, ${cx}, ${cy})` : undefined}
+                  className="cursor-grab active:cursor-grabbing"
+                >
                   <rect x={x} y={y} width={w} height={h} fill="#27272a" stroke="#09090b" strokeWidth="2" rx="4" />
                   <text x={x + w / 2} y={y + h / 2 + 4} fill="#fafafa" fontSize="11" fontWeight="700" textAnchor="middle" pointerEvents="none">
                     {elem.label || 'MAIN STAGE'}
@@ -865,17 +976,78 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
 
             // Text Sign
             if (elem.type === 'text') {
-              const text = elem.text || elem.label || 'SIGN';
-              const bg = elem.color || '#27272a';
+              const rawText = elem.text || elem.label || 'SIGN';
+              const hasBg = elem.color !== 'transparent' && elem.color !== 'none' && elem.badge !== false;
+              const bg = hasBg ? (elem.color || '#27272a') : 'transparent';
+              const textColor = elem.textColor || (hasBg ? '#ffffff' : '#18181b');
+              const fSize = elem.fontSize ?? 10;
+              const fWeight = elem.fontWeight ?? '700';
+              const fStyle = elem.fontStyle ?? 'normal';
+              const tAlign = elem.textAlign ?? 'center';
+              const lSpacing = elem.letterSpacing ?? 0;
+              const tTransform = elem.textTransform ?? 'none';
+
+              // Apply text transform
+              let displayText = rawText;
+              if (tTransform === 'uppercase') displayText = rawText.toUpperCase();
+              else if (tTransform === 'lowercase') displayText = rawText.toLowerCase();
+              else if (tTransform === 'capitalize') displayText = rawText.replace(/\b\w/g, (c: string) => c.toUpperCase());
+
+              // Ensure background box is at least large enough to fit font size and text
+              const isBold = fWeight === '700' || fWeight === 'bold' || fWeight === '800' || fWeight === '900';
+              const charW = isBold ? 0.65 : 0.6;
+              const signW = Math.max(w, displayText.length * (fSize * charW + lSpacing) + (hasBg ? fSize * 1.5 : 8));
+              const signH = Math.max(h, fSize * 2.2 + (hasBg ? 8 : 4));
+              const signCx = x + signW / 2;
+              const signCy = y + signH / 2;
+
+              // Map textAlign to SVG textAnchor and compute x position
+              const textAnchor = tAlign === 'left' ? 'start' : tAlign === 'right' ? 'end' : 'middle';
+              const textX = tAlign === 'left' ? x + (hasBg ? 8 : 4) : tAlign === 'right' ? x + signW - (hasBg ? 8 : 4) : signCx;
 
               return (
-                <g key={elemId} data-element-id={elemId} className="cursor-grab active:cursor-grabbing">
-                  <rect x={x} y={y} width={w} height={h} rx="4" fill={bg} filter="drop-shadow(0 1px 3px rgba(0,0,0,0.08))" />
-                  <text x={x + w / 2} y={y + h / 2 + 4} fill="#ffffff" fontSize="10" fontWeight="700" textAnchor="middle" pointerEvents="none">
-                    {text}
+                <g
+                  key={elemId}
+                  data-element-id={elemId}
+                  transform={elem.rotation ? `rotate(${elem.rotation}, ${signCx}, ${signCy})` : undefined}
+                  className="cursor-grab active:cursor-grabbing"
+                >
+                  <rect
+                    x={x}
+                    y={y}
+                    width={signW}
+                    height={signH}
+                    rx={hasBg ? 4 : 2}
+                    fill={bg}
+                    filter={hasBg ? 'drop-shadow(0 1px 3px rgba(0,0,0,0.08))' : undefined}
+                  />
+                  <text
+                    x={textX}
+                    y={signCy}
+                    dominantBaseline="central"
+                    fill={textColor}
+                    fontSize={fSize}
+                    fontWeight={fWeight}
+                    fontStyle={fStyle}
+                    textAnchor={textAnchor}
+                    letterSpacing={lSpacing > 0 ? `${lSpacing}px` : undefined}
+                    pointerEvents="none"
+                  >
+                    {displayText}
                   </text>
                   {isSelected && (
-                    <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} fill="none" stroke="#18181b" strokeWidth="1.5" strokeDasharray="3 3" rx="6" />
+                    <rect
+                      x={x - 4}
+                      y={y - 4}
+                      width={signW + 8}
+                      height={signH + 8}
+                      fill="none"
+                      stroke="#18181b"
+                      strokeWidth="1.5"
+                      strokeDasharray="3 3"
+                      rx={hasBg ? 6 : 3}
+                      pointerEvents="none"
+                    />
                   )}
                 </g>
               );
@@ -890,28 +1062,61 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
               const wFt = targetHall ? targetHall.width || 30 : hallWidth;
               const hFt = targetHall ? targetHall.height || 20 : hallHeight;
               const areaFt = Math.round(wFt * hFt);
-              const badgeW = Math.max(titleText.length * 8 + 28, 115);
-              const badgeH = 38;
+
+              const fSize = elem.fontSize ?? 12;
+              const subFSize = Math.max(8, Math.round(fSize * 0.75));
+              const fWeight = elem.fontWeight ?? '700';
+              const fStyle = elem.fontStyle ?? 'normal';
+              const textColor = elem.textColor || '#18181b';
+              const bg = elem.color || 'rgba(255, 255, 255, 0.98)';
+
+              const subText = `${Units.formatFeetShort(wFt)} × ${Units.formatFeetShort(hFt)} · ${areaFt.toLocaleString('en-IN')} sq ft`;
+              const maxTextWidth = Math.max(titleText.length * fSize * 0.65, subText.length * subFSize * 0.58);
+              const padX = Math.max(14, fSize * 1.1);
+              const badgeW = Math.max(maxTextWidth + padX * 2, 120);
+              const badgeH = Math.max(fSize + subFSize + 22, 40);
+              const badgeCx = x + badgeW / 2;
+              const badgeCy = y + badgeH / 2;
 
               return (
-                <g key={elemId} data-element-id={elemId} className="cursor-grab active:cursor-grabbing">
+                <g
+                  key={elemId}
+                  data-element-id={elemId}
+                  transform={elem.rotation ? `rotate(${elem.rotation}, ${badgeCx}, ${badgeCy})` : undefined}
+                  className="cursor-grab active:cursor-grabbing"
+                >
                   <rect
                     x={x}
                     y={y}
                     width={badgeW}
                     height={badgeH}
                     rx="6"
-                    fill="rgba(255, 255, 255, 0.98)"
+                    fill={bg}
                     stroke="#e4e4e7"
                     strokeWidth="1"
                     filter="drop-shadow(0 2px 4px rgba(0,0,0,0.05))"
                   />
                   <rect x={x} y={y} width={badgeW} height={badgeH} fill="transparent" pointerEvents="all" />
-                  <text x={x + 12} y={y + 16} fill="#18181b" fontSize="12" fontWeight="700" pointerEvents="none">
+                  <text
+                    x={x + padX}
+                    y={y + padX * 0.5 + fSize * 0.8}
+                    fill={textColor}
+                    fontSize={fSize}
+                    fontWeight={fWeight}
+                    fontStyle={fStyle}
+                    pointerEvents="none"
+                  >
                     {titleText}
                   </text>
-                  <text x={x + 12} y={y + 29} fill="#71717a" fontSize="9.5" fontWeight="600" pointerEvents="none">
-                    {`${Units.formatFeetShort(wFt)} × ${Units.formatFeetShort(hFt)} · ${areaFt.toLocaleString('en-IN')} sq ft`}
+                  <text
+                    x={x + padX}
+                    y={y + padX * 0.5 + fSize + subFSize * 1.05}
+                    fill="#71717a"
+                    fontSize={subFSize}
+                    fontWeight="600"
+                    pointerEvents="none"
+                  >
+                    {subText}
                   </text>
                   {isSelected && (
                     <rect
@@ -938,16 +1143,44 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
         {/* 4. Architectural Dimension Lines & Guides Layer */}
         <g id="dimension-lines-layer" pointerEvents="none">
           {/* Main Hall Top Dimension */}
-          <path d={`M 0 -12 L ${wPx} -12 M 0 -16 L 0 -8 M ${wPx} -16 L ${wPx} -8`} fill="none" stroke="#71717a" strokeWidth="1" />
-          <rect x={wPx / 2 - 28} y="-20" width="56" height="15" rx="3" fill="#ffffff" stroke="#e4e4e7" strokeWidth="0.8" />
-          <text x={wPx / 2} y="-9" fill="#000000" fontSize="9.5" fontWeight="800" textAnchor="middle">
+          <path
+            d={`M ${hx} ${hy - 12} L ${hx + wPx} ${hy - 12} M ${hx} ${hy - 16} L ${hx} ${hy - 8} M ${hx + wPx} ${hy - 16} L ${hx + wPx} ${hy - 8}`}
+            fill="none"
+            stroke="#71717a"
+            strokeWidth="1"
+          />
+          <rect x={hx + wPx / 2 - 28} y={hy - 20} width="56" height="15" rx="3" fill="#ffffff" stroke="#e4e4e7" strokeWidth="0.8" />
+          <text x={hx + wPx / 2} y={hy - 9} fill="#000000" fontSize="9.5" fontWeight="800" textAnchor="middle">
             {Units.formatFeet(hallWidth)}
           </text>
 
           {/* Main Hall Left Dimension */}
-          <path d={`M -12 0 L -12 ${hPx} M -16 0 L -8 0 M -16 ${hPx} L -8 ${hPx}`} fill="none" stroke="#71717a" strokeWidth="1" />
-          <rect x="-35" y={hPx / 2 - 8} width="46" height="15" rx="3" fill="#ffffff" stroke="#e4e4e7" strokeWidth="0.8" transform={`rotate(-90, -12, ${hPx / 2})`} />
-          <text x="-12" y={hPx / 2 + 3} fill="#000000" fontSize="9.5" fontWeight="800" textAnchor="middle" transform={`rotate(-90, -12, ${hPx / 2})`}>
+          <path
+            d={`M ${hx - 12} ${hy} L ${hx - 12} ${hy + hPx} M ${hx - 16} ${hy} L ${hx - 8} ${hy} M ${hx - 16} ${hy + hPx} L ${hx - 8} ${hy + hPx}`}
+            fill="none"
+            stroke="#71717a"
+            strokeWidth="1"
+          />
+          <rect
+            x={hx - 35}
+            y={hy + hPx / 2 - 8}
+            width="46"
+            height="15"
+            rx="3"
+            fill="#ffffff"
+            stroke="#e4e4e7"
+            strokeWidth="0.8"
+            transform={`rotate(-90, ${hx - 12}, ${hy + hPx / 2})`}
+          />
+          <text
+            x={hx - 12}
+            y={hy + hPx / 2 + 3}
+            fill="#000000"
+            fontSize="9.5"
+            fontWeight="800"
+            textAnchor="middle"
+            transform={`rotate(-90, ${hx - 12}, ${hy + hPx / 2})`}
+          >
             {Units.formatFeet(hallHeight)}
           </text>
 
@@ -969,28 +1202,28 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             return (
               <g id="selected-measurements">
                 {/* Distance Guides to Left & Top Walls */}
-                {obj.x > 0 && (
+                {obj.x > hallX && (
                   <g>
-                    <line x1="0" y1={cy} x2={ox} y2={cy} stroke="#a1a1aa" strokeWidth="1" strokeDasharray="3 3" />
-                    {ox > 35 && (
+                    <line x1={hx} y1={cy} x2={ox} y2={cy} stroke="#a1a1aa" strokeWidth="1" strokeDasharray="3 3" />
+                    {ox - hx > 35 && (
                       <g>
-                        <rect x={ox / 2 - 18} y={cy - 7} width="36" height="13" rx="2" fill="#ffffff" stroke="#d4d4d8" strokeWidth="0.8" />
-                        <text x={ox / 2} y={cy + 3} fill="#52525b" fontSize="8" fontWeight="600" textAnchor="middle">
-                          {Units.formatFeetShort(obj.x)}
+                        <rect x={hx + (ox - hx) / 2 - 18} y={cy - 7} width="36" height="13" rx="2" fill="#ffffff" stroke="#d4d4d8" strokeWidth="0.8" />
+                        <text x={hx + (ox - hx) / 2} y={cy + 3} fill="#52525b" fontSize="8" fontWeight="600" textAnchor="middle">
+                          {Units.formatFeetShort(obj.x - hallX)}
                         </text>
                       </g>
                     )}
                   </g>
                 )}
 
-                {obj.y > 0 && (
+                {obj.y > hallY && (
                   <g>
-                    <line x1={cx} y1="0" x2={cx} y2={oy} stroke="#a1a1aa" strokeWidth="1" strokeDasharray="3 3" />
-                    {oy > 25 && (
+                    <line x1={cx} y1={hy} x2={cx} y2={oy} stroke="#a1a1aa" strokeWidth="1" strokeDasharray="3 3" />
+                    {oy - hy > 25 && (
                       <g>
-                        <rect x={cx - 18} y={oy / 2 - 7} width="36" height="13" rx="2" fill="#ffffff" stroke="#d4d4d8" strokeWidth="0.8" />
-                        <text x={cx} y={oy / 2 + 3} fill="#52525b" fontSize="8" fontWeight="600" textAnchor="middle">
-                          {Units.formatFeetShort(obj.y)}
+                        <rect x={cx - 18} y={hy + (oy - hy) / 2 - 7} width="36" height="13" rx="2" fill="#ffffff" stroke="#d4d4d8" strokeWidth="0.8" />
+                        <text x={cx} y={hy + (oy - hy) / 2 + 3} fill="#52525b" fontSize="8" fontWeight="600" textAnchor="middle">
+                          {Units.formatFeetShort(obj.y - hallY)}
                         </text>
                       </g>
                     )}

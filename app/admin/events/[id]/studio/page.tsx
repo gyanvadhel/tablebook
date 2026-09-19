@@ -65,6 +65,9 @@ export default function StudioPage() {
 
   const hallWidth = event ? Number(event.hall_width) || Units.DEFAULT_HALL_WIDTH_FT : Units.DEFAULT_HALL_WIDTH_FT;
   const hallHeight = event ? Number(event.hall_height) || Units.DEFAULT_HALL_HEIGHT_FT : Units.DEFAULT_HALL_HEIGHT_FT;
+  const hallX = event ? Number(event.hall_x) || 0 : 0;
+  const hallY = event ? Number(event.hall_y) || 0 : 0;
+  const [shiftInteriorWithHall, setShiftInteriorWithHall] = useState(false);
 
   // Everything the Save button sends. Comparing it to the last saved copy is
   // what lights the unsaved-changes dot.
@@ -75,13 +78,15 @@ export default function StudioPage() {
         venue: event?.venue ?? '',
         hall_width: hallWidth,
         hall_height: hallHeight,
+        hall_x: hallX,
+        hall_y: hallY,
         hall_rotation: event?.hall_rotation || 0,
         hall_background_image: blueprintUrl,
         hall_blueprint: blueprintUrl ? blueprint : null,
         tables,
         hall_elements: elements,
       }),
-    [event?.name, event?.venue, event?.hall_rotation, hallWidth, hallHeight, blueprintUrl, blueprint, tables, elements]
+    [event?.name, event?.venue, event?.hall_rotation, hallWidth, hallHeight, hallX, hallY, blueprintUrl, blueprint, tables, elements]
   );
 
   const hasUnsavedChanges = savedSnapshot !== null && savedSnapshot !== savePayload;
@@ -99,12 +104,14 @@ export default function StudioPage() {
     currentTables: TableItem[],
     currentElements: HallElement[],
     currentW: number,
-    currentH: number
+    currentH: number,
+    currentHX: number = hallX,
+    currentHY: number = hallY
   ) => {
-    let minX = -10;
-    let minY = -10;
-    let maxX = currentW + 10;
-    let maxY = currentH + 10;
+    let minX = currentHX - 10;
+    let minY = currentHY - 10;
+    let maxX = currentHX + currentW + 10;
+    let maxY = currentHY + currentH + 10;
 
     currentTables.forEach((t) => {
       const rX = (t.x || 0) + (t.width || 4);
@@ -230,7 +237,7 @@ export default function StudioPage() {
           setTables(loadedTables);
         }
 
-        fitViewBox(loadedTables, initialElements, eventData.hall_width, eventData.hall_height);
+        fitViewBox(loadedTables, initialElements, eventData.hall_width, eventData.hall_height, eventData.hall_x || 0, eventData.hall_y || 0);
         setNeedsSnapshot(true);
       } catch (err: any) {
         if (isMounted) showToast(err.message || 'Error loading studio', 'error');
@@ -362,13 +369,21 @@ export default function StudioPage() {
 
   // Add Text Sign
   const handleAddText = (text: string, options: { badge?: boolean; color?: string } = {}) => {
+    const isTransparent = options.badge === false || options.color === 'transparent';
     const newText: HallElement = {
       id: 'sign_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
       type: 'text',
       text,
       label: text,
-      badge: options.badge ?? true,
-      color: options.color || '#27272a',
+      badge: options.badge ?? (!isTransparent),
+      color: options.color || (isTransparent ? 'transparent' : '#27272a'),
+      textColor: isTransparent ? '#18181b' : '#ffffff',
+      fontSize: 10,
+      fontWeight: '700',
+      fontStyle: 'normal',
+      textAlign: 'center',
+      letterSpacing: 0,
+      textTransform: 'uppercase',
       width: Math.max(text.length * 0.9, 6),
       height: 2.2,
       x: Units.roundFt(hallWidth / 2 - 3),
@@ -423,8 +438,58 @@ export default function StudioPage() {
     showToast(`Added ${label}`, 'success');
   };
 
+  // Move Main Hall ONLY (WITHOUT moving blueprint or interior things)
+  const handleMoveMainHall = (newX: number, newY: number, shiftContents = shiftInteriorWithHall) => {
+    if (!event) return;
+    const currentHX = Number(event.hall_x) || 0;
+    const currentHY = Number(event.hall_y) || 0;
+    const dx = Units.roundFt(newX - currentHX);
+    const dy = Units.roundFt(newY - currentHY);
+
+    if (dx === 0 && dy === 0) return;
+
+    const updatedEvent = { ...event, hall_x: Units.roundFt(newX), hall_y: Units.roundFt(newY) };
+    setEvent(updatedEvent);
+
+    // Only shift tables/elements if explicitly opted in; blueprint NEVER shifts with hall
+    if (shiftContents) {
+      setTables((prev) =>
+        prev.map((t) => ({
+          ...t,
+          x: Units.roundFt(t.x + dx),
+          y: Units.roundFt(t.y + dy),
+        }))
+      );
+
+      setElements((prev) =>
+        prev.map((el) => {
+          if (el.type === 'hall_room' || (el.type === 'room_badge' && el.targetHallId)) {
+            return el;
+          }
+          return {
+            ...el,
+            x: Units.roundFt(el.x + dx),
+            y: Units.roundFt(el.y + dy),
+          };
+        })
+      );
+
+      if (selectedItem) {
+        if (selectedItem.type === 'table') {
+          const t = selectedItem.obj as TableItem;
+          setSelectedItem({ type: 'table', obj: { ...t, x: Units.roundFt(t.x + dx), y: Units.roundFt(t.y + dy) } });
+        } else if (selectedItem.type === 'element') {
+          const el = selectedItem.obj as HallElement;
+          if (el.type !== 'hall_room' && !(el.type === 'room_badge' && el.targetHallId)) {
+            setSelectedItem({ type: 'element', obj: { ...el, x: Units.roundFt(el.x + dx), y: Units.roundFt(el.y + dy) } });
+          }
+        }
+      }
+    }
+  };
+
   // Update Main Hall Property
-  const handleUpdateMainHall = (prop: 'name' | 'hall_width' | 'hall_height' | 'venue', val: any) => {
+  const handleUpdateMainHall = (prop: 'name' | 'hall_width' | 'hall_height' | 'hall_x' | 'hall_y' | 'venue', val: any) => {
     if (!event) return;
     const updated = { ...event };
 
@@ -439,6 +504,12 @@ export default function StudioPage() {
     } else if (prop === 'hall_height') {
       const parsed = parseFloat(val);
       updated.hall_height = isNaN(parsed) ? val : parsed;
+    } else if (prop === 'hall_x' || prop === 'hall_y') {
+      const parsed = parseFloat(val);
+      const newX = prop === 'hall_x' ? (isNaN(parsed) ? 0 : parsed) : (event.hall_x || 0);
+      const newY = prop === 'hall_y' ? (isNaN(parsed) ? 0 : parsed) : (event.hall_y || 0);
+      handleMoveMainHall(newX, newY);
+      return;
     } else if (prop === 'venue') {
       updated.venue = val;
     }
@@ -446,7 +517,7 @@ export default function StudioPage() {
     setEvent(updated);
     const validW = Units.toFeet(updated.hall_width, 30);
     const validH = Units.toFeet(updated.hall_height, 20);
-    fitViewBox(tables, elements, validW, validH);
+    fitViewBox(tables, elements, validW, validH, updated.hall_x || 0, updated.hall_y || 0);
   };
 
   // Update Selected Item Property
@@ -471,6 +542,24 @@ export default function StudioPage() {
       if (prop === 'name') {
         updated.label = val;
       }
+
+      // Auto-resize text sign background to fit content
+      if (elem.type === 'text' && (prop === 'fontSize' || prop === 'text' || prop === 'label' || prop === 'fontWeight' || prop === 'letterSpacing')) {
+        const PX_PER_FOOT = 12;
+        const fontSize = prop === 'fontSize' ? val : (updated.fontSize ?? 10);
+        const text = updated.text || updated.label || 'SIGN';
+        const isBold = (updated.fontWeight === '700' || updated.fontWeight === '800' || updated.fontWeight === '900' || updated.fontWeight === 'bold');
+        const letterSpacing = prop === 'letterSpacing' ? val : (updated.letterSpacing ?? 0);
+        // Approximate char width: ~0.6em for normal, ~0.65em for bold
+        const charWidthFactor = isBold ? 0.65 : 0.6;
+        const textWidthPx = text.length * (fontSize * charWidthFactor + letterSpacing) + fontSize * 1.5; // + padding
+        const textHeightPx = fontSize * 2.2 + 8; // font + vertical padding
+        const minWidthFt = Units.roundFt(Math.max(textWidthPx / PX_PER_FOOT, 3));
+        const minHeightFt = Units.roundFt(Math.max(textHeightPx / PX_PER_FOOT, 1.5));
+        updated.width = Math.max(minWidthFt, 3);
+        updated.height = Math.max(minHeightFt, 1.5);
+      }
+
       setElements((prev) => prev.map((el) => ((el.id && el.id === elem.id) || (el._tempId && el._tempId === elem._tempId) ? updated : el)));
       setSelectedItem({ type: 'element', obj: updated });
     }
@@ -536,8 +625,23 @@ export default function StudioPage() {
       const elem = selectedItem.obj as HallElement;
       if (elem.type === 'door') {
         const newRot = ((elem.rotation || 0) + 180) % 360;
-        handleUpdateItemProp('rotation', newRot);
+        const updated = { ...elem, rotation: newRot };
+        setElements((prev) =>
+          prev.map((el) => ((el.id && el.id === elem.id) || (el._tempId && el._tempId === elem._tempId) ? updated : el))
+        );
+        setSelectedItem({ type: 'element', obj: updated });
         showToast('Door flipped', 'info');
+      } else {
+        const curW = elem.width || 4;
+        const curH = elem.height || 2;
+        const newW = curH;
+        const newH = curW;
+        const updated = { ...elem, width: newW, height: newH };
+        setElements((prev) =>
+          prev.map((el) => ((el.id && el.id === elem.id) || (el._tempId && el._tempId === elem._tempId) ? updated : el))
+        );
+        setSelectedItem({ type: 'element', obj: updated });
+        showToast(`Flipped (${newW}' × ${newH}')`, 'info');
       }
     }
   };
@@ -612,15 +716,24 @@ export default function StudioPage() {
       showToast(`Removed Stall ${table.table_number}`, 'success');
     } else {
       const elem = selectedItem.obj as HallElement;
-      if (elem.type === 'room_badge' && !elem.targetHallId) {
-        showToast('Main Hall badge cannot be deleted.', 'info');
-        return;
+      if (elem.type === 'room_badge') {
+        const isMainBadge = !elem.targetHallId;
+        const matchingBadges = elements.filter((el) =>
+          el.type === 'room_badge' &&
+          (isMainBadge ? !el.targetHallId : String(el.targetHallId) === String(elem.targetHallId))
+        );
+        // Only block deletion if it's the sole remaining badge
+        if (matchingBadges.length <= 1) {
+          showToast('Primary Hall badge cannot be deleted.', 'info');
+          return;
+        }
       }
       const elemId = String(elem.id || elem._tempId);
       setElements((prev) =>
         prev.filter((el) => {
           if (elem.type === 'hall_room' && String(el.targetHallId) === elemId) return false;
-          return (el.id ? el.id !== elem.id : el._tempId !== elem._tempId);
+          const currentId = String(el.id || el._tempId);
+          return currentId !== elemId;
         })
       );
       setSelectedItem(null);
@@ -780,6 +893,8 @@ export default function StudioPage() {
           venue: event.venue,
           hall_width: hallWidth,
           hall_height: hallHeight,
+          hall_x: hallX,
+          hall_y: hallY,
           hall_rotation: event.hall_rotation || 0,
           hall_background_image: blueprintUrl,
           hall_blueprint: blueprintUrl ? blueprint : null,
@@ -864,7 +979,7 @@ export default function StudioPage() {
         onSetSnapGrid={setSnapGrid}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
-        onResetView={() => fitViewBox(tables, elements, hallWidth, hallHeight)}
+        onResetView={() => fitViewBox(tables, elements, hallWidth, hallHeight, hallX, hallY)}
         onRotateFloor={handleRotateEntireFloor}
         onSave={handleSave}
         isSaving={isSaving}
@@ -916,6 +1031,9 @@ export default function StudioPage() {
           <StudioCanvas
             hallWidth={hallWidth}
             hallHeight={hallHeight}
+            hallX={hallX}
+            hallY={hallY}
+            onMoveMainHall={handleMoveMainHall}
             tables={tables}
             elements={elements}
             selectedItem={selectedItem}
@@ -974,7 +1092,12 @@ export default function StudioPage() {
             event={event}
             hallWidth={hallWidth}
             hallHeight={hallHeight}
+            hallX={hallX}
+            hallY={hallY}
             onUpdateMainHall={handleUpdateMainHall}
+            onMoveMainHall={handleMoveMainHall}
+            shiftInteriorWithHall={shiftInteriorWithHall}
+            onToggleShiftInterior={setShiftInteriorWithHall}
             onUpdateItemProp={handleUpdateItemProp}
             onRotateSelected={handleRotateSelected}
             onFlipSelected={handleFlipSelected}

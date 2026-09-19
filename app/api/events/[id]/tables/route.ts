@@ -39,6 +39,8 @@ export async function POST(req: NextRequest, { params }: { params: any }) {
       hall_elements,
       hall_width,
       hall_height,
+      hall_x,
+      hall_y,
       hall_rotation,
       name,
       venue,
@@ -57,6 +59,8 @@ export async function POST(req: NextRequest, { params }: { params: any }) {
 
     const currentHallW = hall_width ? Units.clampHallFt(hall_width, event.hall_width) : event.hall_width;
     const currentHallH = hall_height ? Units.clampHallFt(hall_height, event.hall_height) : event.hall_height;
+    const currentHallX = hall_x !== undefined ? (Number(hall_x) || 0) : (Number(event.hall_x) || 0);
+    const currentHallY = hall_y !== undefined ? (Number(hall_y) || 0) : (Number(event.hall_y) || 0);
     const currentRotation = Number.isInteger(hall_rotation) ? (hall_rotation % 360) : (event.hall_rotation || 0);
     const elementsJson = Array.isArray(hall_elements)
       ? JSON.stringify(hall_elements)
@@ -94,8 +98,10 @@ export async function POST(req: NextRequest, { params }: { params: any }) {
           hall_rotation = $5,
           hall_elements = $6::jsonb,
           hall_background_image = $7,
-          hall_blueprint = $8::jsonb
-        WHERE id = $9
+          hall_blueprint = $8::jsonb,
+          hall_x = $9,
+          hall_y = $10
+        WHERE id = $11
       `,
         [
           eventName,
@@ -106,25 +112,43 @@ export async function POST(req: NextRequest, { params }: { params: any }) {
           elementsJson,
           blueprintUrl,
           blueprintJson,
+          currentHallX,
+          currentHallY,
           eventId,
         ]
       );
 
       const keptNumbers: string[] = [];
-      let maxCanvasW = currentHallW;
-      let maxCanvasH = currentHallH;
-      let minCanvasX = 0;
+      let maxCanvasW = currentHallW + Math.max(0, currentHallX);
+      let maxCanvasH = currentHallH + Math.max(0, currentHallY);
+      let minCanvasX = Math.min(0, currentHallX);
+      let minCanvasY = Math.min(0, currentHallY);
 
       if (Array.isArray(hall_elements)) {
         hall_elements.forEach((el: any) => {
-          if (el.type === 'hall_room' && el.x !== undefined && el.width !== undefined) {
-            const rightEdge = (el.x || 0) + (el.width || 30);
-            const bottomEdge = (el.y || 0) + (el.height || 20);
+          if (el.x !== undefined && el.width !== undefined) {
+            const rightEdge = (el.x || 0) + (el.width || 4);
+            const bottomEdge = (el.y || 0) + (el.height || 2);
             if (rightEdge > maxCanvasW) maxCanvasW = rightEdge;
             if (bottomEdge > maxCanvasH) maxCanvasH = bottomEdge;
             if (el.x < minCanvasX) minCanvasX = el.x;
+            if (el.y < minCanvasY) minCanvasY = el.y;
           }
         });
+      }
+
+      if (blueprintJson) {
+        try {
+          const bp = JSON.parse(blueprintJson);
+          if (bp && bp.x !== undefined && bp.width !== undefined) {
+            const bpRight = (bp.x || 0) + (bp.width || 0);
+            const bpBottom = (bp.y || 0) + (bp.height || 0);
+            if (bpRight > maxCanvasW) maxCanvasW = bpRight;
+            if (bpBottom > maxCanvasH) maxCanvasH = bpBottom;
+            if (bp.x < minCanvasX) minCanvasX = bp.x;
+            if (bp.y < minCanvasY) minCanvasY = bp.y;
+          }
+        } catch {}
       }
 
       for (const t of tables) {
@@ -140,7 +164,7 @@ export async function POST(req: NextRequest, { params }: { params: any }) {
         const effectiveH = isRot90 ? width : height;
 
         const clampedX = Math.max(minCanvasX - ELEMENT_OUTSIDE_MARGIN_FT, Math.min(maxCanvasW + ELEMENT_OUTSIDE_MARGIN_FT - effectiveW, Number(t.x) || 0));
-        const clampedY = Math.max(-ELEMENT_OUTSIDE_MARGIN_FT, Math.min(maxCanvasH + ELEMENT_OUTSIDE_MARGIN_FT - effectiveH, Number(t.y) || 0));
+        const clampedY = Math.max(minCanvasY - ELEMENT_OUTSIDE_MARGIN_FT, Math.min(maxCanvasH + ELEMENT_OUTSIDE_MARGIN_FT - effectiveH, Number(t.y) || 0));
 
         const existing = await client.query('SELECT * FROM tables WHERE event_id = $1 AND table_number = $2', [eventId, tableNum]);
 

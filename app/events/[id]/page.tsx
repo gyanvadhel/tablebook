@@ -162,6 +162,8 @@ export default function EventBookingPage() {
         <VisitorHallMap
           hallWidth={event.hall_width}
           hallHeight={event.hall_height}
+          hallX={event.hall_x}
+          hallY={event.hall_y}
           tables={tables}
           elements={elements}
           selectedTable={selectedTable}
