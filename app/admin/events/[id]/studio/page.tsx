@@ -335,6 +335,37 @@ export default function StudioPage() {
     showToast(`Added ${defaultName} (${w}' × ${h}')`, 'success');
   };
 
+  /**
+   * Add a rectangle that welds onto the main hall. Dropped against the hall's
+   * left edge with a foot of overlap, so it reads as one shape straight away
+   * and there is no hairline seam to squint at; drag it from there.
+   */
+  const handleAddHallExtension = (preset: { width: number; height: number }) => {
+    const w = Math.max(1, preset.width || 20);
+    const h = Math.max(1, preset.height || 20);
+
+    // Stagger each new one so they do not stack on top of each other
+    const existing = elements.filter((el) => el.type === 'hall_extension').length;
+    const step = existing * 3;
+
+    const newExtension: HallElement = {
+      id: 'hall_ext_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      type: 'hall_extension',
+      label: 'Hall Extension',
+      width: w,
+      height: h,
+      x: Units.roundFt(hallX - w + 1),
+      y: Units.roundFt(hallY + Math.max(0, (hallHeight - h) / 2) + step),
+      rotation: 0,
+    };
+
+    const nextElements = [...elements, newExtension];
+    setElements(nextElements);
+    setSelectedItem({ type: 'element', obj: newExtension });
+    fitViewBox(tables, nextElements, hallWidth, hallHeight, hallX, hallY);
+    showToast(`Added hall extension (${w}' × ${h}') — drag it against the hall`, 'success');
+  };
+
   // Prompt Custom Hall
   const handlePromptCustomHall = () => {
     const w = parseFloat(prompt('Enter Hall Width in feet (e.g. 35):', '35') || '35') || 35;
@@ -1019,6 +1050,7 @@ export default function StudioPage() {
           onAddTable={handleAddTable}
           onAddHallRoom={handleAddHallRoom}
           onPromptCustomHall={handlePromptCustomHall}
+          onAddHallExtension={handleAddHallExtension}
           onAddDoor={handleAddDoor}
           onAddText={handleAddText}
           onPromptCustomText={handlePromptCustomText}

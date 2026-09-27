@@ -54,6 +54,9 @@ export const StudioDirectory: React.FC<StudioDirectoryProps> = ({
       } else if (el.type === 'hall_room') {
         tag = 'Hall';
         title = el.name || el.label || 'Secondary Hall';
+      } else if (el.type === 'hall_extension') {
+        tag = 'Extension';
+        title = el.label || 'Hall Extension';
       } else if (el.type === 'door') {
         tag = el.doorType === 'exit' ? 'Exit' : el.doorType === 'window' ? 'Window' : 'Door';
       } else if (el.type === 'pillar_square' || el.type === 'pillar_round') {

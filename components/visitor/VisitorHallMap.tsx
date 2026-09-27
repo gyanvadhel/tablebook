@@ -3,6 +3,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Units } from '@/lib/units';
 import { WALL_THICKNESS_FT } from '@/lib/constants';
+import { hallFloorAreaSqFt } from '@/lib/hallShape';
 import type { TableItem, HallElement, BlueprintPlacement } from '@/types';
 
 interface VisitorHallMapProps {
@@ -54,6 +55,9 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
   const px = (ft: number) => Units.ftToPx(ft);
   const hx = px(hallX);
   const hy = px(hallY);
+
+  // Rectangles welded onto the main hall; drawn as part of the hall shell
+  const hallExtensions = elements.filter((el) => el.type === 'hall_extension');
 
   // Auto-fit viewBox perfectly to the hall and all secondary halls/tables
   useEffect(() => {
@@ -130,6 +134,11 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
   const wPx = px(hallWidth);
   const hPx = px(hallHeight);
   const wallThick = px(WALL_THICKNESS_FT);
+
+  // Keep the measurements outside the whole shell, not just the main
+  // rectangle, or an extension reaching past the hall swallows the label.
+  const dimTop = Math.min(hy, ...hallExtensions.map((e) => px(e.y))) - wallThick;
+  const dimLeft = Math.min(hx, ...hallExtensions.map((e) => px(e.x))) - wallThick;
   const minor = px(1);
   const major = px(5);
 
@@ -194,20 +203,48 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
           fill="url(#visitor-grid)"
         />
 
-        {/* Main Hall Outer Perimeter Wall */}
-        <rect
-          x={hx - wallThick}
-          y={hy - wallThick}
-          width={wPx + wallThick * 2}
-          height={hPx + wallThick * 2}
-          fill="#3f3f46"
-          stroke="#18181b"
-          strokeWidth="1.5"
-          rx="2"
-        />
+        {/*
+          Hall shell — all walls, then all floors on top, so an extension
+          welded onto the hall shows no wall along the joint. Floors are
+          unstroked for the same reason.
+        */}
+        <g id="visitor-hall-shell" pointerEvents="none">
+          <rect
+            x={hx - wallThick}
+            y={hy - wallThick}
+            width={wPx + wallThick * 2}
+            height={hPx + wallThick * 2}
+            fill="#3f3f46"
+            stroke="#18181b"
+            strokeWidth="1.5"
+            rx="2"
+          />
+          {hallExtensions.map((ext) => (
+            <rect
+              key={`ext-wall-${String(ext.id || ext._tempId)}`}
+              x={px(ext.x) - wallThick}
+              y={px(ext.y) - wallThick}
+              width={px(ext.width || 20) + wallThick * 2}
+              height={px(ext.height || 20) + wallThick * 2}
+              fill="#3f3f46"
+              stroke="#18181b"
+              strokeWidth="1.5"
+              rx="2"
+            />
+          ))}
 
-        {/* Main Hall Parquet Floor */}
-        <rect x={hx} y={hy} width={wPx} height={hPx} fill="url(#visitor-wood)" stroke="#18181b" strokeWidth="1.5" />
+          <rect x={hx} y={hy} width={wPx} height={hPx} fill="url(#visitor-wood)" />
+          {hallExtensions.map((ext) => (
+            <rect
+              key={`ext-floor-${String(ext.id || ext._tempId)}`}
+              x={px(ext.x)}
+              y={px(ext.y)}
+              width={px(ext.width || 20)}
+              height={px(ext.height || 20)}
+              fill="url(#visitor-wood)"
+            />
+          ))}
+        </g>
 
         {/* Blueprint Underlay — drawn on the floor, never intercepts a click */}
         {showBlueprint && blueprint && (
@@ -231,10 +268,19 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
         )}
 
         {/* Hall Dimensions */}
-        <text x={wPx / 2} y="-10" fill="#000000" fontSize="11" fontWeight="800" textAnchor="middle" pointerEvents="none">
+        <text x={hx + wPx / 2} y={dimTop - 10} fill="#000000" fontSize="11" fontWeight="800" textAnchor="middle" pointerEvents="none">
           {Units.formatFeet(hallWidth)}
         </text>
-        <text x="-12" y={hPx / 2} fill="#000000" fontSize="11" fontWeight="800" textAnchor="middle" transform={`rotate(-90, -12, ${hPx / 2})`} pointerEvents="none">
+        <text
+          x={dimLeft - 12}
+          y={hy + hPx / 2}
+          fill="#000000"
+          fontSize="11"
+          fontWeight="800"
+          textAnchor="middle"
+          transform={`rotate(-90, ${dimLeft - 12}, ${hy + hPx / 2})`}
+          pointerEvents="none"
+        >
           {Units.formatFeet(hallHeight)}
         </text>
 
@@ -552,7 +598,11 @@ export const VisitorHallMap: React.FC<VisitorHallMapProps> = ({
               const titleText = targetHall ? targetHall.name || targetHall.label : elem.label || eventName || 'Main Hall';
               const wFt = targetHall ? targetHall.width || 30 : hallWidth;
               const hFt = targetHall ? targetHall.height || 20 : hallHeight;
-              const areaFt = Math.round(wFt * hFt);
+              // The main badge reports the whole assembled floor; a secondary
+              // hall's badge still reports just that room.
+              const areaFt = targetHall
+                ? Math.round(wFt * hFt)
+                : Math.round(hallFloorAreaSqFt({ x: hallX, y: hallY, width: hallWidth, height: hallHeight }, elements));
 
               const fSize = elem.fontSize ?? 12;
               const subFSize = Math.max(8, Math.round(fSize * 0.75));

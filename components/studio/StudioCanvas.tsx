@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Units } from '@/lib/units';
 import { WALL_THICKNESS_FT } from '@/lib/constants';
 import { cornerWorld, distanceFt, scaleAbout, BLUEPRINT_CORNERS } from '@/lib/blueprint';
+import { hallFloorAreaSqFt } from '@/lib/hallShape';
 import { FloatingToolbar } from './FloatingToolbar';
 import type { TableItem, HallElement, StudioSelectedItem, BlueprintPlacement } from '@/types';
 
@@ -466,6 +467,15 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
 
   const selectedId = selectedItem ? String(selectedItem.obj.id || selectedItem.obj._tempId) : null;
 
+  // Rectangles welded onto the main hall; drawn as part of the hall shell
+  const hallExtensions = elements.filter((el) => el.type === 'hall_extension');
+
+  // Dimension lines hang off the outside of the whole shell rather than the
+  // main rectangle, so an extension reaching past the hall does not have the
+  // measurement drawn straight through its floor.
+  const dimTop = Math.min(hy, ...hallExtensions.map((e) => px(e.y))) - wallThick;
+  const dimLeft = Math.min(hx, ...hallExtensions.map((e) => px(e.x))) - wallThick;
+
   // Blueprint geometry in drawing units
   const bpX = px(blueprint.x);
   const bpY = px(blueprint.y);
@@ -539,22 +549,59 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           fill="url(#canvas-bg-grid)"
         />
 
-        {/* Main Hall Outer Perimeter Wall */}
-        <rect
-          data-main-hall-drag="true"
-          x={hx - wallThick}
-          y={hy - wallThick}
-          width={wPx + wallThick * 2}
-          height={hPx + wallThick * 2}
-          fill="#3f3f46"
-          stroke="#18181b"
-          strokeWidth="1.5"
-          rx="2"
-          className="cursor-move"
-        />
+        {/*
+          Hall shell. Every wall is drawn first and every floor on top, so
+          that where the main hall and an extension overlap, the wall between
+          them is painted over and the pieces read as one continuous room
+          under a single outer wall. Floors carry no stroke — an outline on
+          each rectangle would leave a seam along every joint.
+        */}
+        <g id="hall-shell">
+          <rect
+            data-main-hall-drag="true"
+            x={hx - wallThick}
+            y={hy - wallThick}
+            width={wPx + wallThick * 2}
+            height={hPx + wallThick * 2}
+            fill="#3f3f46"
+            stroke="#18181b"
+            strokeWidth="1.5"
+            rx="2"
+            className="cursor-move"
+          />
+          {hallExtensions.map((ext) => (
+            <rect
+              key={`ext-wall-${String(ext.id || ext._tempId)}`}
+              x={px(ext.x) - wallThick}
+              y={px(ext.y) - wallThick}
+              width={px(ext.width || 20) + wallThick * 2}
+              height={px(ext.height || 20) + wallThick * 2}
+              fill="#3f3f46"
+              stroke="#18181b"
+              strokeWidth="1.5"
+              rx="2"
+              pointerEvents="none"
+            />
+          ))}
 
-        {/* Main Hall Parquet Interior */}
-        <rect x={hx} y={hy} width={wPx} height={hPx} fill="url(#wood-floor-texture)" stroke="#18181b" strokeWidth="1.5" />
+          <rect x={hx} y={hy} width={wPx} height={hPx} fill="url(#wood-floor-texture)" />
+          {hallExtensions.map((ext) => {
+            const extId = String(ext.id || ext._tempId);
+            return (
+              <rect
+                key={`ext-floor-${extId}`}
+                data-element-id={extId}
+                x={px(ext.x)}
+                y={px(ext.y)}
+                width={px(ext.width || 20)}
+                height={px(ext.height || 20)}
+                fill="url(#wood-floor-texture)"
+                pointerEvents="all"
+                className="cursor-grab active:cursor-grabbing"
+              />
+            );
+          })}
+        </g>
 
         {/* Main Hall Draggable Grip Pill / Handle */}
         <g
@@ -652,6 +699,28 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             const h = px(elem.height || 2);
             const cx = px(elem.x + (elem.width || 4) / 2);
             const cy = px(elem.y + (elem.height || 2) / 2);
+
+            // Extensions are painted with the hall shell below; all that
+            // belongs here is the selection outline, so it sits on the floor
+            // rather than under it.
+            if (elem.type === 'hall_extension') {
+              if (!isSelected) return null;
+              return (
+                <rect
+                  key={elemId}
+                  x={x - 4 * ui}
+                  y={y - 4 * ui}
+                  width={w + 8 * ui}
+                  height={h + 8 * ui}
+                  fill="none"
+                  stroke="#2563eb"
+                  strokeWidth={2 * ui}
+                  strokeDasharray={`${6 * ui} ${4 * ui}`}
+                  rx="3"
+                  pointerEvents="none"
+                />
+              );
+            }
 
             // Secondary Hall Room
             if (elem.type === 'hall_room') {
@@ -1061,7 +1130,11 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
               const titleText = targetHall ? targetHall.name || targetHall.label : elem.label || eventName || 'Main Hall';
               const wFt = targetHall ? targetHall.width || 30 : hallWidth;
               const hFt = targetHall ? targetHall.height || 20 : hallHeight;
-              const areaFt = Math.round(wFt * hFt);
+              // The main badge reports the whole assembled floor; a secondary
+              // hall's badge still reports just that room.
+              const areaFt = targetHall
+                ? Math.round(wFt * hFt)
+                : Math.round(hallFloorAreaSqFt({ x: hallX, y: hallY, width: hallWidth, height: hallHeight }, elements));
 
               const fSize = elem.fontSize ?? 12;
               const subFSize = Math.max(8, Math.round(fSize * 0.75));
@@ -1144,25 +1217,25 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
         <g id="dimension-lines-layer" pointerEvents="none">
           {/* Main Hall Top Dimension */}
           <path
-            d={`M ${hx} ${hy - 12} L ${hx + wPx} ${hy - 12} M ${hx} ${hy - 16} L ${hx} ${hy - 8} M ${hx + wPx} ${hy - 16} L ${hx + wPx} ${hy - 8}`}
+            d={`M ${hx} ${dimTop - 12} L ${hx + wPx} ${dimTop - 12} M ${hx} ${dimTop - 16} L ${hx} ${dimTop - 8} M ${hx + wPx} ${dimTop - 16} L ${hx + wPx} ${dimTop - 8}`}
             fill="none"
             stroke="#71717a"
             strokeWidth="1"
           />
-          <rect x={hx + wPx / 2 - 28} y={hy - 20} width="56" height="15" rx="3" fill="#ffffff" stroke="#e4e4e7" strokeWidth="0.8" />
-          <text x={hx + wPx / 2} y={hy - 9} fill="#000000" fontSize="9.5" fontWeight="800" textAnchor="middle">
+          <rect x={hx + wPx / 2 - 28} y={dimTop - 20} width="56" height="15" rx="3" fill="#ffffff" stroke="#e4e4e7" strokeWidth="0.8" />
+          <text x={hx + wPx / 2} y={dimTop - 9} fill="#000000" fontSize="9.5" fontWeight="800" textAnchor="middle">
             {Units.formatFeet(hallWidth)}
           </text>
 
           {/* Main Hall Left Dimension */}
           <path
-            d={`M ${hx - 12} ${hy} L ${hx - 12} ${hy + hPx} M ${hx - 16} ${hy} L ${hx - 8} ${hy} M ${hx - 16} ${hy + hPx} L ${hx - 8} ${hy + hPx}`}
+            d={`M ${dimLeft - 12} ${hy} L ${dimLeft - 12} ${hy + hPx} M ${dimLeft - 16} ${hy} L ${dimLeft - 8} ${hy} M ${dimLeft - 16} ${hy + hPx} L ${dimLeft - 8} ${hy + hPx}`}
             fill="none"
             stroke="#71717a"
             strokeWidth="1"
           />
           <rect
-            x={hx - 35}
+            x={dimLeft - 35}
             y={hy + hPx / 2 - 8}
             width="46"
             height="15"
@@ -1170,16 +1243,16 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             fill="#ffffff"
             stroke="#e4e4e7"
             strokeWidth="0.8"
-            transform={`rotate(-90, ${hx - 12}, ${hy + hPx / 2})`}
+            transform={`rotate(-90, ${dimLeft - 12}, ${hy + hPx / 2})`}
           />
           <text
-            x={hx - 12}
+            x={dimLeft - 12}
             y={hy + hPx / 2 + 3}
             fill="#000000"
             fontSize="9.5"
             fontWeight="800"
             textAnchor="middle"
-            transform={`rotate(-90, ${hx - 12}, ${hy + hPx / 2})`}
+            transform={`rotate(-90, ${dimLeft - 12}, ${hy + hPx / 2})`}
           >
             {Units.formatFeet(hallHeight)}
           </text>

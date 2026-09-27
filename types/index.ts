@@ -29,7 +29,14 @@ export type HallElementType =
   | 'door'
   | 'text'
   | 'room_badge'
+  /** A separate room, drawn with its own four walls and its own badge. */
   | 'hall_room'
+  /**
+   * A rectangle welded onto the main hall. Where it meets the hall no wall is
+   * drawn, so several of these compose one continuous L-shaped or notched
+   * floor under a single outer wall.
+   */
+  | 'hall_extension'
   | 'pillar_square'
   | 'pillar_round'
   | 'stage'

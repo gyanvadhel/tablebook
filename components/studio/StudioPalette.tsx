@@ -15,6 +15,7 @@ interface StudioPaletteProps {
   onAddTable: (shape: 'single' | 'double' | 'L-Stall' | 'L-Stall-Inverted' | 'T-Stall' | 'Pod') => void;
   onAddHallRoom: (preset: { width: number; height: number; name?: string }) => void;
   onPromptCustomHall: () => void;
+  onAddHallExtension: (preset: { width: number; height: number }) => void;
   onAddDoor: (doorType: 'entrance' | 'exit' | 'double' | 'window') => void;
   onAddText: (text: string, options?: { badge?: boolean; color?: string }) => void;
   onPromptCustomText: () => void;
@@ -25,6 +26,7 @@ export const StudioPalette: React.FC<StudioPaletteProps> = ({
   onAddTable,
   onAddHallRoom,
   onPromptCustomHall,
+  onAddHallExtension,
   onAddDoor,
   onAddText,
   onPromptCustomText,
@@ -171,6 +173,37 @@ export const StudioPalette: React.FC<StudioPaletteProps> = ({
               <Plus className="w-4 h-4 text-zinc-500" />
               <span>Custom Hall...</span>
             </button>
+
+            {/* Extensions weld onto the main hall instead of standing alone */}
+            <div className="mt-2 pt-2 border-t border-zinc-100">
+              <div className="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                Extend Main Hall
+              </div>
+              <p className="px-2.5 pb-1.5 text-[10px] text-zinc-400 leading-snug">
+                Overlap the hall to make an L-shape or notched corner — no wall is drawn where they meet.
+              </p>
+              {[
+                { label: 'Wing', width: 20, height: 20 },
+                { label: 'Alcove', width: 12, height: 10 },
+                { label: 'Long Strip', width: 40, height: 10 },
+              ].map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => onAddHallExtension({ width: preset.width, height: preset.height })}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-zinc-100 text-zinc-700 hover:text-zinc-900 transition text-left"
+                  title={`Hall extension — ${preset.width}' × ${preset.height}'`}
+                >
+                  <span className="w-5 text-center font-bold text-zinc-400">⌐</span>
+                  <span className="flex-1 font-medium">
+                    {preset.label}{' '}
+                    <small className="text-zinc-400">
+                      {preset.width}'×{preset.height}'
+                    </small>
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

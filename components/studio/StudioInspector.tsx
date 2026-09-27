@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Units } from '@/lib/units';
+import { hallFloorAreaSqFt } from '@/lib/hallShape';
 import {
   FlipHorizontal,
   RotateCw,
@@ -58,7 +59,11 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
 }) => {
   // 1. If nothing selected: show Main Hall properties
   if (!selectedItem) {
-    const areaSqFt = Math.round(hallWidth * hallHeight);
+    // Includes any extensions welded onto the hall, minus their overlap
+    const areaSqFt = Math.round(
+      hallFloorAreaSqFt({ x: 0, y: 0, width: hallWidth, height: hallHeight }, allElements)
+    );
+    const extensionCount = allElements.filter((el) => el.type === 'hall_extension').length;
     const currentHallX = hallX ?? (event?.hall_x || 0);
     const currentHallY = hallY ?? (event?.hall_y || 0);
 
@@ -109,6 +114,12 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
 
           <div className="text-[11px] text-zinc-500 font-medium">
             {Units.formatDims(hallWidth, hallHeight)} &middot; {areaSqFt.toLocaleString('en-IN')} sq ft
+            {extensionCount > 0 && (
+              <span className="text-zinc-400">
+                {' '}
+                (incl. {extensionCount} extension{extensionCount > 1 ? 's' : ''})
+              </span>
+            )}
           </div>
 
           {/* Main Hall Position & Movement Controls */}
@@ -375,6 +386,80 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
   const elem = selectedItem.obj as HallElement;
   const isHallRoom = elem.type === 'hall_room';
   const isRoomBadge = elem.type === 'room_badge';
+
+  // 3a-i. Hall Extension — welded onto the main hall, so no name or badge
+  if (elem.type === 'hall_extension') {
+    const extW = elem.width || 20;
+    const extH = elem.height || 20;
+    const extArea = Math.round(extW * extH);
+
+    return (
+      <div className="border-b border-zinc-200">
+        <div className="flex items-center justify-between px-3.5 py-2.5 bg-zinc-50 border-b border-zinc-200">
+          <span className="font-bold text-xs text-zinc-800">Hall Extension</span>
+          <span className="text-[10px] font-bold px-2 py-0.5 bg-zinc-200 text-zinc-800 rounded">Merged</span>
+        </div>
+
+        <div className="p-3.5 flex flex-col gap-3 text-xs">
+          <p className="text-[11px] text-zinc-500 leading-relaxed">
+            Part of the main hall. Overlap it with the hall (or another extension) and the wall between them
+            disappears, leaving one continuous floor.
+          </p>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[11px] font-semibold text-zinc-600 mb-1">Width (ft)</label>
+              <input
+                type="number"
+                step={1}
+                min={1}
+                max={Units.MAX_HALL_FT}
+                value={extW}
+                onChange={(e) => onUpdateItemProp('width', parseFloat(e.target.value) || 20)}
+                className="w-full px-2.5 py-1.5 border border-zinc-300 rounded-md focus:ring-1 focus:ring-zinc-900 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-zinc-600 mb-1">Depth (ft)</label>
+              <input
+                type="number"
+                step={1}
+                min={1}
+                max={Units.MAX_HALL_FT}
+                value={extH}
+                onChange={(e) => onUpdateItemProp('height', parseFloat(e.target.value) || 20)}
+                className="w-full px-2.5 py-1.5 border border-zinc-300 rounded-md focus:ring-1 focus:ring-zinc-900 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-zinc-600 mb-1">X (ft)</label>
+              <input
+                type="number"
+                step={0.5}
+                value={Units.roundFt(elem.x || 0)}
+                onChange={(e) => onUpdateItemProp('x', parseFloat(e.target.value) || 0)}
+                className="w-full px-2.5 py-1.5 border border-zinc-300 rounded-md focus:ring-1 focus:ring-zinc-900 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-zinc-600 mb-1">Y (ft)</label>
+              <input
+                type="number"
+                step={0.5}
+                value={Units.roundFt(elem.y || 0)}
+                onChange={(e) => onUpdateItemProp('y', parseFloat(e.target.value) || 0)}
+                className="w-full px-2.5 py-1.5 border border-zinc-300 rounded-md focus:ring-1 focus:ring-zinc-900 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="text-[11px] text-zinc-500 font-medium">
+            {Units.formatDims(extW, extH)} &middot; {extArea.toLocaleString('en-IN')} sq ft
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // 3a. Secondary Hall Room Structure
   if (isHallRoom) {
