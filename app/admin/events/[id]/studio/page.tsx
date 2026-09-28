@@ -19,8 +19,7 @@ import {
   normalizeBlueprint,
   sanitizeBlueprintUrl,
 } from '@/lib/blueprint';
-import { alignBoxItems, distributeBoxItems } from '@/lib/studioMath';
-import type { EventItem, TableItem, HallElement, StudioSelectedItem, BlueprintPlacement, AlignmentType, DistributeType } from '@/types';
+import type { EventItem, TableItem, HallElement, StudioSelectedItem, BlueprintPlacement } from '@/types';
 
 export default function StudioPage() {
   const params = useParams();
@@ -676,40 +675,6 @@ export default function StudioPage() {
     );
   };
 
-  const handleBulkAlign = (alignment: AlignmentType) => {
-    if (selectedTables.length < 2) return;
-    const alignedSelected = alignBoxItems(selectedTables, alignment);
-    const updatedMap = new Map(alignedSelected.map((t) => [String(t.id || t._tempId), t]));
-
-    setTables((prev) =>
-      prev.map((t) => {
-        const id = String(t.id || t._tempId);
-        const match = updatedMap.get(id);
-        return match ? { ...t, x: match.x, y: match.y } : t;
-      })
-    );
-    showToast(`Aligned ${selectedTables.length} tables (${alignment})`, 'info');
-  };
-
-  const handleBulkDistribute = (distribute: DistributeType) => {
-    if (selectedTables.length < 3) {
-      showToast('Need at least 3 tables to distribute spacing', 'info');
-      return;
-    }
-
-    const distributedSelected = distributeBoxItems(selectedTables, distribute);
-    const updatedMap = new Map(distributedSelected.map((t) => [String(t.id || t._tempId), t]));
-
-    setTables((prev) =>
-      prev.map((t) => {
-        const id = String(t.id || t._tempId);
-        const match = updatedMap.get(id);
-        return match ? { ...t, x: match.x, y: match.y } : t;
-      })
-    );
-    showToast(`Distributed ${selectedTables.length} tables (${distribute})`, 'info');
-  };
-
   const handleBulkUpdateTableProp = (prop: string, val: any) => {
     if (selectedTables.length === 0) return;
     const selectedSet = new Set(selectedTableIds);
@@ -1273,8 +1238,6 @@ export default function StudioPage() {
             onSelectTables={handleSelectTables}
             onSelectAllTables={handleSelectAllTables}
             onMoveMultipleTables={handleMoveMultipleTables}
-            onAlignSelectedTables={handleBulkAlign}
-            onDistributeSelectedTables={handleBulkDistribute}
             snapGrid={snapGrid}
             onSelectItem={(type, obj) => {
               setSelectedItem({ type, obj });
@@ -1352,8 +1315,6 @@ export default function StudioPage() {
             onRotateSelected={handleRotateSelected}
             onFlipSelected={handleFlipSelected}
             onToggleInvertL={handleToggleInvertL}
-            onAlignSelected={handleBulkAlign}
-            onDistributeSelected={handleBulkDistribute}
             onDuplicateSelected={handleDuplicateSelected}
             onDeleteSelected={handleDeleteSelected}
             onUpdateSecondaryHallName={handleUpdateSecondaryHallName}

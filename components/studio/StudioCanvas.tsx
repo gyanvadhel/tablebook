@@ -6,7 +6,7 @@ import { WALL_THICKNESS_FT } from '@/lib/constants';
 import { cornerWorld, distanceFt, scaleAbout, BLUEPRINT_CORNERS } from '@/lib/blueprint';
 import { hallFloorAreaSqFt } from '@/lib/hallShape';
 import { FloatingToolbar } from './FloatingToolbar';
-import type { TableItem, HallElement, StudioSelectedItem, BlueprintPlacement, AlignmentType, DistributeType } from '@/types';
+import type { TableItem, HallElement, StudioSelectedItem, BlueprintPlacement } from '@/types';
 
 interface StudioCanvasProps {
   hallWidth: number;
@@ -21,8 +21,6 @@ interface StudioCanvasProps {
   onSelectTables?: (tables: TableItem[], append?: boolean) => void;
   onSelectAllTables?: () => void;
   onMoveMultipleTables?: (dx: number, dy: number) => void;
-  onAlignSelectedTables?: (alignment: AlignmentType) => void;
-  onDistributeSelectedTables?: (distribute: DistributeType) => void;
   snapGrid: number;
   onSelectItem: (type: 'table' | 'element', obj: TableItem | HallElement) => void;
   onDeselect: () => void;
@@ -62,8 +60,6 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   onSelectTables,
   onSelectAllTables,
   onMoveMultipleTables,
-  onAlignSelectedTables,
-  onDistributeSelectedTables,
   snapGrid,
   onSelectItem,
   onDeselect,
@@ -130,36 +126,9 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     return { x: Units.pxToFt(transformed.x), y: Units.pxToFt(transformed.y) };
   }, []);
 
-  // Update floating actions position
+  // Update floating actions position (single item only)
   const updateFloatingPos = useCallback(() => {
-    const activeSelectedTables = tables.filter((t) => selectedTableIds?.includes(String(t.id || t._tempId)));
-    if (activeSelectedTables.length > 1 && svgRef.current && containerRef.current) {
-      try {
-        const minX = Math.min(...activeSelectedTables.map((t) => t.x));
-        const maxX = Math.max(...activeSelectedTables.map((t) => t.x + (t.width || 6)));
-        const minY = Math.min(...activeSelectedTables.map((t) => t.y));
-        const cx = px((minX + maxX) / 2);
-        const topY = px(minY) - 15;
-
-        const pt = svgRef.current.createSVGPoint();
-        pt.x = cx;
-        pt.y = topY;
-
-        const screenPt = pt.matrixTransform(svgRef.current.getScreenCTM());
-        const rect = containerRef.current.getBoundingClientRect();
-
-        setFloatingPos({
-          left: screenPt.x - rect.left,
-          top: screenPt.y - rect.top,
-        });
-        return;
-      } catch (e) {
-        setFloatingPos(null);
-        return;
-      }
-    }
-
-    if (!selectedItem || !svgRef.current || !containerRef.current) {
+    if (!selectedItem || (selectedTableIds && selectedTableIds.length > 1) || !svgRef.current || !containerRef.current) {
       setFloatingPos(null);
       return;
     }
@@ -184,7 +153,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     } catch (e) {
       setFloatingPos(null);
     }
-  }, [selectedItem, selectedTableIds, tables]);
+  }, [selectedItem, selectedTableIds]);
 
   useEffect(() => {
     updateFloatingPos();
@@ -1668,18 +1637,17 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
         </div>
       )}
 
-      {/* Floating Action Bar */}
-      <FloatingToolbar
-        selectedItem={selectedItem}
-        selectedCount={selectedTableIds ? selectedTableIds.length : (selectedItem ? 1 : 0)}
-        position={isCalibrating ? null : floatingPos}
-        onFlip={onFlipSelected}
-        onRotate={onRotateSelected}
-        onDuplicate={onDuplicateSelected}
-        onDelete={onDeleteSelected}
-        onAlign={onAlignSelectedTables}
-        onDistribute={onDistributeSelectedTables}
-      />
+      {/* Floating Action Bar (Single Selection Only) */}
+      {selectedItem && (!selectedTableIds || selectedTableIds.length <= 1) && (
+        <FloatingToolbar
+          selectedItem={selectedItem}
+          position={isCalibrating ? null : floatingPos}
+          onFlip={onFlipSelected}
+          onRotate={onRotateSelected}
+          onDuplicate={onDuplicateSelected}
+          onDelete={onDeleteSelected}
+        />
+      )}
 
       {/* Canvas Multi-Select & Shortcuts Hint */}
       <div className="absolute bottom-3 left-3 pointer-events-none flex items-center gap-2 bg-zinc-900/85 backdrop-blur-sm border border-zinc-700/60 rounded-full px-3 py-1 text-[11px] text-zinc-300 shadow-xl z-20">

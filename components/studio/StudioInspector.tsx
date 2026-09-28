@@ -17,18 +17,10 @@ import {
   Type,
   LetterText,
   Move,
-  AlignStartHorizontal,
-  AlignCenterHorizontal,
-  AlignEndHorizontal,
-  AlignStartVertical,
-  AlignCenterVertical,
-  AlignEndVertical,
-  AlignHorizontalDistributeCenter,
-  AlignVerticalDistributeCenter,
   Copy,
   Trash2,
 } from 'lucide-react';
-import type { StudioSelectedItem, EventItem, TableItem, HallElement, AlignmentType, DistributeType } from '@/types';
+import type { StudioSelectedItem, EventItem, TableItem, HallElement } from '@/types';
 
 interface StudioInspectorProps {
   selectedItem: StudioSelectedItem | null;
@@ -47,8 +39,6 @@ interface StudioInspectorProps {
   onRotateSelected: () => void;
   onFlipSelected: () => void;
   onToggleInvertL: () => void;
-  onAlignSelected?: (alignment: AlignmentType) => void;
-  onDistributeSelected?: (distribute: DistributeType) => void;
   onDuplicateSelected?: () => void;
   onDeleteSelected?: () => void;
   onUpdateSecondaryHallName: (targetHallId: string, name: string) => void;
@@ -72,8 +62,6 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
   onRotateSelected,
   onFlipSelected,
   onToggleInvertL,
-  onAlignSelected,
-  onDistributeSelected,
   onDuplicateSelected,
   onDeleteSelected,
   onUpdateSecondaryHallName,
@@ -111,90 +99,6 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
               Bounds: {Units.formatFeetShort(maxX - minX)} wide × {Units.formatFeetShort(maxY - minY)} high
             </div>
           </div>
-
-          {/* Quick Align Tools */}
-          {onAlignSelected && (
-            <div>
-              <label className="block text-[11px] font-semibold text-zinc-600 mb-1.5">Align Tables</label>
-              <div className="grid grid-cols-6 gap-1 bg-zinc-100 p-1 rounded-md border border-zinc-200">
-                <button
-                  type="button"
-                  onClick={() => onAlignSelected('left')}
-                  title="Align Left"
-                  className="p-1.5 bg-white hover:bg-zinc-50 rounded flex items-center justify-center text-zinc-700 shadow-sm transition"
-                >
-                  <AlignStartHorizontal className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onAlignSelected('center-x')}
-                  title="Center Horizontally"
-                  className="p-1.5 bg-white hover:bg-zinc-50 rounded flex items-center justify-center text-zinc-700 shadow-sm transition"
-                >
-                  <AlignCenterHorizontal className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onAlignSelected('right')}
-                  title="Align Right"
-                  className="p-1.5 bg-white hover:bg-zinc-50 rounded flex items-center justify-center text-zinc-700 shadow-sm transition"
-                >
-                  <AlignEndHorizontal className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onAlignSelected('top')}
-                  title="Align Top"
-                  className="p-1.5 bg-white hover:bg-zinc-50 rounded flex items-center justify-center text-zinc-700 shadow-sm transition"
-                >
-                  <AlignStartVertical className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onAlignSelected('center-y')}
-                  title="Center Vertically"
-                  className="p-1.5 bg-white hover:bg-zinc-50 rounded flex items-center justify-center text-zinc-700 shadow-sm transition"
-                >
-                  <AlignCenterVertical className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onAlignSelected('bottom')}
-                  title="Align Bottom"
-                  className="p-1.5 bg-white hover:bg-zinc-50 rounded flex items-center justify-center text-zinc-700 shadow-sm transition"
-                >
-                  <AlignEndVertical className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Quick Distribute Tools */}
-          {onDistributeSelected && (
-            <div>
-              <label className="block text-[11px] font-semibold text-zinc-600 mb-1.5">Distribute Spacing</label>
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => onDistributeSelected('horizontal')}
-                  className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-white hover:bg-zinc-50 border border-zinc-200 rounded text-zinc-700 font-medium transition"
-                  title="Distribute Horizontally (Equal Spacing)"
-                >
-                  <AlignHorizontalDistributeCenter className="w-3.5 h-3.5" />
-                  <span className="text-[11px]">Distribute H</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDistributeSelected('vertical')}
-                  className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-white hover:bg-zinc-50 border border-zinc-200 rounded text-zinc-700 font-medium transition"
-                  title="Distribute Vertically (Equal Spacing)"
-                >
-                  <AlignVerticalDistributeCenter className="w-3.5 h-3.5" />
-                  <span className="text-[11px]">Distribute V</span>
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Batch Actions */}
           <div>
