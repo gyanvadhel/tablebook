@@ -19,7 +19,8 @@ import {
   normalizeBlueprint,
   sanitizeBlueprintUrl,
 } from '@/lib/blueprint';
-import type { EventItem, TableItem, HallElement, StudioSelectedItem, BlueprintPlacement } from '@/types';
+import { alignBoxItems, distributeBoxItems } from '@/lib/studioMath';
+import type { EventItem, TableItem, HallElement, StudioSelectedItem, BlueprintPlacement, AlignmentType, DistributeType } from '@/types';
 
 export default function StudioPage() {
   const params = useParams();
@@ -31,6 +32,11 @@ export default function StudioPage() {
   const [tables, setTables] = useState<TableItem[]>([]);
   const [elements, setElements] = useState<HallElement[]>([]);
   const [selectedItem, setSelectedItem] = useState<StudioSelectedItem | null>(null);
+  const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
+  const selectedTables = useMemo(
+    () => tables.filter((t) => selectedTableIds.includes(String(t.id || t._tempId))),
+    [tables, selectedTableIds]
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'info' | 'success' | 'error' } | null>(null);
@@ -626,8 +632,119 @@ export default function StudioPage() {
     }
   };
 
+  // Multi-table selection handlers
+  const handleSelectTables = (selected: TableItem[], append = false) => {
+    const ids = selected.map((t) => String(t.id || t._tempId));
+    if (append) {
+      setSelectedTableIds((prev) => Array.from(new Set([...prev, ...ids])));
+      if (selected.length === 1 && selectedTableIds.length === 0) {
+        setSelectedItem({ type: 'table', obj: selected[0] });
+      } else {
+        setSelectedItem(null);
+      }
+    } else {
+      setSelectedTableIds(ids);
+      if (selected.length === 1) {
+        setSelectedItem({ type: 'table', obj: selected[0] });
+      } else {
+        setSelectedItem(null);
+      }
+    }
+  };
+
+  const handleSelectAllTables = () => {
+    const allIds = tables.map((t) => String(t.id || t._tempId));
+    setSelectedTableIds(allIds);
+    setSelectedItem(null);
+    showToast(`Selected all ${allIds.length} tables`, 'info');
+  };
+
+  const handleMoveMultipleTables = (dx: number, dy: number) => {
+    if (dx === 0 && dy === 0) return;
+    setTables((prev) =>
+      prev.map((t) => {
+        const id = String(t.id || t._tempId);
+        if (selectedTableIds.includes(id)) {
+          return {
+            ...t,
+            x: Units.roundFt(t.x + dx),
+            y: Units.roundFt(t.y + dy),
+          };
+        }
+        return t;
+      })
+    );
+  };
+
+  const handleBulkAlign = (alignment: AlignmentType) => {
+    if (selectedTables.length < 2) return;
+    const alignedSelected = alignBoxItems(selectedTables, alignment);
+    const updatedMap = new Map(alignedSelected.map((t) => [String(t.id || t._tempId), t]));
+
+    setTables((prev) =>
+      prev.map((t) => {
+        const id = String(t.id || t._tempId);
+        const match = updatedMap.get(id);
+        return match ? { ...t, x: match.x, y: match.y } : t;
+      })
+    );
+    showToast(`Aligned ${selectedTables.length} tables (${alignment})`, 'info');
+  };
+
+  const handleBulkDistribute = (distribute: DistributeType) => {
+    if (selectedTables.length < 3) {
+      showToast('Need at least 3 tables to distribute spacing', 'info');
+      return;
+    }
+
+    const distributedSelected = distributeBoxItems(selectedTables, distribute);
+    const updatedMap = new Map(distributedSelected.map((t) => [String(t.id || t._tempId), t]));
+
+    setTables((prev) =>
+      prev.map((t) => {
+        const id = String(t.id || t._tempId);
+        const match = updatedMap.get(id);
+        return match ? { ...t, x: match.x, y: match.y } : t;
+      })
+    );
+    showToast(`Distributed ${selectedTables.length} tables (${distribute})`, 'info');
+  };
+
+  const handleBulkUpdateTableProp = (prop: string, val: any) => {
+    if (selectedTables.length === 0) return;
+    const selectedSet = new Set(selectedTableIds);
+    setTables((prev) =>
+      prev.map((t) => {
+        const id = String(t.id || t._tempId);
+        if (selectedSet.has(id)) {
+          return { ...t, [prop]: val };
+        }
+        return t;
+      })
+    );
+    showToast(`Updated ${prop} for ${selectedTables.length} tables`, 'info');
+  };
+
   // Rotate Selected
   const handleRotateSelected = () => {
+    if (selectedTables.length > 1) {
+      const selectedSet = new Set(selectedTableIds);
+      setTables((prev) =>
+        prev.map((t) => {
+          const id = String(t.id || t._tempId);
+          if (selectedSet.has(id)) {
+            return {
+              ...t,
+              rotation: ((t.rotation || 0) + 90) % 360,
+            };
+          }
+          return t;
+        })
+      );
+      showToast(`Rotated ${selectedTables.length} tables 90°`, 'info');
+      return;
+    }
+
     if (!selectedItem) return;
     const obj = selectedItem.obj;
     const newRot = ((obj.rotation || 0) + 90) % 360;
@@ -636,6 +753,31 @@ export default function StudioPage() {
 
   // Flip Selected
   const handleFlipSelected = () => {
+    if (selectedTables.length > 1) {
+      const selectedSet = new Set(selectedTableIds);
+      setTables((prev) =>
+        prev.map((t) => {
+          const id = String(t.id || t._tempId);
+          if (!selectedSet.has(id)) return t;
+          if (t.shape && t.shape.startsWith('L')) {
+            const isCurrentlyInverted = t.shape === 'L-Stall-Inverted' || t.shape === 'L-Inverted';
+            return {
+              ...t,
+              shape: isCurrentlyInverted ? 'L-Stall' : 'L-Stall-Inverted',
+              label: isCurrentlyInverted ? 'L-Stall (L)' : 'L-Inverted (⅃)',
+            };
+          }
+          return {
+            ...t,
+            width: t.height,
+            height: t.width,
+          };
+        })
+      );
+      showToast(`Flipped / inverted ${selectedTables.length} tables`, 'info');
+      return;
+    }
+
     if (!selectedItem) return;
     if (selectedItem.type === 'table') {
       const table = selectedItem.obj as TableItem;
@@ -698,6 +840,41 @@ export default function StudioPage() {
 
   // Duplicate Selected
   const handleDuplicateSelected = () => {
+    if (selectedTables.length > 1) {
+      const existingNums = new Set(tables.map((t) => parseInt(t.table_number)).filter((n) => !isNaN(n)));
+      let curNum = 1;
+      const getNextNum = () => {
+        while (existingNums.has(curNum)) curNum++;
+        existingNums.add(curNum);
+        return String(curNum);
+      };
+
+      const copies: TableItem[] = [];
+      const newIds: string[] = [];
+
+      selectedTables.forEach((table) => {
+        const tableNum = getNextNum();
+        const tempId = 'table_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        const copy: TableItem = {
+          ...table,
+          id: undefined,
+          _tempId: tempId,
+          table_number: tableNum,
+          x: Units.roundFt(table.x + 2),
+          y: Units.roundFt(table.y + 2),
+          status: 'available',
+        };
+        copies.push(copy);
+        newIds.push(tempId);
+      });
+
+      setTables((prev) => [...prev, ...copies]);
+      setSelectedTableIds(newIds);
+      setSelectedItem(null);
+      showToast(`Duplicated ${copies.length} tables`, 'success');
+      return;
+    }
+
     if (!selectedItem) return;
 
     if (selectedItem.type === 'table') {
@@ -715,6 +892,7 @@ export default function StudioPage() {
       const nextTables = [...tables, copy];
       setTables(nextTables);
       setSelectedItem({ type: 'table', obj: copy });
+      setSelectedTableIds([String(copy.id || copy._tempId)]);
       showToast(`Duplicated Stall ${tableNum}`, 'success');
     } else {
       const elem = selectedItem.obj as HallElement;
@@ -728,12 +906,32 @@ export default function StudioPage() {
       const nextElements = [...elements, copy];
       setElements(nextElements);
       setSelectedItem({ type: 'element', obj: copy });
+      setSelectedTableIds([]);
       showToast(`Duplicated ${copy.label || copy.type}`, 'success');
     }
   };
 
   // Delete Selected
   const handleDeleteSelected = () => {
+    if (selectedTables.length > 1) {
+      const booked = selectedTables.filter((t) => t.status === 'booked');
+      if (booked.length > 0) {
+        showToast(`${booked.length} booked table(s) cannot be deleted.`, 'error');
+      }
+      const canDeleteIds = new Set(
+        selectedTables
+          .filter((t) => t.status !== 'booked')
+          .map((t) => String(t.id || t._tempId))
+      );
+      if (canDeleteIds.size === 0) return;
+
+      setTables((prev) => prev.filter((t) => !canDeleteIds.has(String(t.id || t._tempId))));
+      setSelectedTableIds([]);
+      setSelectedItem(null);
+      showToast(`Deleted ${canDeleteIds.size} tables`, 'success');
+      return;
+    }
+
     if (!selectedItem) return;
 
     if (selectedItem.type === 'table') {
@@ -744,6 +942,7 @@ export default function StudioPage() {
       }
       setTables((prev) => prev.filter((t) => (t.id ? t.id !== table.id : t._tempId !== table._tempId)));
       setSelectedItem(null);
+      setSelectedTableIds([]);
       showToast(`Removed Stall ${table.table_number}`, 'success');
     } else {
       const elem = selectedItem.obj as HallElement;
@@ -768,6 +967,7 @@ export default function StudioPage() {
         })
       );
       setSelectedItem(null);
+      setSelectedTableIds([]);
       showToast(`Removed "${elem.label || elem.type}"`, 'success');
     }
   };
@@ -1069,9 +1269,25 @@ export default function StudioPage() {
             tables={tables}
             elements={elements}
             selectedItem={selectedItem}
+            selectedTableIds={selectedTableIds}
+            onSelectTables={handleSelectTables}
+            onSelectAllTables={handleSelectAllTables}
+            onMoveMultipleTables={handleMoveMultipleTables}
+            onAlignSelectedTables={handleBulkAlign}
+            onDistributeSelectedTables={handleBulkDistribute}
             snapGrid={snapGrid}
-            onSelectItem={(type, obj) => setSelectedItem({ type, obj })}
-            onDeselect={() => setSelectedItem(null)}
+            onSelectItem={(type, obj) => {
+              setSelectedItem({ type, obj });
+              if (type === 'table') {
+                setSelectedTableIds([String((obj as TableItem).id || (obj as TableItem)._tempId)]);
+              } else {
+                setSelectedTableIds([]);
+              }
+            }}
+            onDeselect={() => {
+              setSelectedItem(null);
+              setSelectedTableIds([]);
+            }}
             onUpdatePosition={handleUpdatePosition}
             onRotateSelected={handleRotateSelected}
             onFlipSelected={handleFlipSelected}
@@ -1121,6 +1337,7 @@ export default function StudioPage() {
         >
           <StudioInspector
             selectedItem={selectedItem}
+            selectedTables={selectedTables}
             event={event}
             hallWidth={hallWidth}
             hallHeight={hallHeight}
@@ -1131,9 +1348,14 @@ export default function StudioPage() {
             shiftInteriorWithHall={shiftInteriorWithHall}
             onToggleShiftInterior={setShiftInteriorWithHall}
             onUpdateItemProp={handleUpdateItemProp}
+            onBulkUpdateTableProp={handleBulkUpdateTableProp}
             onRotateSelected={handleRotateSelected}
             onFlipSelected={handleFlipSelected}
             onToggleInvertL={handleToggleInvertL}
+            onAlignSelected={handleBulkAlign}
+            onDistributeSelected={handleBulkDistribute}
+            onDuplicateSelected={handleDuplicateSelected}
+            onDeleteSelected={handleDeleteSelected}
             onUpdateSecondaryHallName={handleUpdateSecondaryHallName}
             allElements={elements}
           />
@@ -1141,7 +1363,14 @@ export default function StudioPage() {
             tables={tables}
             elements={elements}
             selectedItem={selectedItem}
-            onSelectItem={(type, obj) => setSelectedItem({ type, obj })}
+            onSelectItem={(type, obj) => {
+              setSelectedItem({ type, obj });
+              if (type === 'table') {
+                setSelectedTableIds([String((obj as TableItem).id || (obj as TableItem)._tempId)]);
+              } else {
+                setSelectedTableIds([]);
+              }
+            }}
           />
         </aside>
       </div>

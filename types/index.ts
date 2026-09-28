@@ -144,3 +144,6 @@ export interface StudioSelectedItem {
   type: 'table' | 'element';
   obj: TableItem | HallElement;
 }
+
+export type AlignmentType = 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom';
+export type DistributeType = 'horizontal' | 'vertical';

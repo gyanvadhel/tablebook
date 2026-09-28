@@ -6,7 +6,7 @@ import { WALL_THICKNESS_FT } from '@/lib/constants';
 import { cornerWorld, distanceFt, scaleAbout, BLUEPRINT_CORNERS } from '@/lib/blueprint';
 import { hallFloorAreaSqFt } from '@/lib/hallShape';
 import { FloatingToolbar } from './FloatingToolbar';
-import type { TableItem, HallElement, StudioSelectedItem, BlueprintPlacement } from '@/types';
+import type { TableItem, HallElement, StudioSelectedItem, BlueprintPlacement, AlignmentType, DistributeType } from '@/types';
 
 interface StudioCanvasProps {
   hallWidth: number;
@@ -17,6 +17,12 @@ interface StudioCanvasProps {
   tables: TableItem[];
   elements: HallElement[];
   selectedItem: StudioSelectedItem | null;
+  selectedTableIds?: string[];
+  onSelectTables?: (tables: TableItem[], append?: boolean) => void;
+  onSelectAllTables?: () => void;
+  onMoveMultipleTables?: (dx: number, dy: number) => void;
+  onAlignSelectedTables?: (alignment: AlignmentType) => void;
+  onDistributeSelectedTables?: (distribute: DistributeType) => void;
   snapGrid: number;
   onSelectItem: (type: 'table' | 'element', obj: TableItem | HallElement) => void;
   onDeselect: () => void;
@@ -52,6 +58,12 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   tables,
   elements,
   selectedItem,
+  selectedTableIds = [],
+  onSelectTables,
+  onSelectAllTables,
+  onMoveMultipleTables,
+  onAlignSelectedTables,
+  onDistributeSelectedTables,
   snapGrid,
   onSelectItem,
   onDeselect,
@@ -83,6 +95,14 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [floatingPos, setFloatingPos] = useState<{ left: number; top: number } | null>(null);
 
+  // Multi-Selection & Marquee State
+  const [isMarquee, setIsMarquee] = useState(false);
+  const [marqueeStart, setMarqueeStart] = useState<{ x: number; y: number } | null>(null);
+  const [marqueeCurrent, setMarqueeCurrent] = useState<{ x: number; y: number } | null>(null);
+  const [isDraggingMulti, setIsDraggingMulti] = useState(false);
+  const [multiDragStartPt, setMultiDragStartPt] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [multiDragLastSnapped, setMultiDragLastSnapped] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
   // Blueprint underlay interaction
   const [blueprintDrag, setBlueprintDrag] = useState<BlueprintDrag | null>(null);
   const [calibrationFrom, setCalibrationFrom] = useState<{ x: number; y: number } | null>(null);
@@ -112,6 +132,33 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
 
   // Update floating actions position
   const updateFloatingPos = useCallback(() => {
+    const activeSelectedTables = tables.filter((t) => selectedTableIds?.includes(String(t.id || t._tempId)));
+    if (activeSelectedTables.length > 1 && svgRef.current && containerRef.current) {
+      try {
+        const minX = Math.min(...activeSelectedTables.map((t) => t.x));
+        const maxX = Math.max(...activeSelectedTables.map((t) => t.x + (t.width || 6)));
+        const minY = Math.min(...activeSelectedTables.map((t) => t.y));
+        const cx = px((minX + maxX) / 2);
+        const topY = px(minY) - 15;
+
+        const pt = svgRef.current.createSVGPoint();
+        pt.x = cx;
+        pt.y = topY;
+
+        const screenPt = pt.matrixTransform(svgRef.current.getScreenCTM());
+        const rect = containerRef.current.getBoundingClientRect();
+
+        setFloatingPos({
+          left: screenPt.x - rect.left,
+          top: screenPt.y - rect.top,
+        });
+        return;
+      } catch (e) {
+        setFloatingPos(null);
+        return;
+      }
+    }
+
     if (!selectedItem || !svgRef.current || !containerRef.current) {
       setFloatingPos(null);
       return;
@@ -137,11 +184,11 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     } catch (e) {
       setFloatingPos(null);
     }
-  }, [selectedItem]);
+  }, [selectedItem, selectedTableIds, tables]);
 
   useEffect(() => {
     updateFloatingPos();
-  }, [selectedItem, viewBox, tables, elements, updateFloatingPos]);
+  }, [selectedItem, selectedTableIds, viewBox, tables, elements, updateFloatingPos]);
 
   // Leaving calibration mode clears whatever was half-measured
   useEffect(() => {
@@ -198,6 +245,12 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
       if (isCalibrating) return;
 
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        onSelectAllTables?.();
+        return;
+      }
+
       if (e.key === 'r' || e.key === 'R') {
         onRotateSelected();
       } else if (e.key === 'f' || e.key === 'F') {
@@ -216,7 +269,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onRotateSelected, onFlipSelected, onDuplicateSelected, onDeleteSelected, onDeselect, isCalibrating, onCancelCalibration]);
+  }, [onRotateSelected, onFlipSelected, onDuplicateSelected, onDeleteSelected, onDeselect, onSelectAllTables, isCalibrating, onCancelCalibration]);
 
   // Submit a completed calibration measurement
   const commitCalibration = () => {
@@ -298,11 +351,40 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       const id = tableGroup.getAttribute('data-table-id');
       const table = tables.find((t) => String(t.id || t._tempId) === String(id));
       if (table) {
-        onSelectItem('table', table);
-        if (table.status !== 'booked') {
-          setIsDragging(true);
-          const pt = getSvgPointFt(e.clientX, e.clientY);
-          setDragOffset({ x: pt.x - table.x, y: pt.y - table.y });
+        const isShift = e.shiftKey || e.metaKey || e.ctrlKey;
+        const isAlreadySelected = selectedTableIds.includes(String(id));
+
+        if (isShift) {
+          if (isAlreadySelected) {
+            const next = tables.filter(
+              (t) => selectedTableIds.includes(String(t.id || t._tempId)) && String(t.id || t._tempId) !== String(id)
+            );
+            onSelectTables?.(next);
+            if (next.length === 1) onSelectItem('table', next[0]);
+            else if (next.length === 0) onDeselect();
+          } else {
+            const current = tables.filter((t) => selectedTableIds.includes(String(t.id || t._tempId)));
+            const next = [...current, table];
+            onSelectTables?.(next);
+            onSelectItem('table', table);
+          }
+        } else if (isAlreadySelected && selectedTableIds.length > 1) {
+          // Table is part of multi-selection -> start multi-drag!
+          if (table.status !== 'booked') {
+            setIsDraggingMulti(true);
+            const pt = getSvgPointFt(e.clientX, e.clientY);
+            setMultiDragStartPt(pt);
+            setMultiDragLastSnapped({ x: 0, y: 0 });
+          }
+        } else {
+          // Normal single select
+          onSelectItem('table', table);
+          onSelectTables?.([table]);
+          if (table.status !== 'booked') {
+            setIsDragging(true);
+            const pt = getSvgPointFt(e.clientX, e.clientY);
+            setDragOffset({ x: pt.x - table.x, y: pt.y - table.y });
+          }
         }
         e.preventDefault();
         e.stopPropagation();
@@ -317,6 +399,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       const elem = elements.find((el) => String(el.id || el._tempId) === String(id));
       if (elem) {
         onSelectItem('element', elem);
+        onSelectTables?.([]);
         setIsDragging(true);
         const pt = getSvgPointFt(e.clientX, e.clientY);
         setDragOffset({ x: pt.x - elem.x, y: pt.y - elem.y });
@@ -337,8 +420,22 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       return;
     }
 
-    // Clicked empty canvas -> Deselect and Pan
+    // Clicked empty canvas
+    const pt = getSvgPointFt(e.clientX, e.clientY);
+
+    // If Shift is held -> Marquee selection box!
+    if (e.shiftKey) {
+      setIsMarquee(true);
+      setMarqueeStart(pt);
+      setMarqueeCurrent(pt);
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    // Normal empty canvas click -> Deselect and Pan
     onDeselect();
+    onSelectTables?.([]);
     setIsPanning(true);
     setPanStart({ x: e.clientX, y: e.clientY });
   };
@@ -389,6 +486,32 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       return;
     }
 
+    if (isDraggingMulti) {
+      const pt = getSvgPointFt(e.clientX, e.clientY);
+      let rawDx = pt.x - multiDragStartPt.x;
+      let rawDy = pt.y - multiDragStartPt.y;
+
+      if (snapGrid > 0) {
+        rawDx = Math.round(rawDx / snapGrid) * snapGrid;
+        rawDy = Math.round(rawDy / snapGrid) * snapGrid;
+      }
+
+      const stepDx = rawDx - multiDragLastSnapped.x;
+      const stepDy = rawDy - multiDragLastSnapped.y;
+
+      if (stepDx !== 0 || stepDy !== 0) {
+        onMoveMultipleTables?.(stepDx, stepDy);
+        setMultiDragLastSnapped({ x: rawDx, y: rawDy });
+      }
+      return;
+    }
+
+    if (isMarquee) {
+      const pt = getSvgPointFt(e.clientX, e.clientY);
+      setMarqueeCurrent(pt);
+      return;
+    }
+
     if (isDragging && selectedItem) {
       const pt = getSvgPointFt(e.clientX, e.clientY);
       let rawX = pt.x - dragOffset.x;
@@ -430,6 +553,33 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     setIsDraggingMainHall(false);
     setIsPanning(false);
     setBlueprintDrag(null);
+
+    if (isDraggingMulti) {
+      setIsDraggingMulti(false);
+      setMultiDragLastSnapped({ x: 0, y: 0 });
+    }
+
+    if (isMarquee && marqueeStart && marqueeCurrent) {
+      setIsMarquee(false);
+      const minX = Math.min(marqueeStart.x, marqueeCurrent.x);
+      const maxX = Math.max(marqueeStart.x, marqueeCurrent.x);
+      const minY = Math.min(marqueeStart.y, marqueeCurrent.y);
+      const maxY = Math.max(marqueeStart.y, marqueeCurrent.y);
+
+      // Only select if box size > 0.4 ft
+      if (maxX - minX > 0.4 || maxY - minY > 0.4) {
+        const found = tables.filter((t) => {
+          const tw = t.width || 6;
+          const th = t.height || 4;
+          return !(t.x + tw < minX || t.x > maxX || t.y + th < minY || t.y > maxY);
+        });
+        if (found.length > 0) {
+          onSelectTables?.(found, e?.shiftKey);
+        }
+      }
+      setMarqueeStart(null);
+      setMarqueeCurrent(null);
+    }
   };
 
   // Wheel Zoom handler
@@ -836,7 +986,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
         <g id="tables-layer">
           {tables.map((t) => {
             const tableId = String(t.id || t._tempId);
-            const isSelected = selectedId === tableId;
+            const isSelected = selectedId === tableId || (selectedTableIds && selectedTableIds.includes(tableId));
             const x = px(t.x);
             const y = px(t.y);
             const w = px(t.width);
@@ -933,6 +1083,71 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
               </g>
             );
           })}
+
+          {/* Multi-Selection Group Bounding Box */}
+          {selectedTableIds && selectedTableIds.length > 1 && (() => {
+            const multiTables = tables.filter((t) => selectedTableIds.includes(String(t.id || t._tempId)));
+            if (multiTables.length <= 1) return null;
+            const minX = Math.min(...multiTables.map((t) => t.x));
+            const maxX = Math.max(...multiTables.map((t) => t.x + (t.width || 6)));
+            const minY = Math.min(...multiTables.map((t) => t.y));
+            const maxY = Math.max(...multiTables.map((t) => t.y + (t.height || 4)));
+
+            return (
+              <g pointerEvents="none">
+                <rect
+                  x={px(minX) - 5}
+                  y={px(minY) - 5}
+                  width={px(maxX - minX) + 10}
+                  height={px(maxY - minY) + 10}
+                  fill="none"
+                  stroke="#2563eb"
+                  strokeWidth="1.5"
+                  strokeDasharray="4 3"
+                  rx="4"
+                />
+                <rect
+                  x={px((minX + maxX) / 2) - 52}
+                  y={px(minY) - 22}
+                  width="104"
+                  height="16"
+                  rx="3"
+                  fill="#2563eb"
+                />
+                <text
+                  x={px((minX + maxX) / 2)}
+                  y={px(minY) - 10.5}
+                  fill="#ffffff"
+                  fontSize="9"
+                  fontWeight="700"
+                  textAnchor="middle"
+                >
+                  {multiTables.length} tables selected
+                </text>
+              </g>
+            );
+          })()}
+
+          {/* Active Marquee Selection Box */}
+          {isMarquee && marqueeStart && marqueeCurrent && (() => {
+            const x0 = Math.min(marqueeStart.x, marqueeCurrent.x);
+            const x1 = Math.max(marqueeStart.x, marqueeCurrent.x);
+            const y0 = Math.min(marqueeStart.y, marqueeCurrent.y);
+            const y1 = Math.max(marqueeStart.y, marqueeCurrent.y);
+            return (
+              <rect
+                x={px(x0)}
+                y={px(y0)}
+                width={px(x1 - x0)}
+                height={px(y1 - y0)}
+                fill="rgba(37, 99, 235, 0.12)"
+                stroke="#2563eb"
+                strokeWidth="1.5"
+                strokeDasharray="5 3"
+                pointerEvents="none"
+              />
+            );
+          })()}
         </g>
 
         {/* 3. Doors & Signs Layer */}
@@ -1456,12 +1671,21 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       {/* Floating Action Bar */}
       <FloatingToolbar
         selectedItem={selectedItem}
+        selectedCount={selectedTableIds ? selectedTableIds.length : (selectedItem ? 1 : 0)}
         position={isCalibrating ? null : floatingPos}
         onFlip={onFlipSelected}
         onRotate={onRotateSelected}
         onDuplicate={onDuplicateSelected}
         onDelete={onDeleteSelected}
+        onAlign={onAlignSelectedTables}
+        onDistribute={onDistributeSelectedTables}
       />
+
+      {/* Canvas Multi-Select & Shortcuts Hint */}
+      <div className="absolute bottom-3 left-3 pointer-events-none flex items-center gap-2 bg-zinc-900/85 backdrop-blur-sm border border-zinc-700/60 rounded-full px-3 py-1 text-[11px] text-zinc-300 shadow-xl z-20">
+        <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+        <span>Shift + Drag to box select · Shift + Click to multi-select · Ctrl+A to select all</span>
+      </div>
     </div>
   );
 };

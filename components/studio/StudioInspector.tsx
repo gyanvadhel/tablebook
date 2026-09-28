@@ -17,11 +17,22 @@ import {
   Type,
   LetterText,
   Move,
+  AlignStartHorizontal,
+  AlignCenterHorizontal,
+  AlignEndHorizontal,
+  AlignStartVertical,
+  AlignCenterVertical,
+  AlignEndVertical,
+  AlignHorizontalDistributeCenter,
+  AlignVerticalDistributeCenter,
+  Copy,
+  Trash2,
 } from 'lucide-react';
-import type { StudioSelectedItem, EventItem, TableItem, HallElement } from '@/types';
+import type { StudioSelectedItem, EventItem, TableItem, HallElement, AlignmentType, DistributeType } from '@/types';
 
 interface StudioInspectorProps {
   selectedItem: StudioSelectedItem | null;
+  selectedTables?: TableItem[];
   event: EventItem | null;
   hallWidth: number;
   hallHeight: number;
@@ -32,15 +43,21 @@ interface StudioInspectorProps {
   shiftInteriorWithHall?: boolean;
   onToggleShiftInterior?: (val: boolean) => void;
   onUpdateItemProp: (prop: string, val: any) => void;
+  onBulkUpdateTableProp?: (prop: string, val: any) => void;
   onRotateSelected: () => void;
   onFlipSelected: () => void;
   onToggleInvertL: () => void;
+  onAlignSelected?: (alignment: AlignmentType) => void;
+  onDistributeSelected?: (distribute: DistributeType) => void;
+  onDuplicateSelected?: () => void;
+  onDeleteSelected?: () => void;
   onUpdateSecondaryHallName: (targetHallId: string, name: string) => void;
   allElements?: HallElement[];
 }
 
 export const StudioInspector: React.FC<StudioInspectorProps> = ({
   selectedItem,
+  selectedTables = [],
   event,
   hallWidth,
   hallHeight,
@@ -51,12 +68,215 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
   shiftInteriorWithHall = false,
   onToggleShiftInterior,
   onUpdateItemProp,
+  onBulkUpdateTableProp,
   onRotateSelected,
   onFlipSelected,
   onToggleInvertL,
+  onAlignSelected,
+  onDistributeSelected,
+  onDuplicateSelected,
+  onDeleteSelected,
   onUpdateSecondaryHallName,
   allElements,
 }) => {
+  // 0. If multiple tables selected: show Batch Multi-Table Inspector
+  if (selectedTables && selectedTables.length > 1) {
+    const count = selectedTables.length;
+    const tableNumbers = selectedTables.map((t) => t.table_number).join(', ');
+    const minX = Math.min(...selectedTables.map((t) => t.x));
+    const maxX = Math.max(...selectedTables.map((t) => t.x + (t.width || 6)));
+    const minY = Math.min(...selectedTables.map((t) => t.y));
+    const maxY = Math.max(...selectedTables.map((t) => t.y + (t.height || 4)));
+
+    return (
+      <div className="border-b border-zinc-200">
+        <div className="flex items-center justify-between px-3.5 py-2.5 bg-blue-50/80 border-b border-blue-100">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+            <span className="font-bold text-xs text-blue-950">{count} Tables Selected</span>
+          </div>
+          <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-600 text-white rounded">
+            Group
+          </span>
+        </div>
+
+        <div className="p-3.5 flex flex-col gap-3.5 text-xs">
+          {/* Stalls summary */}
+          <div className="p-2.5 bg-zinc-50 border border-zinc-200 rounded-md">
+            <div className="text-[10px] uppercase font-bold text-zinc-400 mb-1">Stalls in Selection</div>
+            <div className="text-xs font-semibold text-zinc-800 line-clamp-2">
+              {tableNumbers}
+            </div>
+            <div className="text-[10px] text-zinc-500 mt-1">
+              Bounds: {Units.formatFeetShort(maxX - minX)} wide × {Units.formatFeetShort(maxY - minY)} high
+            </div>
+          </div>
+
+          {/* Quick Align Tools */}
+          {onAlignSelected && (
+            <div>
+              <label className="block text-[11px] font-semibold text-zinc-600 mb-1.5">Align Tables</label>
+              <div className="grid grid-cols-6 gap-1 bg-zinc-100 p-1 rounded-md border border-zinc-200">
+                <button
+                  type="button"
+                  onClick={() => onAlignSelected('left')}
+                  title="Align Left"
+                  className="p-1.5 bg-white hover:bg-zinc-50 rounded flex items-center justify-center text-zinc-700 shadow-sm transition"
+                >
+                  <AlignStartHorizontal className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAlignSelected('center-x')}
+                  title="Center Horizontally"
+                  className="p-1.5 bg-white hover:bg-zinc-50 rounded flex items-center justify-center text-zinc-700 shadow-sm transition"
+                >
+                  <AlignCenterHorizontal className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAlignSelected('right')}
+                  title="Align Right"
+                  className="p-1.5 bg-white hover:bg-zinc-50 rounded flex items-center justify-center text-zinc-700 shadow-sm transition"
+                >
+                  <AlignEndHorizontal className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAlignSelected('top')}
+                  title="Align Top"
+                  className="p-1.5 bg-white hover:bg-zinc-50 rounded flex items-center justify-center text-zinc-700 shadow-sm transition"
+                >
+                  <AlignStartVertical className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAlignSelected('center-y')}
+                  title="Center Vertically"
+                  className="p-1.5 bg-white hover:bg-zinc-50 rounded flex items-center justify-center text-zinc-700 shadow-sm transition"
+                >
+                  <AlignCenterVertical className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAlignSelected('bottom')}
+                  title="Align Bottom"
+                  className="p-1.5 bg-white hover:bg-zinc-50 rounded flex items-center justify-center text-zinc-700 shadow-sm transition"
+                >
+                  <AlignEndVertical className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Distribute Tools */}
+          {onDistributeSelected && (
+            <div>
+              <label className="block text-[11px] font-semibold text-zinc-600 mb-1.5">Distribute Spacing</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => onDistributeSelected('horizontal')}
+                  className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-white hover:bg-zinc-50 border border-zinc-200 rounded text-zinc-700 font-medium transition"
+                  title="Distribute Horizontally (Equal Spacing)"
+                >
+                  <AlignHorizontalDistributeCenter className="w-3.5 h-3.5" />
+                  <span className="text-[11px]">Distribute H</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDistributeSelected('vertical')}
+                  className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-white hover:bg-zinc-50 border border-zinc-200 rounded text-zinc-700 font-medium transition"
+                  title="Distribute Vertically (Equal Spacing)"
+                >
+                  <AlignVerticalDistributeCenter className="w-3.5 h-3.5" />
+                  <span className="text-[11px]">Distribute V</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Batch Actions */}
+          <div>
+            <label className="block text-[11px] font-semibold text-zinc-600 mb-1.5">Batch Actions</label>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={onRotateSelected}
+                className="flex items-center justify-center gap-1 py-1.5 px-2 bg-white hover:bg-zinc-50 border border-zinc-200 rounded text-zinc-700 font-medium transition"
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+                <span>Rotate 90°</span>
+              </button>
+              <button
+                type="button"
+                onClick={onFlipSelected}
+                className="flex items-center justify-center gap-1 py-1.5 px-2 bg-white hover:bg-zinc-50 border border-zinc-200 rounded text-zinc-700 font-medium transition"
+              >
+                <FlipHorizontal className="w-3.5 h-3.5" />
+                <span>Flip / Invert</span>
+              </button>
+              {onDuplicateSelected && (
+                <button
+                  type="button"
+                  onClick={onDuplicateSelected}
+                  className="flex items-center justify-center gap-1 py-1.5 px-2 bg-white hover:bg-zinc-50 border border-zinc-200 rounded text-zinc-700 font-medium transition"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Duplicate All</span>
+                </button>
+              )}
+              {onDeleteSelected && (
+                <button
+                  type="button"
+                  onClick={onDeleteSelected}
+                  className="flex items-center justify-center gap-1 py-1.5 px-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded text-rose-700 font-medium transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete All</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Batch Property Editing */}
+          {onBulkUpdateTableProp && (
+            <div className="flex flex-col gap-2.5 pt-2 border-t border-zinc-200">
+              <div>
+                <label className="block text-[11px] font-semibold text-zinc-600 mb-1">Set Price for All (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  placeholder="Set price for selected..."
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    if (!isNaN(val)) onBulkUpdateTableProp('price', val);
+                  }}
+                  className="w-full px-2.5 py-1.5 border border-zinc-300 rounded-md focus:ring-1 focus:ring-zinc-900 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-zinc-600 mb-1">Set Status for All</label>
+                <select
+                  onChange={(e) => onBulkUpdateTableProp('status', e.target.value)}
+                  defaultValue=""
+                  className="w-full px-2.5 py-1.5 border border-zinc-300 rounded-md focus:ring-1 focus:ring-zinc-900 focus:outline-none bg-white"
+                >
+                  <option value="" disabled>Change status...</option>
+                  <option value="available">Available</option>
+                  <option value="reserved">Reserved</option>
+                  <option value="booked">Booked</option>
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // 1. If nothing selected: show Main Hall properties
   if (!selectedItem) {
     // Includes any extensions welded onto the hall, minus their overlap
